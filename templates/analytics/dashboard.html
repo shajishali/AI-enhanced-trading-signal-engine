@@ -5,52 +5,8 @@
 
 {% block content %}
 <div class="container-fluid">
-    <div class="row">
-        <!-- Sidebar -->
-        <nav class="col-md-2 d-none d-md-block bg-dark sidebar">
-            <div class="sidebar-sticky">
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link text-white active" href="{% url 'analytics:dashboard' %}">
-                            <i class="fas fa-chart-line"></i> Analytics Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="{% url 'analytics:portfolio' %}">
-                            <i class="fas fa-briefcase"></i> Portfolio
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="{% url 'analytics:performance' %}">
-                            <i class="fas fa-tachometer-alt"></i> Performance
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="{% url 'analytics:backtesting' %}">
-                            <i class="fas fa-flask"></i> Backtesting
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="{% url 'analytics:risk_management' %}">
-                            <i class="fas fa-shield-alt"></i> Risk Management
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="{% url 'analytics:market_analysis' %}">
-                            <i class="fas fa-chart-bar"></i> Market Analysis
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="{% url 'dashboard:dashboard' %}">
-                            <i class="fas fa-arrow-left"></i> Back to Dashboard
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </nav>
-
-        <!-- Main content -->
-        <main role="main" class="col-md-10 ml-sm-auto px-4">
+    <!-- Main content -->
+    <main role="main" class="px-4">
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2">
                     <i class="fas fa-chart-line text-primary"></i> Advanced Analytics Dashboard

@@ -92,5 +92,6 @@
 - ✅ **Fixed Risk Management** - Created missing risk_management.html template with comprehensive risk analysis
 - ✅ **Fixed Portfolio Creation** - All analytics views now automatically create portfolios for new users
 - ✅ **Fixed Template Filter Error** - Replaced invalid 'multiply' filter with proper Django template syntax
+- ✅ **Active Navigation Highlighting** - Navigation buttons now show blue highlight for current page
 
 **Ready for advanced AI-powered trading!** 🚀🧠
