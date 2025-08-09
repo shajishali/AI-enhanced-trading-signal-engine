@@ -2332,6 +2332,227 @@
             color: #cccccc !important;
         }
 
+        /* Home page specific button fixes - ensure visibility in light mode */
+        body:not([data-theme="dark"]) .btn-outline-primary,
+        body:not([data-theme="dark"]) .btn-outline-success,
+        body:not([data-theme="dark"]) .btn-outline-secondary,
+        body:not([data-theme="dark"]) .btn-outline-info,
+        body:not([data-theme="dark"]) .btn-outline-warning {
+            color: inherit !important;
+            border-color: inherit !important;
+            background-color: transparent !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            display: inline-block !important;
+        }
+
+        /* Specific button color overrides for light mode */
+        body:not([data-theme="dark"]) .btn-outline-primary {
+            color: #0d6efd !important;
+            border-color: #0d6efd !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-outline-success {
+            color: #198754 !important;
+            border-color: #198754 !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-outline-secondary {
+            color: #6c757d !important;
+            border-color: #6c757d !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-outline-info {
+            color: #0dcaf0 !important;
+            border-color: #0dcaf0 !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-outline-warning {
+            color: #ffc107 !important;
+            border-color: #ffc107 !important;
+        }
+
+        /* Home page specific button fixes - ensure visibility in dark mode */
+        [data-theme="dark"] .btn-outline-primary,
+        [data-theme="dark"] .btn-outline-success,
+        [data-theme="dark"] .btn-outline-secondary,
+        [data-theme="dark"] .btn-outline-info,
+        [data-theme="dark"] .btn-outline-warning {
+            color: inherit !important;
+            border-color: inherit !important;
+            background-color: transparent !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            display: inline-block !important;
+        }
+
+        /* Specific button color overrides for dark mode */
+        [data-theme="dark"] .btn-outline-primary {
+            color: #4da6ff !important;
+            border-color: #4da6ff !important;
+        }
+
+        [data-theme="dark"] .btn-outline-success {
+            color: #51cf66 !important;
+            border-color: #51cf66 !important;
+        }
+
+        [data-theme="dark"] .btn-outline-secondary {
+            color: #cccccc !important;
+            border-color: #cccccc !important;
+        }
+
+        [data-theme="dark"] .btn-outline-info {
+            color: #74c0fc !important;
+            border-color: #74c0fc !important;
+        }
+
+        [data-theme="dark"] .btn-outline-warning {
+            color: #ffd43b !important;
+            border-color: #ffd43b !important;
+        }
+
+        /* Force button visibility regardless of theme */
+        .btn-outline-primary,
+        .btn-outline-success,
+        .btn-outline-secondary,
+        .btn-outline-info,
+        .btn-outline-warning {
+            opacity: 1 !important;
+            visibility: visible !important;
+            display: inline-block !important;
+        }
+
+        /* Ensure text color is always visible */
+        .btn-outline-primary,
+        .btn-outline-success,
+        .btn-outline-secondary,
+        .btn-outline-info,
+        .btn-outline-warning {
+            text-shadow: none !important;
+        }
+
+        /* Override any potential Bootstrap conflicts */
+        .btn.btn-outline-primary,
+        .btn.btn-outline-success,
+        .btn.btn-outline-secondary,
+        .btn.btn-outline-info,
+        .btn.btn-outline-warning {
+            opacity: 1 !important;
+            visibility: visible !important;
+            display: inline-block !important;
+        }
+
+        /* Home page specific button fixes - ensure visibility in light mode */
+        body:not([data-theme="dark"]) .btn-outline-primary,
+        body:not([data-theme="dark"]) .btn-outline-success,
+        body:not([data-theme="dark"]) .btn-outline-secondary,
+        body:not([data-theme="dark"]) .btn-outline-info,
+        body:not([data-theme="dark"]) .btn-outline-warning {
+            color: inherit !important;
+            border-color: inherit !important;
+            background-color: transparent !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            display: inline-block !important;
+        }
+
+        /* Specific button color overrides for light mode */
+        body:not([data-theme="dark"]) .btn-outline-primary {
+            color: #0d6efd !important;
+            border-color: #0d6efd !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-outline-success {
+            color: #198754 !important;
+            border-color: #198754 !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-outline-secondary {
+            color: #6c757d !important;
+            border-color: #6c757d !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-outline-info {
+            color: #0dcaf0 !important;
+            border-color: #0dcaf0 !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-outline-warning {
+            color: #ffc107 !important;
+            border-color: #ffc107 !important;
+        }
+
+        /* Home page specific button fixes - ensure visibility in dark mode */
+        [data-theme="dark"] .btn-outline-primary,
+        [data-theme="dark"] .btn-outline-success,
+        [data-theme="dark"] .btn-outline-secondary,
+        [data-theme="dark"] .btn-outline-info,
+        [data-theme="dark"] .btn-outline-warning {
+            color: inherit !important;
+            border-color: inherit !important;
+            background-color: transparent !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            display: inline-block !important;
+        }
+
+        /* Specific button color overrides for dark mode */
+        [data-theme="dark"] .btn-outline-primary {
+            color: #4da6ff !important;
+            border-color: #4da6ff !important;
+        }
+
+        [data-theme="dark"] .btn-outline-success {
+            color: #51cf66 !important;
+            border-color: #51cf66 !important;
+        }
+
+        [data-theme="dark"] .btn-outline-secondary {
+            color: #cccccc !important;
+            border-color: #cccccc !important;
+        }
+
+        [data-theme="dark"] .btn-outline-info {
+            color: #74c0fc !important;
+            border-color: #74c0fc !important;
+        }
+
+        [data-theme="dark"] .btn-outline-warning {
+            color: #ffd43b !important;
+            border-color: #ffd43b !important;
+        }
+
+        /* Force button visibility regardless of theme */
+        .btn-outline-primary,
+        .btn-outline-success,
+        .btn-outline-secondary,
+        .btn-outline-info,
+        .btn-outline-warning {
+            opacity: 1 !important;
+            visibility: visible !important;
+            display: inline-block !important;
+        }
+
+        /* Ensure text color is always visible */
+        .btn-outline-primary,
+        .btn-outline-success,
+        .btn-outline-secondary,
+        .btn-outline-info,
+        .btn-outline-warning {
+            text-shadow: none !important;
+        }
+
+        /* Override any potential Bootstrap conflicts */
+        .btn.btn-outline-primary,
+        .btn.btn-outline-success,
+        .btn.btn-outline-secondary,
+        .btn.btn-outline-info,
+        .btn.btn-outline-warning {
+            opacity: 1 !important;
+            visibility: visible !important;
+            display: inline-block !important;
+        }
 
     </style>
     
