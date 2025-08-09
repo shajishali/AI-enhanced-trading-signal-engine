@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+
+{% block title %}Backtesting - AI Trading Engine{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-history me-2"></i>Backtesting
+                    </h1>
+                    <p class="text-muted">Test trading strategies on historical data.</p>
+                </div>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'analytics:dashboard' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-chart-line me-2"></i>Analytics Dashboard
+                    </a>
+                    <a href="{% url 'analytics:ml_dashboard' %}" class="btn btn-outline-success">
+                        <i class="fas fa-robot me-2"></i>AI/ML Models
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Backtesting Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Backtesting Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label for="symbol" class="form-label">Symbol</label>
+                                <select class="form-select" id="symbol" name="symbol" required>
+                                    <option value="">Select Symbol</option>
+                                    <option value="BTC">BTC</option>
+                                    <option value="ETH">ETH</option>
+                                    <option value="AAPL">AAPL</option>
+                                    <option value="GOOGL">GOOGL</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="start_date" class="form-label">Start Date</label>
+                                <input type="date" class="form-control" id="start_date" name="start_date" required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="end_date" class="form-label">End Date</label>
+                                <input type="date" class="form-control" id="end_date" name="end_date" required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="initial_capital" class="form-label">Initial Capital</label>
+                                <input type="number" class="form-control" id="initial_capital" name="initial_capital" value="10000" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="strategy" class="form-label">Strategy</label>
+                                <select class="form-select" id="strategy" name="strategy" required>
+                                    <option value="">Select Strategy</option>
+                                    <option value="moving_average">Moving Average Crossover</option>
+                                    <option value="rsi">RSI Strategy</option>
+                                    <option value="macd">MACD Strategy</option>
+                                    <option value="bollinger">Bollinger Bands</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="position_size" class="form-label">Position Size (%)</label>
+                                <input type="number" class="form-control" id="position_size" name="position_size" value="10" min="1" max="100" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-play me-2"></i>Run Backtest
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Backtest Results -->
+    {% if backtest_results %}
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Performance Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <h6>Total Return</h6>
+                            <p class="h4 {% if backtest_results.total_return >= 0 %}positive{% else %}negative{% endif %}">
+                                {{ backtest_results.total_return }}%
+                            </p>
+                        </div>
+                        <div class="col-6">
+                            <h6>Sharpe Ratio</h6>
+                            <p class="h4">{{ backtest_results.sharpe_ratio|floatformat:2 }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <h6>Max Drawdown</h6>
+                            <p class="h4 negative">{{ backtest_results.max_drawdown }}%</p>
+                        </div>
+                        <div class="col-6">
+                            <h6>Win Rate</h6>
+                            <p class="h4">{{ backtest_results.win_rate }}%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>Trade Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <h6>Total Trades</h6>
+                            <p class="h4">{{ backtest_results.total_trades }}</p>
+                        </div>
+                        <div class="col-6">
+                            <h6>Profitable Trades</h6>
+                            <p class="h4">{{ backtest_results.profitable_trades }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <h6>Avg Win</h6>
+                            <p class="h4 positive">${{ backtest_results.avg_win }}</p>
+                        </div>
+                        <div class="col-6">
+                            <h6>Avg Loss</h6>
+                            <p class="h4 negative">${{ backtest_results.avg_loss }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

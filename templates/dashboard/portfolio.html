@@ -1,14 +1,14 @@
 {% extends 'base.html' %}
 
-{% block title %}Portfolio - AI Trading Engine{% endblock %}
+{% block title %}Portfolio - Trading Dashboard{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="row">
-        <div class="col-12">
-            <h1 class="h3 mb-4">Portfolio</h1>
-        </div>
-    </div>
+        <main class="col-12 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Portfolio</h1>
+            </div>
 
     {% if portfolio %}
     <div class="row">
@@ -190,5 +190,7 @@
         </div>
     </div>
     {% endif %}
+        </main>
+    </div>
 </div>
 {% endblock %}

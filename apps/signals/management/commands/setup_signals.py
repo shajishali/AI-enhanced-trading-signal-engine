@@ -169,6 +169,7 @@ class Command(BaseCommand):
                     
                     self.stdout.write(
                         self.style.SUCCESS(f'Generated {len(signals)} signals for {symbol.symbol}')
+                    )
                     
                 except Exception as e:
                     self.stdout.write(

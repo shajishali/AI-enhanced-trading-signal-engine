@@ -32,6 +32,7 @@ urlpatterns = [
     path('signals/', include('apps.signals.urls')),
     path('data/', include('apps.data.urls')),
     path('sentiment/', include('apps.sentiment.urls')),
+    path('analytics/', include('apps.analytics.urls')),
 ]
 
 # Serve static and media files during development

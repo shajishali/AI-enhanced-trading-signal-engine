@@ -9,96 +9,120 @@
         <div class="col-12 text-center">
             <h1 class="display-4 fw-bold text-primary mb-3">
                 <i class="fas fa-chart-line me-3"></i>
-                AI-Enhanced Trading Signal Engine
+                Welcome to AI Trading Engine
             </h1>
             <p class="lead text-muted mb-4">
-                Advanced trading platform powered by artificial intelligence for intelligent market analysis and automated signal generation.
+                Your advanced trading platform with AI-powered signals, real-time analytics, and machine learning insights.
             </p>
             <div class="d-flex justify-content-center gap-3">
                 <a href="{% url 'dashboard:dashboard' %}" class="btn btn-primary btn-lg">
-                    <i class="fas fa-rocket me-2"></i>Get Started
+                    <i class="fas fa-tachometer-alt me-2"></i>Go to Trading Dashboard
                 </a>
-                <a href="#" class="btn btn-outline-primary btn-lg">
-                    <i class="fas fa-play me-2"></i>Watch Demo
+                <a href="{% url 'dashboard:signals' %}" class="btn btn-outline-primary btn-lg">
+                    <i class="fas fa-signal me-2"></i>View Trading Signals
                 </a>
             </div>
         </div>
     </div>
 
-    <!-- Features Section -->
+    <!-- Quick Access Section -->
     <div class="row mb-5">
         <div class="col-12">
-            <h2 class="text-center mb-4">Key Features</h2>
+            <h2 class="text-center mb-4">Quick Access</h2>
         </div>
         
-        <div class="col-md-4 mb-4">
-            <div class="card h-100">
-                <div class="card-body text-center">
-                    <i class="fas fa-brain fa-3x text-primary mb-3"></i>
-                    <h5 class="card-title">AI-Powered Analysis</h5>
+        <div class="col-md-3 mb-4">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <i class="fas fa-tachometer-alt fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Trading Dashboard</h5>
                     <p class="card-text">
-                        Advanced machine learning models analyze market patterns and generate intelligent trading signals.
+                        Real-time portfolio overview, performance metrics, and market insights.
                     </p>
+                    <a href="{% url 'dashboard:dashboard' %}" class="btn btn-primary">
+                        <i class="fas fa-arrow-right me-2"></i>Access Dashboard
+                    </a>
                 </div>
             </div>
         </div>
         
-        <div class="col-md-4 mb-4">
-            <div class="card h-100">
-                <div class="card-body text-center">
-                    <i class="fas fa-chart-bar fa-3x text-success mb-3"></i>
-                    <h5 class="card-title">Real-time Monitoring</h5>
+        <div class="col-md-3 mb-4">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <i class="fas fa-signal fa-3x text-success mb-3"></i>
+                    <h5 class="card-title">Trading Signals</h5>
                     <p class="card-text">
-                        Live dashboard with real-time market data, portfolio tracking, and performance analytics.
+                        AI-generated buy/sell signals with confidence scores and market analysis.
                     </p>
+                    <a href="{% url 'dashboard:signals' %}" class="btn btn-success">
+                        <i class="fas fa-arrow-right me-2"></i>View Signals
+                    </a>
                 </div>
             </div>
         </div>
         
-        <div class="col-md-4 mb-4">
-            <div class="card h-100">
-                <div class="card-body text-center">
-                    <i class="fas fa-shield-alt fa-3x text-warning mb-3"></i>
-                    <h5 class="card-title">Risk Management</h5>
+        <div class="col-md-3 mb-4">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <i class="fas fa-chart-line fa-3x text-info mb-3"></i>
+                    <h5 class="card-title">Analytics</h5>
                     <p class="card-text">
-                        Built-in risk controls, position sizing, and automated stop-loss management.
+                        Advanced portfolio analytics, risk management, and performance tracking.
                     </p>
+                    <a href="{% url 'analytics:dashboard' %}" class="btn btn-info">
+                        <i class="fas fa-arrow-right me-2"></i>Open Analytics
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-4">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <i class="fas fa-robot fa-3x text-warning mb-3"></i>
+                    <h5 class="card-title">AI/ML Models</h5>
+                    <p class="card-text">
+                        Machine learning models for price prediction and market regime detection.
+                    </p>
+                    <a href="{% url 'analytics:ml_dashboard' %}" class="btn btn-warning">
+                        <i class="fas fa-arrow-right me-2"></i>AI/ML Tools
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Statistics Section -->
+    <!-- Trading Overview Section -->
     <div class="row mb-5">
         <div class="col-12">
-            <h2 class="text-center mb-4">Platform Statistics</h2>
+            <h2 class="text-center mb-4">Trading Overview</h2>
         </div>
         
         <div class="col-md-3 mb-4">
             <div class="stats-card text-center">
-                <h3>99.9%</h3>
-                <p>Uptime</p>
-            </div>
-        </div>
-        
-        <div class="col-md-3 mb-4">
-            <div class="stats-card text-center">
-                <h3>50+</h3>
-                <p>Trading Pairs</p>
+                <h3>8</h3>
+                <p>Active Symbols</p>
             </div>
         </div>
         
         <div class="col-md-3 mb-4">
             <div class="stats-card text-center">
                 <h3>24/7</h3>
-                <p>Monitoring</p>
+                <p>Signal Generation</p>
             </div>
         </div>
         
         <div class="col-md-3 mb-4">
             <div class="stats-card text-center">
-                <h3>AI</h3>
-                <p>Powered</p>
+                <h3>5+</h3>
+                <p>ML Models</p>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-4">
+            <div class="stats-card text-center">
+                <h3>32+</h3>
+                <p>Technical Indicators</p>
             </div>
         </div>
     </div>
@@ -147,11 +171,16 @@
         <div class="col-12 text-center">
             <div class="card bg-primary text-white">
                 <div class="card-body">
-                    <h3 class="mb-3">Ready to Start Trading?</h3>
-                    <p class="mb-4">Join thousands of traders using AI-powered signals to make informed decisions.</p>
-                    <a href="{% url 'dashboard:dashboard' %}" class="btn btn-light btn-lg">
-                        <i class="fas fa-sign-in-alt me-2"></i>Start Trading Now
-                    </a>
+                    <h3 class="mb-3">Ready to Access Your Trading Dashboard?</h3>
+                    <p class="mb-4">Get real-time insights, AI-powered signals, and advanced analytics for your trading strategy.</p>
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="{% url 'dashboard:dashboard' %}" class="btn btn-light btn-lg">
+                            <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
+                        </a>
+                        <a href="{% url 'dashboard:signals' %}" class="btn btn-outline-light btn-lg">
+                            <i class="fas fa-signal me-2"></i>View Signals
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

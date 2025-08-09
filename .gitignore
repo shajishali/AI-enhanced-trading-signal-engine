@@ -52,20 +52,20 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# Node.js (React Frontend)
-frontend/node_modules/
-frontend/.pnp
-frontend/.pnp.js
-frontend/coverage/
-frontend/build/
-frontend/.DS_Store
-frontend/.env.local
-frontend/.env.development.local
-frontend/.env.test.local
-frontend/.env.production.local
-frontend/npm-debug.log*
-frontend/yarn-debug.log*
-frontend/yarn-error.log*
+# Future Web Features (if needed)
+# web-features/node_modules/
+# web-features/.pnp
+# web-features/.pnp.js
+# web-features/coverage/
+# web-features/build/
+# web-features/.DS_Store
+# web-features/.env.local
+# web-features/.env.development.local
+# web-features/.env.test.local
+# web-features/.env.production.local
+# web-features/npm-debug.log*
+# web-features/yarn-debug.log*
+# web-features/yarn-error.log*
 
 # Environment variables
 .env

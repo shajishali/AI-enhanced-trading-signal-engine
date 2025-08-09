@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'apps.data',
     'apps.dashboard',
     'apps.sentiment',
+    'apps.analytics',
 ]
 
 MIDDLEWARE = [

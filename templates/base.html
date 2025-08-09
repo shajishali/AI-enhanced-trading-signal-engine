@@ -22,11 +22,26 @@
             --info-color: #17a2b8;
             --dark-color: #34495e;
             --light-color: #ecf0f1;
+            --bg-color: #f8f9fa;
+            --text-color: #2c3e50;
+            --card-bg: #ffffff;
+            --sidebar-bg: #2c3e50;
+            --navbar-bg: #ffffff;
+        }
+        
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --text-color: #ffffff;
+            --card-bg: #2d2d2d;
+            --sidebar-bg: #1a1a1a;
+            --navbar-bg: #2d2d2d;
         }
         
         body {
-            background-color: #f8f9fa;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: all 0.3s ease;
         }
         
         .navbar-brand {
@@ -39,6 +54,8 @@
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             margin-bottom: 20px;
+            background-color: var(--card-bg);
+            color: var(--text-color);
         }
         
         .card-header {
@@ -77,28 +94,7 @@
             opacity: 0.8;
         }
         
-        .sidebar {
-            background: var(--primary-color);
-            min-height: 100vh;
-            padding-top: 20px;
-        }
-        
-        .sidebar .nav-link {
-            color: white;
-            padding: 10px 20px;
-            margin: 5px 0;
-            border-radius: 5px;
-            transition: all 0.3s ease;
-        }
-        
-        .sidebar .nav-link:hover {
-            background: var(--secondary-color);
-            color: white;
-        }
-        
-        .sidebar .nav-link.active {
-            background: var(--secondary-color);
-        }
+
         
         .main-content {
             padding: 20px;
@@ -132,7 +128,7 @@
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+    <nav class="navbar navbar-expand-lg navbar-light shadow-sm" style="background-color: var(--navbar-bg);">
         <div class="container">
             <a class="navbar-brand" href="{% url 'dashboard:home' %}">
                 <i class="fas fa-chart-line me-2"></i>
@@ -145,6 +141,11 @@
             
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'dashboard:home' %}">
+                            <i class="fas fa-home me-1"></i>Home
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'dashboard:dashboard' %}">
                             <i class="fas fa-tachometer-alt me-1"></i>Dashboard
@@ -160,23 +161,63 @@
                             <i class="fas fa-signal me-1"></i>Signals
                         </a>
                     </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-chart-bar me-1"></i>Analytics
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'analytics:dashboard' %}">
+                                <i class="fas fa-chart-line me-2"></i>Analytics Dashboard
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'analytics:portfolio' %}">
+                                <i class="fas fa-briefcase me-2"></i>Portfolio Analytics
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'analytics:performance' %}">
+                                <i class="fas fa-trending-up me-2"></i>Performance Analytics
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'analytics:risk_management' %}">
+                                <i class="fas fa-shield-alt me-2"></i>Risk Management
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'analytics:market_analysis' %}">
+                                <i class="fas fa-globe me-2"></i>Market Analysis
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'analytics:backtesting' %}">
+                                <i class="fas fa-history me-2"></i>Backtesting
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'analytics:ml_dashboard' %}">
+                                <i class="fas fa-robot me-2"></i>AI/ML Models
+                            </a></li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'dashboard:settings' %}">
+                            <i class="fas fa-cog me-1"></i>Settings
+                        </a>
+                    </li>
                 </ul>
                 
                 <ul class="navbar-nav">
                     {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <button class="btn btn-outline-secondary btn-sm me-2" id="theme-toggle" title="Toggle Dark/Light Mode">
+                                <i class="fas fa-moon" id="theme-icon"></i>
+                            </button>
+                        </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
                                 <i class="fas fa-user me-1"></i>{{ user.username }}
                             </a>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Settings</a></li>
+                                <li><a class="dropdown-item" href="{% url 'dashboard:settings' %}"><i class="fas fa-cog me-2"></i>Settings</a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="#"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                                <li><a class="dropdown-item" href="{% url 'dashboard:logout' %}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                             </ul>
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="#"><i class="fas fa-sign-in-alt me-1"></i>Login</a>
+                            <a class="nav-link" href="{% url 'dashboard:login' %}"><i class="fas fa-sign-in-alt me-1"></i>Login</a>
                         </li>
                     {% endif %}
                 </ul>
@@ -187,40 +228,7 @@
     <!-- Main Content -->
     <div class="container-fluid">
         <div class="row">
-            {% if user.is_authenticated %}
-            <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 sidebar">
-                <div class="d-flex flex-column">
-                    <div class="text-center mb-4">
-                        <i class="fas fa-user-circle fa-3x text-white mb-2"></i>
-                        <h6 class="text-white">{{ user.username }}</h6>
-                    </div>
-                    
-                    <nav class="nav flex-column">
-                        <a class="nav-link" href="{% url 'dashboard:dashboard' %}">
-                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
-                        </a>
-                        <a class="nav-link" href="{% url 'dashboard:portfolio' %}">
-                            <i class="fas fa-briefcase me-2"></i>Portfolio
-                        </a>
-                        <a class="nav-link" href="{% url 'dashboard:signals' %}">
-                            <i class="fas fa-signal me-2"></i>Signals
-                        </a>
-                        <a class="nav-link" href="#">
-                            <i class="fas fa-chart-bar me-2"></i>Analytics
-                        </a>
-                        <a class="nav-link" href="#">
-                            <i class="fas fa-cog me-2"></i>Settings
-                        </a>
-                    </nav>
-                </div>
-            </div>
-            
-            <!-- Main Content Area -->
-            <div class="col-md-9 col-lg-10 main-content">
-            {% else %}
             <div class="col-12 main-content">
-            {% endif %}
                 {% block content %}{% endblock %}
             </div>
         </div>
@@ -231,6 +239,38 @@
     
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Dark/Light Mode Toggle Script -->
+    <script>
+        // Theme toggle functionality
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        const body = document.body;
+        
+        // Check for saved theme preference or default to light mode
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        body.setAttribute('data-theme', currentTheme);
+        updateThemeIcon(currentTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+        });
+        
+        function updateThemeIcon(theme) {
+            if (theme === 'dark') {
+                themeIcon.className = 'fas fa-sun';
+                themeToggle.title = 'Switch to Light Mode';
+            } else {
+                themeIcon.className = 'fas fa-moon';
+                themeToggle.title = 'Switch to Dark Mode';
+            }
+        }
+    </script>
     
     {% block extra_js %}{% endblock %}
 </body>
