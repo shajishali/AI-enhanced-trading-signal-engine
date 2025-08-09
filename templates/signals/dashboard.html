@@ -1,0 +1,352 @@
+{% extends 'base.html' %}
+
+{% block title %}Signal Dashboard - AI Trading Engine{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-4">Signal Dashboard</h1>
+        </div>
+    </div>
+
+    <!-- Signal Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Active Signals</h5>
+                    <h2 class="mb-0" id="active-signals-count">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Win Rate</h5>
+                    <h2 class="mb-0" id="win-rate">0%</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Profit Factor</h5>
+                    <h2 class="mb-0" id="profit-factor">0.0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Avg R:R Ratio</h5>
+                    <h2 class="mb-0" id="avg-rr-ratio">0.0</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Signal Generation Controls -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Signal Generation</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button class="btn btn-primary" onclick="generateSignals()">
+                                <i class="fas fa-magic"></i> Generate Signals
+                            </button>
+                            <button class="btn btn-info" onclick="refreshSignals()">
+                                <i class="fas fa-sync"></i> Refresh
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="symbol-filter">Filter by Symbol:</label>
+                                <select class="form-control" id="symbol-filter">
+                                    <option value="">All Symbols</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Signals -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Recent Signals</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="signals-table">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Type</th>
+                                    <th>Strength</th>
+                                    <th>Confidence</th>
+                                    <th>Entry Price</th>
+                                    <th>Target</th>
+                                    <th>Stop Loss</th>
+                                    <th>R:R Ratio</th>
+                                    <th>Quality</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody id="signals-tbody">
+                                <!-- Signals will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Market Regime -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Market Regime</h5>
+                </div>
+                <div class="card-body">
+                    <div id="market-regime-info">
+                        <p class="text-muted">Loading market regime data...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Signal Performance</h5>
+                </div>
+                <div class="card-body">
+                    <div id="performance-metrics">
+                        <p class="text-muted">Loading performance data...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let signalsData = [];
+let symbols = [];
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    loadSignals();
+    loadStatistics();
+    loadMarketRegime();
+    loadSymbols();
+});
+
+// Load signals
+function loadSignals() {
+    fetch('/signals/api/signals/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                signalsData = data.signals;
+                displaySignals(signalsData);
+                updateSignalCount(data.count);
+            } else {
+                console.error('Error loading signals:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+}
+
+// Display signals in table
+function displaySignals(signals) {
+    const tbody = document.getElementById('signals-tbody');
+    tbody.innerHTML = '';
+    
+    signals.forEach(signal => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><strong>${signal.symbol}</strong></td>
+            <td>
+                <span class="badge ${getSignalTypeBadge(signal.signal_type)}">
+                    ${signal.signal_type}
+                </span>
+            </td>
+            <td>${signal.strength}</td>
+            <td>${(signal.confidence_score * 100).toFixed(1)}%</td>
+            <td>$${signal.entry_price ? signal.entry_price.toFixed(2) : 'N/A'}</td>
+            <td>$${signal.target_price ? signal.target_price.toFixed(2) : 'N/A'}</td>
+            <td>$${signal.stop_loss ? signal.stop_loss.toFixed(2) : 'N/A'}</td>
+            <td>${signal.risk_reward_ratio ? signal.risk_reward_ratio.toFixed(2) : 'N/A'}</td>
+            <td>
+                <span class="badge ${getQualityBadge(signal.quality_score)}">
+                    ${signal.quality_score ? signal.quality_score.toFixed(1) : 'N/A'}
+                </span>
+            </td>
+            <td>
+                <span class="badge ${getStatusBadge(signal.is_valid, signal.is_executed)}">
+                    ${getStatusText(signal.is_valid, signal.is_executed)}
+                </span>
+            </td>
+            <td>${new Date(signal.created_at).toLocaleString()}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// Get signal type badge class
+function getSignalTypeBadge(type) {
+    const badges = {
+        'BUY': 'bg-success',
+        'SELL': 'bg-danger',
+        'HOLD': 'bg-warning',
+        'STRONG_BUY': 'bg-success',
+        'STRONG_SELL': 'bg-danger'
+    };
+    return badges[type] || 'bg-secondary';
+}
+
+// Get quality badge class
+function getQualityBadge(score) {
+    if (score >= 8) return 'bg-success';
+    if (score >= 6) return 'bg-warning';
+    return 'bg-danger';
+}
+
+// Get status badge class
+function getStatusBadge(isValid, isExecuted) {
+    if (isExecuted) return 'bg-info';
+    if (isValid) return 'bg-success';
+    return 'bg-secondary';
+}
+
+// Get status text
+function getStatusText(isValid, isExecuted) {
+    if (isExecuted) return 'Executed';
+    if (isValid) return 'Active';
+    return 'Expired';
+}
+
+// Update signal count
+function updateSignalCount(count) {
+    document.getElementById('active-signals-count').textContent = count;
+}
+
+// Load statistics
+function loadStatistics() {
+    fetch('/signals/api/performance/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('win-rate').textContent = `${(data.win_rate * 100).toFixed(1)}%`;
+                document.getElementById('profit-factor').textContent = data.profit_factor.toFixed(2);
+                document.getElementById('avg-rr-ratio').textContent = data.avg_risk_reward_ratio.toFixed(2);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading statistics:', error);
+        });
+}
+
+// Load market regime
+function loadMarketRegime() {
+    fetch('/signals/api/regimes/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.regimes.length > 0) {
+                const latest = data.regimes[0];
+                document.getElementById('market-regime-info').innerHTML = `
+                    <h4>${latest.regime_type}</h4>
+                    <p><strong>Confidence:</strong> ${(latest.confidence_score * 100).toFixed(1)}%</p>
+                    <p><strong>Trend Strength:</strong> ${latest.trend_strength.toFixed(2)}</p>
+                    <p><strong>Volatility:</strong> ${latest.volatility_level}</p>
+                    <p><strong>Last Updated:</strong> ${new Date(latest.created_at).toLocaleString()}</p>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading market regime:', error);
+        });
+}
+
+// Load symbols for filter
+function loadSymbols() {
+    fetch('/api/symbols/')
+        .then(response => response.json())
+        .then(data => {
+            symbols = data.symbols || [];
+            const select = document.getElementById('symbol-filter');
+            symbols.forEach(symbol => {
+                const option = document.createElement('option');
+                option.value = symbol.symbol;
+                option.textContent = symbol.symbol;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading symbols:', error);
+        });
+}
+
+// Generate signals
+function generateSignals() {
+    fetch('/signals/api/generate/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Signal generation initiated successfully!');
+            setTimeout(loadSignals, 2000);
+        } else {
+            alert('Error generating signals: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error generating signals');
+    });
+}
+
+// Refresh signals
+function refreshSignals() {
+    loadSignals();
+    loadStatistics();
+    loadMarketRegime();
+}
+
+// Filter signals by symbol
+document.getElementById('symbol-filter').addEventListener('change', function() {
+    const selectedSymbol = this.value;
+    if (selectedSymbol) {
+        const filteredSignals = signalsData.filter(signal => 
+            signal.symbol === selectedSymbol
+        );
+        displaySignals(filteredSignals);
+        updateSignalCount(filteredSignals.length);
+    } else {
+        displaySignals(signalsData);
+        updateSignalCount(signalsData.length);
+    }
+});
+</script>
+{% endblock %}

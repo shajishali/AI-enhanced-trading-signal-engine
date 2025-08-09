@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 from apps.trading.models import Portfolio, Symbol, RiskSettings
-from apps.signals.models import SignalType, AIModel
+from apps.signals.models import SignalType, SignalFactor
 from apps.data.models import DataSource
 from decimal import Decimal
 
@@ -48,39 +48,42 @@ class Command(BaseCommand):
             if created:
                 self.stdout.write(f'Created signal type: {signal_type.name}')
         
-        # Create sample AI models
-        ai_models_data = [
+        # Create sample signal factors
+        signal_factors_data = [
             {
-                'name': 'LSTM Price Predictor',
-                'model_type': 'LSTM',
-                'version': '1.0',
-                'description': 'Long Short-Term Memory model for price prediction',
-                'accuracy': Decimal('85.5')
+                'name': 'Technical',
+                'description': 'Technical analysis indicators',
+                'weight': Decimal('0.3')
             },
             {
-                'name': 'Ensemble Classifier',
-                'model_type': 'ENSEMBLE',
-                'version': '2.1',
-                'description': 'Ensemble model combining multiple algorithms',
-                'accuracy': Decimal('87.2')
+                'name': 'Sentiment',
+                'description': 'Market sentiment analysis',
+                'weight': Decimal('0.2')
             },
             {
-                'name': 'Transformer Signal Generator',
-                'model_type': 'TRANSFORMER',
-                'version': '1.5',
-                'description': 'Transformer-based model for signal generation',
-                'accuracy': Decimal('89.1')
+                'name': 'News',
+                'description': 'News and event impact',
+                'weight': Decimal('0.2')
+            },
+            {
+                'name': 'Volume',
+                'description': 'Volume and liquidity analysis',
+                'weight': Decimal('0.15')
+            },
+            {
+                'name': 'Pattern',
+                'description': 'Chart pattern recognition',
+                'weight': Decimal('0.15')
             },
         ]
         
-        for model_data in ai_models_data:
-            ai_model, created = AIModel.objects.get_or_create(
-                name=model_data['name'],
-                version=model_data['version'],
-                defaults=model_data
+        for factor_data in signal_factors_data:
+            factor, created = SignalFactor.objects.get_or_create(
+                name=factor_data['name'],
+                defaults=factor_data
             )
             if created:
-                self.stdout.write(f'Created AI model: {ai_model.name}')
+                self.stdout.write(f'Created signal factor: {factor.name}')
         
         # Create sample data sources
         data_sources_data = [

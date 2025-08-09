@@ -1,9 +1,11 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import authenticate, login, logout
+from django.shortcuts import redirect
 from django.http import JsonResponse
 from django.db.models import Sum, Count
 from apps.trading.models import Portfolio, Position, Trade
-from apps.signals.models import Signal, AIModel
+from apps.signals.models import TradingSignal, SignalType
 from apps.data.models import MarketData, TechnicalIndicator
 
 
@@ -16,6 +18,30 @@ def home(request):
     return render(request, 'dashboard/home.html', context)
 
 
+def login_view(request):
+    """Login view"""
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            next_url = request.GET.get('next', '/dashboard/')
+            return redirect(next_url)
+        else:
+            # Return an 'invalid login' error message.
+            return render(request, 'dashboard/login.html', {
+                'error': 'Invalid username or password.'
+            })
+    return render(request, 'dashboard/login.html')
+
+
+def logout_view(request):
+    """Logout view"""
+    logout(request)
+    return redirect('/')
+
+
 @login_required
 def dashboard(request):
     """Main dashboard view"""
@@ -25,7 +51,7 @@ def dashboard(request):
         portfolio = None
     
     # Get recent signals
-    recent_signals = Signal.objects.filter(is_active=True).order_by('-generated_at')[:10]
+    recent_signals = TradingSignal.objects.filter(is_valid=True).order_by('-created_at')[:10]
     
     # Get portfolio statistics
     if portfolio:
@@ -40,8 +66,8 @@ def dashboard(request):
         total_pnl = 0
         recent_trades = []
     
-    # AI model statistics
-    active_models = AIModel.objects.filter(is_active=True).count()
+    # Signal type statistics
+    active_signal_types = SignalType.objects.filter(is_active=True).count()
     
     context = {
         'portfolio': portfolio,
@@ -49,7 +75,7 @@ def dashboard(request):
         'total_positions': total_positions,
         'total_pnl': total_pnl,
         'recent_trades': recent_trades,
-        'active_models': active_models,
+        'active_signal_types': active_signal_types,
     }
     
     return render(request, 'dashboard/dashboard.html', context)
@@ -79,7 +105,7 @@ def portfolio_view(request):
 @login_required
 def signals_view(request):
     """Signals view"""
-    signals = Signal.objects.filter(is_active=True).order_by('-generated_at')
+    signals = TradingSignal.objects.filter(is_valid=True).order_by('-created_at')
     
     context = {
         'signals': signals,
@@ -102,7 +128,7 @@ def api_dashboard_stats(request):
             'total_positions': open_positions.count(),
             'total_pnl': float(total_pnl),
             'portfolio_balance': float(portfolio.balance),
-            'active_signals': Signal.objects.filter(is_active=True).count(),
+            'active_signals': TradingSignal.objects.filter(is_valid=True).count(),
         }
         
         return JsonResponse(stats)

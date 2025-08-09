@@ -31,6 +31,7 @@ urlpatterns = [
     path('trading/', include('apps.trading.urls')),
     path('signals/', include('apps.signals.urls')),
     path('data/', include('apps.data.urls')),
+    path('sentiment/', include('apps.sentiment.urls')),
 ]
 
 # Serve static and media files during development

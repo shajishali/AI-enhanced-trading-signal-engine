@@ -1,0 +1,194 @@
+{% extends 'base.html' %}
+
+{% block title %}Portfolio - AI Trading Engine{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-4">Portfolio</h1>
+        </div>
+    </div>
+
+    {% if portfolio %}
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Portfolio Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <p class="mb-1 text-muted">Total Balance</p>
+                            <h4 class="text-primary">${{ portfolio.balance|floatformat:2 }}</h4>
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-1 text-muted">Open Positions</p>
+                            <h4 class="text-info">{{ positions.count }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Performance</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <p class="mb-1 text-muted">Total P&L</p>
+                            <h4 class="{% if portfolio.total_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                ${{ portfolio.total_pnl|floatformat:2 }}
+                            </h4>
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-1 text-muted">Win Rate</p>
+                            <h4 class="text-warning">{{ portfolio.win_rate|floatformat:1 }}%</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Open Positions</h5>
+                </div>
+                <div class="card-body">
+                    {% if positions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Type</th>
+                                    <th>Quantity</th>
+                                    <th>Entry Price</th>
+                                    <th>Current Price</th>
+                                    <th>P&L</th>
+                                    <th>P&L %</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for position in positions %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ position.symbol.symbol }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ position.symbol.name }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if position.position_type == 'LONG' %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ position.position_type }}
+                                        </span>
+                                    </td>
+                                    <td>{{ position.quantity|floatformat:4 }}</td>
+                                    <td>${{ position.entry_price|floatformat:2 }}</td>
+                                    <td>${{ position.current_price|floatformat:2 }}</td>
+                                    <td class="{% if position.unrealized_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        ${{ position.unrealized_pnl|floatformat:2 }}
+                                    </td>
+                                    <td class="{% if position.unrealized_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ position.unrealized_pnl_percentage|floatformat:2 }}%
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary">Close</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Open Positions</h5>
+                        <p class="text-muted">Start trading to see your positions here.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Recent Trades</h5>
+                </div>
+                <div class="card-body">
+                    {% if trades %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Symbol</th>
+                                    <th>Type</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Total</th>
+                                    <th>P&L</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for trade in trades %}
+                                <tr>
+                                    <td>{{ trade.executed_at|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        <strong>{{ trade.symbol.symbol }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ trade.symbol.name }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if trade.trade_type == 'BUY' %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ trade.trade_type }}
+                                        </span>
+                                    </td>
+                                    <td>{{ trade.quantity|floatformat:4 }}</td>
+                                    <td>${{ trade.execution_price|floatformat:2 }}</td>
+                                    <td>${{ trade.total_value|floatformat:2 }}</td>
+                                    <td class="{% if trade.realized_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        ${{ trade.realized_pnl|floatformat:2 }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Recent Trades</h5>
+                        <p class="text-muted">Your trading history will appear here.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-wallet fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">No Portfolio Found</h4>
+                    <p class="text-muted">Create a portfolio to start trading.</p>
+                    <button class="btn btn-primary">Create Portfolio</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

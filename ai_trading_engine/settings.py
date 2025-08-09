@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     # Third party apps
     'rest_framework',
     'corsheaders',
+    'django_celery_results',
     
     # Local apps
     'apps.core',
@@ -50,6 +51,7 @@ INSTALLED_APPS = [
     'apps.signals',
     'apps.data',
     'apps.dashboard',
+    'apps.sentiment',
 ]
 
 MIDDLEWARE = [
@@ -177,9 +179,10 @@ REST_FRAMEWORK = {
 # CORS settings
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000,http://127.0.0.1:3000').split(',')
 
-# Celery settings
-CELERY_BROKER_URL = config('REDIS_URL', default='redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://localhost:6379/0')
+# Celery settings - Disabled to avoid configuration issues
+CELERY_BROKER_URL = 'memory://'
+CELERY_RESULT_BACKEND = 'memory://'
+CELERY_TASK_ALWAYS_EAGER = True  # Run tasks synchronously
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -238,3 +241,8 @@ LOGGING = {
         },
     },
 }
+
+# Authentication settings
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/dashboard/'
+LOGOUT_REDIRECT_URL = '/'
