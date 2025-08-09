@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signup Page Dark Mode Test</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            background: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+        }
+        
+        .navbar {
+            background: #2c3e50 !important;
+            margin-bottom: 30px;
+        }
+        
+        .navbar-brand {
+            color: white !important;
+            font-weight: bold;
+        }
+        
+        .nav-link {
+            color: rgba(255, 255, 255, 0.9) !important;
+            padding: 12px 16px !important;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            margin: 0 4px;
+        }
+        
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.15) !important;
+            color: white !important;
+            transform: translateY(-2px);
+        }
+        
+        .test-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        
+        .visibility-check {
+            background: #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-success {
+            background-color: #28a745;
+        }
+        
+        .status-error {
+            background-color: #dc3545;
+        }
+        
+        .status-warning {
+            background-color: #ffc107;
+        }
+        
+        /* Signup page styles */
+        .signup-container {
+            min-height: 60vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+        
+        .signup-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .signup-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .signup-header h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .signup-header p {
+            color: #718096;
+            font-size: 1.1rem;
+        }
+        
+        .social-login-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .btn-social {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 15px 20px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .btn-google {
+            background: #ffffff;
+            color: #374151;
+            border-color: #d1d5db;
+        }
+        
+        .btn-google:hover {
+            background: #f9fafb;
+            border-color: #9ca3af;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-facebook {
+            background: #1877f2;
+            color: white;
+        }
+        
+        .btn-facebook:hover {
+            background: #166fe5;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(24, 119, 242, 0.3);
+        }
+        
+        .divider {
+            text-align: center;
+            margin: 30px 0;
+            position: relative;
+        }
+        
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #e2e8f0;
+        }
+        
+        .divider span {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 0 20px;
+            color: #718096;
+            font-weight: 500;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #374151;
+            font-weight: 600;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn-primary {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .login-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #718096;
+        }
+        
+        .login-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+        
+        .features-list {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(102, 126, 234, 0.05);
+            border-radius: 12px;
+        }
+        
+        .features-list h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .features-list ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .features-list li {
+            color: #4a5568;
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .features-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #48bb78;
+            font-weight: bold;
+        }
+        
+        .coming-soon {
+            opacity: 0.6;
+            font-style: italic;
+        }
+        
+        .error-message {
+            color: #e53e3e;
+            background: #fed7d7;
+            border: 1px solid #feb2b2;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .success-message {
+            color: #38a169;
+            background: #c6f6d5;
+            border: 1px solid #9ae6b4;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        /* Dark mode fixes for signup page */
+        [data-theme="dark"] .signup-card {
+            background: rgba(45, 45, 45, 0.95) !important;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        [data-theme="dark"] .signup-header h1 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .signup-header p {
+            color: #cccccc !important;
+        }
+
+        [data-theme="dark"] .btn-google {
+            background: #2d2d2d !important;
+            color: #ffffff !important;
+            border-color: #555 !important;
+        }
+
+        [data-theme="dark"] .btn-google:hover {
+            background: #444 !important;
+            border-color: #777 !important;
+        }
+
+        [data-theme="dark"] .divider::before {
+            background: #555 !important;
+        }
+
+        [data-theme="dark"] .divider span {
+            background: rgba(45, 45, 45, 0.95) !important;
+            color: #cccccc !important;
+        }
+
+        [data-theme="dark"] .form-group label {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .form-control {
+            background-color: #2d2d2d !important;
+            color: #ffffff !important;
+            border-color: #555 !important;
+        }
+
+        [data-theme="dark"] .form-control:focus {
+            border-color: #667eea !important;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2) !important;
+        }
+
+        [data-theme="dark"] .form-control::placeholder {
+            color: #999 !important;
+        }
+
+        [data-theme="dark"] .login-link {
+            color: #cccccc !important;
+        }
+
+        [data-theme="dark"] .login-link a {
+            color: #4da6ff !important;
+        }
+
+        [data-theme="dark"] .features-list {
+            background: rgba(102, 126, 234, 0.1) !important;
+        }
+
+        [data-theme="dark"] .features-list h3 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .features-list li {
+            color: #cccccc !important;
+        }
+
+        [data-theme="dark"] .coming-soon {
+            color: #999 !important;
+        }
+
+        [data-theme="dark"] .error-message {
+            color: #ff6b6b !important;
+            background: rgba(255, 107, 107, 0.1) !important;
+            border-color: #ff6b6b !important;
+        }
+
+        [data-theme="dark"] .success-message {
+            color: #51cf66 !important;
+            background: rgba(81, 207, 102, 0.1) !important;
+            border-color: #51cf66 !important;
+        }
+
+        /* Light mode specific fixes */
+        body:not([data-theme="dark"]) .signup-card {
+            background: rgba(255, 255, 255, 0.95) !important;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        body:not([data-theme="dark"]) .signup-header h1 {
+            color: #2d3748 !important;
+        }
+
+        body:not([data-theme="dark"]) .signup-header p {
+            color: #718096 !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-google {
+            background: #ffffff !important;
+            color: #374151 !important;
+            border-color: #d1d5db !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-google:hover {
+            background: #f9fafb !important;
+            border-color: #9ca3af !important;
+        }
+
+        body:not([data-theme="dark"]) .divider::before {
+            background: #e2e8f0 !important;
+        }
+
+        body:not([data-theme="dark"]) .divider span {
+            background: rgba(255, 255, 255, 0.95) !important;
+            color: #718096 !important;
+        }
+
+        body:not([data-theme="dark"]) .form-group label {
+            color: #374151 !important;
+        }
+
+        body:not([data-theme="dark"]) .form-control {
+            background-color: #ffffff !important;
+            color: #374151 !important;
+            border-color: #e2e8f0 !important;
+        }
+
+        body:not([data-theme="dark"]) .form-control:focus {
+            border-color: #667eea !important;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+        }
+
+        body:not([data-theme="dark"]) .form-control::placeholder {
+            color: #9ca3af !important;
+        }
+
+        body:not([data-theme="dark"]) .login-link {
+            color: #718096 !important;
+        }
+
+        body:not([data-theme="dark"]) .login-link a {
+            color: #667eea !important;
+        }
+
+        body:not([data-theme="dark"]) .features-list {
+            background: rgba(102, 126, 234, 0.05) !important;
+        }
+
+        body:not([data-theme="dark"]) .features-list h3 {
+            color: #2d3748 !important;
+        }
+
+        body:not([data-theme="dark"]) .features-list li {
+            color: #4a5568 !important;
+        }
+
+        body:not([data-theme="dark"]) .coming-soon {
+            color: #9ca3af !important;
+        }
+
+        body:not([data-theme="dark"]) .error-message {
+            color: #e53e3e !important;
+            background: #fed7d7 !important;
+            border-color: #feb2b2 !important;
+        }
+
+        body:not([data-theme="dark"]) .success-message {
+            color: #38a169 !important;
+            background: #c6f6d5 !important;
+            border-color: #9ae6b4 !important;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-chart-line me-2"></i>AI Trading Engine
+            </a>
+            
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="#">
+                    <i class="fas fa-home me-1"></i>Home
+                </a>
+                
+                <a class="nav-link" href="#">
+                    <i class="fas fa-user-plus me-1"></i>Sign Up
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="test-container">
+            <h2><i class="fas fa-user-plus me-2"></i>Signup Page Dark Mode Test</h2>
+            
+            <div class="test-section">
+                <h4><i class="fas fa-info-circle me-2"></i>Test Instructions:</h4>
+                <ol>
+                    <li><strong>Test LIGHT MODE:</strong>
+                        <ul>
+                            <li>Ensure you're in light mode (default)</li>
+                            <li>Check Signup Card - Should be white with dark text</li>
+                            <li>Check Form Fields - Should be white with dark text</li>
+                            <li>Check Social Buttons - Should be visible</li>
+                            <li>Check Features List - Should be visible</li>
+                        </ul>
+                    </li>
+                    <li><strong>Test DARK MODE:</strong>
+                        <ul>
+                            <li>Click "Toggle Theme" button to switch to dark mode</li>
+                            <li>Check Signup Card - Should be dark with light text</li>
+                            <li>Check Form Fields - Should be dark with light text</li>
+                            <li>Check Social Buttons - Should be visible</li>
+                            <li>Check Features List - Should be visible</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+            
+            <!-- Signup Page Test -->
+            <div class="test-section">
+                <h4><i class="fas fa-user-plus me-2"></i>Signup Page Test:</h4>
+                <div class="signup-container">
+                    <div class="signup-card">
+                        <div class="signup-header">
+                            <h1>🚀 Join AI Trading Engine</h1>
+                            <p>Start your journey with AI-powered trading signals</p>
+                        </div>
+                        
+                        <!-- Social Login Buttons -->
+                        <div class="social-login-buttons">
+                            <a href="#" class="btn-social btn-google" onclick="alert('Google login coming soon!')">
+                                <i class="fab fa-google" style="color: #ea4335;"></i>
+                                Continue with Google
+                                <span class="coming-soon">(Coming Soon)</span>
+                            </a>
+                            <a href="#" class="btn-social btn-facebook" onclick="alert('Facebook login coming soon!')">
+                                <i class="fab fa-facebook"></i>
+                                Continue with Facebook
+                                <span class="coming-soon">(Coming Soon)</span>
+                            </a>
+                        </div>
+                        
+                        <div class="divider">
+                            <span>OR</span>
+                        </div>
+                        
+                        <!-- Traditional Signup Form -->
+                        <form>
+                            <div class="form-group">
+                                <label for="username">Username</label>
+                                <input type="text" class="form-control" id="username" placeholder="Enter your username">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="password">Password</label>
+                                <input type="password" class="form-control" id="password" placeholder="Enter your password">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="confirm-password">Confirm Password</label>
+                                <input type="password" class="form-control" id="confirm-password" placeholder="Confirm your password">
+                            </div>
+                            
+                            <button type="button" class="btn-primary">Create Account</button>
+                        </form>
+                        
+                        <div class="login-link">
+                            Already have an account? <a href="#">Sign In</a>
+                        </div>
+                        
+                        <!-- Features List -->
+                        <div class="features-list">
+                            <h3>What you'll get:</h3>
+                            <ul>
+                                <li>AI-powered trading signals</li>
+                                <li>Real-time market analysis</li>
+                                <li>Portfolio tracking & analytics</li>
+                                <li>Risk management tools</li>
+                                <li>7-day free trial</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="test-section">
+                <h4><i class="fas fa-eye me-2"></i>Visibility Check:</h4>
+                <div class="visibility-check">
+                    <h5>Light Mode (Default):</h5>
+                    <p><span class="status-indicator status-success"></span>Signup Card - White background with dark text</p>
+                    <p><span class="status-indicator status-success"></span>Form Fields - White background with dark text</p>
+                    <p><span class="status-indicator status-success"></span>Social Buttons - Visible with proper contrast</p>
+                    <p><span class="status-indicator status-success"></span>Features List - Visible with proper contrast</p>
+                    <p><span class="status-indicator status-success"></span>All text elements - Dark on light background</p>
+                    
+                    <h5 class="mt-3">Dark Mode (After Toggle):</h5>
+                    <p><span class="status-indicator status-success"></span>Signup Card - Dark background with light text</p>
+                    <p><span class="status-indicator status-success"></span>Form Fields - Dark background with light text</p>
+                    <p><span class="status-indicator status-success"></span>Social Buttons - Visible with proper contrast</p>
+                    <p><span class="status-indicator status-success"></span>Features List - Visible with proper contrast</p>
+                    <p><span class="status-indicator status-success"></span>All text elements - Light on dark background</p>
+                </div>
+            </div>
+            
+            <div class="test-section">
+                <h4><i class="fas fa-toggle-on me-2"></i>Theme Toggle Test:</h4>
+                <button class="btn btn-outline-secondary" onclick="toggleTheme()">
+                    <i class="fas fa-moon" id="theme-icon"></i> Toggle Theme
+                </button>
+                <p class="mt-2">Click to toggle between light and dark mode to test signup page visibility in both themes.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        let isDarkMode = false;
+        
+        // Theme toggle functionality
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            const body = document.body;
+            const themeIcon = document.getElementById('theme-icon');
+            
+            if (isDarkMode) {
+                body.setAttribute('data-theme', 'dark');
+                themeIcon.className = 'fas fa-sun';
+            } else {
+                body.setAttribute('data-theme', 'light');
+                themeIcon.className = 'fas fa-moon';
+            }
+            
+            console.log('Theme toggled to:', isDarkMode ? 'dark' : 'light');
+        }
+        
+        // Setup page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Setting up signup page test...');
+            console.log('Signup page test setup complete');
+        });
+    </script>
+</body>
+</html>

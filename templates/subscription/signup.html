@@ -227,6 +227,184 @@
         margin-bottom: 20px;
         font-size: 0.9rem;
     }
+
+    /* Dark mode fixes for signup page */
+    [data-theme="dark"] .signup-card {
+        background: rgba(45, 45, 45, 0.95) !important;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    [data-theme="dark"] .signup-header h1 {
+        color: #ffffff !important;
+    }
+
+    [data-theme="dark"] .signup-header p {
+        color: #cccccc !important;
+    }
+
+    [data-theme="dark"] .btn-google {
+        background: #2d2d2d !important;
+        color: #ffffff !important;
+        border-color: #555 !important;
+    }
+
+    [data-theme="dark"] .btn-google:hover {
+        background: #444 !important;
+        border-color: #777 !important;
+    }
+
+    [data-theme="dark"] .divider::before {
+        background: #555 !important;
+    }
+
+    [data-theme="dark"] .divider span {
+        background: rgba(45, 45, 45, 0.95) !important;
+        color: #cccccc !important;
+    }
+
+    [data-theme="dark"] .form-group label {
+        color: #ffffff !important;
+    }
+
+    [data-theme="dark"] .form-control {
+        background-color: #2d2d2d !important;
+        color: #ffffff !important;
+        border-color: #555 !important;
+    }
+
+    [data-theme="dark"] .form-control:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2) !important;
+    }
+
+    [data-theme="dark"] .form-control::placeholder {
+        color: #999 !important;
+    }
+
+    [data-theme="dark"] .login-link {
+        color: #cccccc !important;
+    }
+
+    [data-theme="dark"] .login-link a {
+        color: #4da6ff !important;
+    }
+
+    [data-theme="dark"] .features-list {
+        background: rgba(102, 126, 234, 0.1) !important;
+    }
+
+    [data-theme="dark"] .features-list h3 {
+        color: #ffffff !important;
+    }
+
+    [data-theme="dark"] .features-list li {
+        color: #cccccc !important;
+    }
+
+    [data-theme="dark"] .coming-soon {
+        color: #999 !important;
+    }
+
+    [data-theme="dark"] .error-message {
+        color: #ff6b6b !important;
+        background: rgba(255, 107, 107, 0.1) !important;
+        border-color: #ff6b6b !important;
+    }
+
+    [data-theme="dark"] .success-message {
+        color: #51cf66 !important;
+        background: rgba(81, 207, 102, 0.1) !important;
+        border-color: #51cf66 !important;
+    }
+
+    /* Light mode specific fixes */
+    body:not([data-theme="dark"]) .signup-card {
+        background: rgba(255, 255, 255, 0.95) !important;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    body:not([data-theme="dark"]) .signup-header h1 {
+        color: #2d3748 !important;
+    }
+
+    body:not([data-theme="dark"]) .signup-header p {
+        color: #718096 !important;
+    }
+
+    body:not([data-theme="dark"]) .btn-google {
+        background: #ffffff !important;
+        color: #374151 !important;
+        border-color: #d1d5db !important;
+    }
+
+    body:not([data-theme="dark"]) .btn-google:hover {
+        background: #f9fafb !important;
+        border-color: #9ca3af !important;
+    }
+
+    body:not([data-theme="dark"]) .divider::before {
+        background: #e2e8f0 !important;
+    }
+
+    body:not([data-theme="dark"]) .divider span {
+        background: rgba(255, 255, 255, 0.95) !important;
+        color: #718096 !important;
+    }
+
+    body:not([data-theme="dark"]) .form-group label {
+        color: #374151 !important;
+    }
+
+    body:not([data-theme="dark"]) .form-control {
+        background-color: #ffffff !important;
+        color: #374151 !important;
+        border-color: #e2e8f0 !important;
+    }
+
+    body:not([data-theme="dark"]) .form-control:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+    }
+
+    body:not([data-theme="dark"]) .form-control::placeholder {
+        color: #9ca3af !important;
+    }
+
+    body:not([data-theme="dark"]) .login-link {
+        color: #718096 !important;
+    }
+
+    body:not([data-theme="dark"]) .login-link a {
+        color: #667eea !important;
+    }
+
+    body:not([data-theme="dark"]) .features-list {
+        background: rgba(102, 126, 234, 0.05) !important;
+    }
+
+    body:not([data-theme="dark"]) .features-list h3 {
+        color: #2d3748 !important;
+    }
+
+    body:not([data-theme="dark"]) .features-list li {
+        color: #4a5568 !important;
+    }
+
+    body:not([data-theme="dark"]) .coming-soon {
+        color: #9ca3af !important;
+    }
+
+    body:not([data-theme="dark"]) .error-message {
+        color: #e53e3e !important;
+        background: #fed7d7 !important;
+        border-color: #feb2b2 !important;
+    }
+
+    body:not([data-theme="dark"]) .success-message {
+        color: #38a169 !important;
+        background: #c6f6d5 !important;
+        border-color: #9ae6b4 !important;
+    }
 </style>
 {% endblock %}
 
