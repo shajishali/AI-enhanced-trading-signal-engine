@@ -22,18 +22,39 @@ def home(request):
 def login_view(request):
     """Login view"""
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
-            login(request, user)
-            next_url = request.GET.get('next', '/dashboard/')
-            return redirect(next_url)
-        else:
-            # Return an 'invalid login' error message.
+        try:
+            username = request.POST.get('username', '').strip()
+            password = request.POST.get('password', '').strip()
+            
+            # Validate input
+            if not username:
+                return render(request, 'dashboard/login.html', {
+                    'error': 'Please enter a username.'
+                })
+            
+            if not password:
+                return render(request, 'dashboard/login.html', {
+                    'error': 'Please enter a password.'
+                })
+            
+            # Authenticate user
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                login(request, user)
+                next_url = request.GET.get('next', '/dashboard/')
+                print(f"User {username} logged in successfully, redirecting to {next_url}")
+                return redirect(next_url)
+            else:
+                print(f"Failed login attempt for username: {username}")
+                return render(request, 'dashboard/login.html', {
+                    'error': 'Invalid username or password.'
+                })
+        except Exception as e:
+            print(f"Login error: {e}")
             return render(request, 'dashboard/login.html', {
-                'error': 'Invalid username or password.'
+                'error': 'An error occurred during login. Please try again.'
             })
+    
     return render(request, 'dashboard/login.html')
 
 

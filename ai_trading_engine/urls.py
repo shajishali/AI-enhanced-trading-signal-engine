@@ -27,12 +27,14 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/auth/', include('rest_framework.urls')),
+    path('accounts/', include('allauth.urls')),
     path('', include('apps.dashboard.urls')),
     path('trading/', include('apps.trading.urls')),
     path('signals/', include('apps.signals.urls')),
     path('data/', include('apps.data.urls')),
     path('sentiment/', include('apps.sentiment.urls')),
     path('analytics/', include('apps.analytics.urls')),
+    path('subscription/', include('apps.subscription.urls')),
 ]
 
 # Serve static and media files during development

@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Management Table Visibility Test</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            background: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+        }
+        
+        .navbar {
+            background: #2c3e50 !important;
+            margin-bottom: 30px;
+        }
+        
+        .navbar-brand {
+            color: white !important;
+            font-weight: bold;
+        }
+        
+        .nav-link {
+            color: rgba(255, 255, 255, 0.9) !important;
+            padding: 12px 16px !important;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            margin: 0 4px;
+        }
+        
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.15) !important;
+            color: white !important;
+            transform: translateY(-2px);
+        }
+        
+        .test-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        
+        .visibility-check {
+            background: #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-success {
+            background-color: #28a745;
+        }
+        
+        .status-error {
+            background-color: #dc3545;
+        }
+        
+        .status-warning {
+            background-color: #ffc107;
+        }
+        
+        /* Light mode specific fixes */
+        body:not([data-theme="dark"]) .table {
+            color: #333333 !important;
+            background-color: #ffffff !important;
+        }
+
+        body:not([data-theme="dark"]) .table th {
+            color: #333333 !important;
+            background-color: #f8f9fa !important;
+            border-color: #dee2e6 !important;
+        }
+
+        body:not([data-theme="dark"]) .table td {
+            color: #333333 !important;
+            background-color: #ffffff !important;
+            border-color: #dee2e6 !important;
+        }
+
+        body:not([data-theme="dark"]) .table-hover tbody tr:hover {
+            background-color: #f8f9fa !important;
+            color: #333333 !important;
+        }
+
+        body:not([data-theme="dark"]) .table-bordered {
+            border-color: #dee2e6 !important;
+        }
+
+        body:not([data-theme="dark"]) .table-bordered th,
+        body:not([data-theme="dark"]) .table-bordered td {
+            border-color: #dee2e6 !important;
+        }
+
+        body:not([data-theme="dark"]) .card {
+            background-color: #ffffff !important;
+            border-color: #dee2e6 !important;
+        }
+
+        body:not([data-theme="dark"]) .card-header {
+            background-color: #f8f9fa !important;
+            border-bottom-color: #dee2e6 !important;
+        }
+
+        body:not([data-theme="dark"]) .card-body {
+            background-color: #ffffff !important;
+        }
+
+        body:not([data-theme="dark"]) .form-label {
+            color: #333333 !important;
+        }
+
+        body:not([data-theme="dark"]) label {
+            color: #333333 !important;
+        }
+
+        body:not([data-theme="dark"]) .text-muted {
+            color: #6c757d !important;
+        }
+
+        body:not([data-theme="dark"]) .badge {
+            color: #ffffff !important;
+        }
+
+        body:not([data-theme="dark"]) .badge-danger {
+            background-color: #dc3545 !important;
+        }
+
+        body:not([data-theme="dark"]) .badge-warning {
+            background-color: #ffc107 !important;
+            color: #000000 !important;
+        }
+
+        body:not([data-theme="dark"]) .badge-success {
+            background-color: #28a745 !important;
+        }
+
+        body:not([data-theme="dark"]) .progress {
+            background-color: #e9ecef !important;
+        }
+
+        body:not([data-theme="dark"]) .progress-bar {
+            color: #ffffff !important;
+        }
+
+        body:not([data-theme="dark"]) .list-unstyled li {
+            color: #333333 !important;
+        }
+
+        body:not([data-theme="dark"]) h6 {
+            color: #333333 !important;
+        }
+
+        body:not([data-theme="dark"]) strong {
+            color: #333333 !important;
+        }
+
+        /* Dark mode specific fixes */
+        [data-theme="dark"] .table {
+            color: #ffffff !important;
+            background-color: #2d2d2d !important;
+        }
+
+        [data-theme="dark"] .table th {
+            color: #ffffff !important;
+            background-color: #444 !important;
+            border-color: #555 !important;
+        }
+
+        [data-theme="dark"] .table td {
+            color: #ffffff !important;
+            background-color: #2d2d2d !important;
+            border-color: #555 !important;
+        }
+
+        [data-theme="dark"] .table-hover tbody tr:hover {
+            background-color: #444 !important;
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .table-bordered {
+            border-color: #555 !important;
+        }
+
+        [data-theme="dark"] .table-bordered th,
+        [data-theme="dark"] .table-bordered td {
+            border-color: #555 !important;
+        }
+
+        [data-theme="dark"] .card {
+            background-color: #2d2d2d !important;
+            border-color: #444 !important;
+        }
+
+        [data-theme="dark"] .card-header {
+            background-color: #444 !important;
+            border-bottom-color: #555 !important;
+        }
+
+        [data-theme="dark"] .card-body {
+            background-color: #2d2d2d !important;
+        }
+
+        [data-theme="dark"] .form-label {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] label {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .text-muted {
+            color: #cccccc !important;
+        }
+
+        [data-theme="dark"] .badge {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .badge-danger {
+            background-color: #dc3545 !important;
+        }
+
+        [data-theme="dark"] .badge-warning {
+            background-color: #ffc107 !important;
+            color: #000000 !important;
+        }
+
+        [data-theme="dark"] .badge-success {
+            background-color: #28a745 !important;
+        }
+
+        [data-theme="dark"] .progress {
+            background-color: #444 !important;
+        }
+
+        [data-theme="dark"] .progress-bar {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .list-unstyled li {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] h6 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] strong {
+            color: #ffffff !important;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-chart-line me-2"></i>AI Trading Engine
+            </a>
+            
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="#">
+                    <i class="fas fa-home me-1"></i>Home
+                </a>
+                
+                <a class="nav-link" href="#">
+                    <i class="fas fa-shield-alt me-1"></i>Risk Management
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="test-container">
+            <h2><i class="fas fa-shield-alt me-2"></i>Risk Management Table Visibility Test</h2>
+            
+            <div class="test-section">
+                <h4><i class="fas fa-info-circle me-2"></i>Test Instructions:</h4>
+                <ol>
+                    <li><strong>Test LIGHT MODE:</strong>
+                        <ul>
+                            <li>Ensure you're in light mode (default)</li>
+                            <li>Check Risk Overview Cards - Values should be visible</li>
+                            <li>Check Position Risk Table - All data should be visible</li>
+                            <li>Check Risk Metrics - Labels and values should be visible</li>
+                            <li>Check Risk Management Rules - Text should be visible</li>
+                        </ul>
+                    </li>
+                    <li><strong>Test DARK MODE:</strong>
+                        <ul>
+                            <li>Click "Toggle Theme" button to switch to dark mode</li>
+                            <li>Check Risk Overview Cards - Values should be visible</li>
+                            <li>Check Position Risk Table - All data should be visible</li>
+                            <li>Check Risk Metrics - Labels and values should be visible</li>
+                            <li>Check Risk Management Rules - Text should be visible</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+            
+            <!-- Risk Overview Cards -->
+            <div class="test-section">
+                <h4><i class="fas fa-chart-pie me-2"></i>Risk Overview Cards Test:</h4>
+                <div class="row mb-4">
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-primary shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                            Portfolio Risk</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800">15.25%</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-shield-alt fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-success shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                            Risk per Trade</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800">2.00%</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-percentage fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-info shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                            Stop Loss</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800">5.00%</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-stop-circle fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-warning shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                            Total Value</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800">$25,450.00</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Risk Metrics -->
+            <div class="test-section">
+                <h4><i class="fas fa-chart-bar me-2"></i>Risk Metrics Test:</h4>
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Risk Metrics</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Value at Risk (VaR)</label>
+                            <div class="progress mb-2">
+                                <div class="progress-bar bg-danger" role="progressbar" style="width: 15%">15%</div>
+                            </div>
+                            <small class="text-muted">95% confidence level</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Maximum Drawdown</label>
+                            <div class="progress mb-2">
+                                <div class="progress-bar bg-warning" role="progressbar" style="width: 8%">8%</div>
+                            </div>
+                            <small class="text-muted">Historical maximum</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Sharpe Ratio</label>
+                            <div class="progress mb-2">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: 75%">1.8</div>
+                            </div>
+                            <small class="text-muted">Risk-adjusted return</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Position Risk Table -->
+            <div class="test-section">
+                <h4><i class="fas fa-table me-2"></i>Position Risk Table Test:</h4>
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Position Risk Analysis</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover" width="100%" cellspacing="0">
+                                <thead>
+                                    <tr>
+                                        <th>Symbol</th>
+                                        <th>Position Size</th>
+                                        <th>Market Value</th>
+                                        <th>Risk Level</th>
+                                        <th>Stop Loss</th>
+                                        <th>Risk Amount</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <strong>BTC</strong>
+                                        </td>
+                                        <td>0.5</td>
+                                        <td>$15,250.00</td>
+                                        <td>
+                                            <span class="badge badge-danger">High</span>
+                                        </td>
+                                        <td>$28,500.00</td>
+                                        <td>$1,250.00</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-primary" title="Adjust Stop Loss">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-warning" title="Reduce Position">
+                                                    <i class="fas fa-minus"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-danger" title="Close Position">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <strong>ETH</strong>
+                                        </td>
+                                        <td>2.5</td>
+                                        <td>$5,250.00</td>
+                                        <td>
+                                            <span class="badge badge-warning">Medium</span>
+                                        </td>
+                                        <td>$1,800.00</td>
+                                        <td>$450.00</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-primary" title="Adjust Stop Loss">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-warning" title="Reduce Position">
+                                                    <i class="fas fa-minus"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-danger" title="Close Position">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <strong>ADA</strong>
+                                        </td>
+                                        <td>1000</td>
+                                        <td>$2,500.00</td>
+                                        <td>
+                                            <span class="badge badge-success">Low</span>
+                                        </td>
+                                        <td>$2.25</td>
+                                        <td>$250.00</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-primary" title="Adjust Stop Loss">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-warning" title="Reduce Position">
+                                                    <i class="fas fa-minus"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-danger" title="Close Position">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Risk Management Rules -->
+            <div class="test-section">
+                <h4><i class="fas fa-list me-2"></i>Risk Management Rules Test:</h4>
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Risk Management Rules</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Position Sizing Rules</h6>
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-check text-success me-2"></i>Maximum 2% risk per trade</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Maximum 5% portfolio exposure per position</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Stop loss at 5% below entry price</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Take profit at 2:1 risk-reward ratio</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Portfolio Rules</h6>
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-check text-success me-2"></i>Maximum 20% total portfolio risk</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Diversify across 5+ different assets</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Rebalance portfolio monthly</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Monitor correlation between positions</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="test-section">
+                <h4><i class="fas fa-eye me-2"></i>Visibility Check:</h4>
+                <div class="visibility-check">
+                    <h5>Light Mode (Default):</h5>
+                    <p><span class="status-indicator status-success"></span>Risk Overview Cards - Values visible</p>
+                    <p><span class="status-indicator status-success"></span>Position Risk Table - All data visible</p>
+                    <p><span class="status-indicator status-success"></span>Risk Metrics - Labels and values visible</p>
+                    <p><span class="status-indicator status-success"></span>Risk Management Rules - Text visible</p>
+                    <p><span class="status-indicator status-success"></span>Table headers and cells - Dark text on light background</p>
+                    
+                    <h5 class="mt-3">Dark Mode (After Toggle):</h5>
+                    <p><span class="status-indicator status-success"></span>Risk Overview Cards - Values visible</p>
+                    <p><span class="status-indicator status-success"></span>Position Risk Table - All data visible</p>
+                    <p><span class="status-indicator status-success"></span>Risk Metrics - Labels and values visible</p>
+                    <p><span class="status-indicator status-success"></span>Risk Management Rules - Text visible</p>
+                    <p><span class="status-indicator status-success"></span>Table headers and cells - Light text on dark background</p>
+                </div>
+            </div>
+            
+            <div class="test-section">
+                <h4><i class="fas fa-toggle-on me-2"></i>Theme Toggle Test:</h4>
+                <button class="btn btn-outline-secondary" onclick="toggleTheme()">
+                    <i class="fas fa-moon" id="theme-icon"></i> Toggle Theme
+                </button>
+                <p class="mt-2">Click to toggle between light and dark mode to test table visibility in both themes.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        let isDarkMode = false;
+        
+        // Theme toggle functionality
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            const body = document.body;
+            const themeIcon = document.getElementById('theme-icon');
+            
+            if (isDarkMode) {
+                body.setAttribute('data-theme', 'dark');
+                themeIcon.className = 'fas fa-sun';
+            } else {
+                body.setAttribute('data-theme', 'light');
+                themeIcon.className = 'fas fa-moon';
+            }
+            
+            console.log('Theme toggled to:', isDarkMode ? 'dark' : 'light');
+        }
+        
+        // Setup page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Setting up risk management table test...');
+            console.log('Risk management table test setup complete');
+        });
+    </script>
+</body>
+</html>

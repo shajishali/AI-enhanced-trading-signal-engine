@@ -14,47 +14,55 @@ from .services import PortfolioAnalytics, TechnicalIndicators, BacktestEngine, R
 @login_required
 def analytics_dashboard(request):
     """Advanced analytics dashboard with interactive charts"""
-    user = request.user
-    
-    # Get or create user portfolio
-    portfolio, created = AnalyticsPortfolio.objects.get_or_create(
-        user=user,
-        defaults={'name': 'Main Portfolio', 'description': 'Primary trading portfolio'}
-    )
-    
-    # Get portfolio positions
-    positions = AnalyticsPosition.objects.filter(portfolio=portfolio, is_open=True)
-    
-    # Get recent trades
-    recent_trades = AnalyticsTrade.objects.filter(portfolio=portfolio).order_by('-timestamp')[:10]
-    
-    # Get performance metrics
-    performance_metrics = PerformanceMetrics.objects.filter(portfolio=portfolio).order_by('-date')[:30]
-    
-    # Calculate portfolio statistics
-    total_positions = positions.count()
-    total_value = sum([pos.market_value for pos in positions])
-    total_pnl = sum([pos.unrealized_pnl for pos in positions])
-    
-    # Get market overview
-    market_overview = MarketAnalyzer.get_market_overview()
-    
-    # Get recent alerts
-    alerts = Alert.objects.filter(user=user, is_read=False).order_by('-created_at')[:5]
-    
-    context = {
-        'portfolio': portfolio,
-        'positions': positions,
-        'recent_trades': recent_trades,
-        'performance_metrics': performance_metrics,
-        'total_positions': total_positions,
-        'total_value': total_value,
-        'total_pnl': total_pnl,
-        'market_overview': market_overview,
-        'alerts': alerts,
-    }
-    
-    return render(request, 'analytics/dashboard.html', context)
+    try:
+        user = request.user
+        
+        # Get or create user portfolio
+        portfolio, created = AnalyticsPortfolio.objects.get_or_create(
+            user=user,
+            defaults={'name': 'Main Portfolio', 'description': 'Primary trading portfolio'}
+        )
+        
+        # Get portfolio positions
+        positions = AnalyticsPosition.objects.filter(portfolio=portfolio, is_open=True)
+        
+        # Get recent trades
+        recent_trades = AnalyticsTrade.objects.filter(portfolio=portfolio).order_by('-timestamp')[:10]
+        
+        # Get performance metrics
+        performance_metrics = PerformanceMetrics.objects.filter(portfolio=portfolio).order_by('-date')[:30]
+        
+        # Calculate portfolio statistics
+        total_positions = positions.count()
+        total_value = sum([pos.market_value for pos in positions])
+        total_pnl = sum([pos.unrealized_pnl for pos in positions])
+        
+        # Get market overview
+        market_overview = MarketAnalyzer.get_market_overview()
+        
+        # Get recent alerts
+        alerts = Alert.objects.filter(user=user, is_read=False).order_by('-created_at')[:5]
+        
+        context = {
+            'portfolio': portfolio,
+            'positions': positions,
+            'recent_trades': recent_trades,
+            'performance_metrics': performance_metrics,
+            'total_positions': total_positions,
+            'total_value': total_value,
+            'total_pnl': total_pnl,
+            'market_overview': market_overview,
+            'alerts': alerts,
+        }
+        
+        return render(request, 'analytics/dashboard.html', context)
+        
+    except Exception as e:
+        print(f"Error in analytics_dashboard: {e}")
+        # Return a simple error page or redirect
+        from django.contrib import messages
+        messages.error(request, f'Error loading analytics dashboard: {str(e)}')
+        return redirect('dashboard:dashboard')
 
 @login_required
 def portfolio_view(request):

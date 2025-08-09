@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Analytics Dropdown Test</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            background: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+        }
+        
+        .navbar {
+            background: #2c3e50 !important;
+            margin-bottom: 30px;
+        }
+        
+        .navbar-brand {
+            color: white !important;
+            font-weight: bold;
+        }
+        
+        .nav-link {
+            color: rgba(255, 255, 255, 0.9) !important;
+            padding: 12px 16px !important;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            margin: 0 4px;
+        }
+        
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.15) !important;
+            color: white !important;
+            transform: translateY(-2px);
+        }
+        
+        .dropdown-menu {
+            position: absolute !important;
+            top: 100% !important;
+            left: 0 !important;
+            z-index: 9999 !important;
+            display: none;
+            min-width: 250px;
+            padding: 8px 0;
+            margin: 0;
+            font-size: 14px;
+            color: #333;
+            text-align: left;
+            list-style: none;
+            background-color: #ffffff;
+            border: 1px solid rgba(0,0,0,0.15);
+            border-radius: 8px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.175);
+            transform: none !important;
+            pointer-events: auto !important;
+            transition: all 0.3s ease;
+        }
+
+        .dropdown-menu.show {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            transform: none !important;
+        }
+        
+        .dropdown-item {
+            display: block !important;
+            width: 100% !important;
+            padding: 10px 20px !important;
+            clear: both !important;
+            font-weight: 400 !important;
+            color: #333 !important;
+            text-align: inherit !important;
+            text-decoration: none !important;
+            white-space: nowrap !important;
+            background-color: transparent !important;
+            border: 0 !important;
+            transition: background-color 0.15s ease-in-out !important;
+            cursor: pointer !important;
+            pointer-events: auto !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+        
+        .dropdown-item:hover {
+            background: linear-gradient(135deg, #667eea, #764ba2) !important;
+            color: white !important;
+            transform: translateX(5px);
+        }
+        
+        .test-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-success {
+            background-color: #28a745;
+        }
+        
+        .status-error {
+            background-color: #dc3545;
+        }
+        
+        .status-warning {
+            background-color: #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-chart-line me-2"></i>AI Trading Engine
+            </a>
+            
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="#">
+                    <i class="fas fa-home me-1"></i>Home
+                </a>
+                <a class="nav-link" href="#">
+                    <i class="fas fa-briefcase me-1"></i>Portfolio
+                </a>
+                <a class="nav-link" href="#">
+                    <i class="fas fa-signal me-1"></i>Signals
+                </a>
+                
+                <!-- Analytics Dropdown -->
+                <li class="nav-item dropdown" id="analytics-dropdown-container">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" id="nav-analytics">
+                        <i class="fas fa-chart-bar me-1"></i>Analytics
+                    </a>
+                    <ul class="dropdown-menu" id="analytics-dropdown-menu">
+                        <li><a class="dropdown-item" href="#" data-analytics-link="dashboard">
+                            <i class="fas fa-tachometer-alt me-2"></i>Analytics Dashboard
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" data-analytics-link="portfolio">
+                            <i class="fas fa-briefcase me-2"></i>Portfolio Analytics
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" data-analytics-link="performance">
+                            <i class="fas fa-chart-line me-2"></i>Performance Analytics
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" data-analytics-link="risk">
+                            <i class="fas fa-shield-alt me-2"></i>Risk Management
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" data-analytics-link="market">
+                            <i class="fas fa-globe me-2"></i>Market Analysis
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" data-analytics-link="backtesting">
+                            <i class="fas fa-history me-2"></i>Backtesting
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" data-analytics-link="ml">
+                            <i class="fas fa-robot me-2"></i>AI/ML Models
+                        </a></li>
+                    </ul>
+                </li>
+                
+                <a class="nav-link" href="#">
+                    <i class="fas fa-cog me-1"></i>Settings
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="test-container">
+            <h2><i class="fas fa-test-tube me-2"></i>Simple Analytics Dropdown Test</h2>
+            
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <h4>Test Instructions:</h4>
+                    <ol>
+                        <li>Click on the "Analytics" dropdown in the navigation</li>
+                        <li>Verify the dropdown menu appears</li>
+                        <li>Click on any dropdown item to test functionality</li>
+                        <li>Click outside to close the dropdown</li>
+                    </ol>
+                    
+                    <div class="mt-3">
+                        <button class="btn btn-primary" onclick="testDropdown()">
+                            <i class="fas fa-play me-2"></i>Test Dropdown
+                        </button>
+                        <button class="btn btn-secondary" onclick="forceShow()">
+                            <i class="fas fa-eye me-2"></i>Force Show
+                        </button>
+                        <button class="btn btn-warning" onclick="forceHide()">
+                            <i class="fas fa-eye-slash me-2"></i>Force Hide
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <h4>Status Check:</h4>
+                    <div id="status-list">
+                        <p><span class="status-indicator status-success"></span>Page loaded successfully</p>
+                        <p><span class="status-indicator status-success"></span>Bootstrap CSS loaded</p>
+                        <p><span class="status-indicator status-success"></span>Font Awesome loaded</p>
+                        <p><span class="status-indicator status-warning"></span>Analytics dropdown - Ready to test</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <h4>Debug Information:</h4>
+                <div id="debug-info" class="bg-dark text-light p-3 rounded">
+                    <p>Click the test buttons or Analytics dropdown to see debug information here...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        let debugInfo;
+        let statusList;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, setting up simple analytics dropdown test...');
+            
+            debugInfo = document.getElementById('debug-info');
+            statusList = document.getElementById('status-list');
+            
+            const analyticsToggle = document.getElementById('nav-analytics');
+            const analyticsMenu = document.getElementById('analytics-dropdown-menu');
+            
+            if (analyticsToggle && analyticsMenu) {
+                logDebug('Found analytics dropdown elements');
+                updateStatus('Analytics dropdown elements found', 'success');
+                
+                // Simple click handler for analytics dropdown
+                analyticsToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    logDebug('Analytics dropdown clicked');
+                    
+                    // Toggle analytics dropdown
+                    const isVisible = analyticsMenu.classList.contains('show');
+                    if (isVisible) {
+                        analyticsMenu.classList.remove('show');
+                        analyticsMenu.style.display = 'none';
+                        analyticsMenu.style.visibility = 'hidden';
+                        analyticsMenu.style.opacity = '0';
+                        logDebug('Analytics dropdown hidden');
+                        updateStatus('Analytics dropdown hidden', 'success');
+                    } else {
+                        analyticsMenu.classList.add('show');
+                        analyticsMenu.style.display = 'block';
+                        analyticsMenu.style.visibility = 'visible';
+                        analyticsMenu.style.opacity = '1';
+                        analyticsMenu.style.zIndex = '10000';
+                        logDebug('Analytics dropdown shown');
+                        updateStatus('Analytics dropdown shown', 'success');
+                    }
+                });
+                
+                // Handle clicks on dropdown items
+                const dropdownItems = analyticsMenu.querySelectorAll('.dropdown-item');
+                dropdownItems.forEach(item => {
+                    item.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        logDebug('Analytics item clicked: ' + this.textContent.trim());
+                        
+                        // Close the dropdown
+                        analyticsMenu.classList.remove('show');
+                        analyticsMenu.style.display = 'none';
+                        analyticsMenu.style.visibility = 'hidden';
+                        analyticsMenu.style.opacity = '0';
+                        
+                        updateStatus('Dropdown item clicked: ' + this.textContent.trim(), 'success');
+                    });
+                });
+                
+                // Close dropdown when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!analyticsToggle.contains(e.target) && !analyticsMenu.contains(e.target)) {
+                        if (analyticsMenu.classList.contains('show')) {
+                            analyticsMenu.classList.remove('show');
+                            analyticsMenu.style.display = 'none';
+                            analyticsMenu.style.visibility = 'hidden';
+                            analyticsMenu.style.opacity = '0';
+                            logDebug('Analytics dropdown closed (clicked outside)');
+                        }
+                    }
+                });
+                
+                logDebug('Simple analytics dropdown setup complete with ' + dropdownItems.length + ' items');
+                updateStatus('Analytics dropdown setup complete', 'success');
+                
+            } else {
+                logDebug('Analytics dropdown elements not found');
+                logDebug('analyticsToggle: ' + analyticsToggle);
+                logDebug('analyticsMenu: ' + analyticsMenu);
+                updateStatus('Analytics dropdown elements not found', 'error');
+            }
+        });
+        
+        function logDebug(message) {
+            debugInfo.innerHTML += '<p>' + new Date().toLocaleTimeString() + ': ' + message + '</p>';
+            console.log(message);
+        }
+        
+        function updateStatus(message, type = 'success') {
+            const statusItem = statusList.querySelector('p:last-child');
+            const indicator = statusItem.querySelector('.status-indicator');
+            
+            if (type === 'success') {
+                indicator.className = 'status-indicator status-success';
+            } else if (type === 'error') {
+                indicator.className = 'status-indicator status-error';
+            } else if (type === 'warning') {
+                indicator.className = 'status-indicator status-warning';
+            }
+            
+            statusItem.innerHTML = indicator.outerHTML + message;
+        }
+        
+        function testDropdown() {
+            logDebug('Manual test button clicked');
+            const analyticsToggle = document.getElementById('nav-analytics');
+            if (analyticsToggle) {
+                analyticsToggle.click();
+            }
+        }
+        
+        function forceShow() {
+            logDebug('Force show button clicked');
+            const analyticsMenu = document.getElementById('analytics-dropdown-menu');
+            if (analyticsMenu) {
+                analyticsMenu.classList.add('show');
+                analyticsMenu.style.display = 'block';
+                analyticsMenu.style.visibility = 'visible';
+                analyticsMenu.style.opacity = '1';
+                analyticsMenu.style.zIndex = '10000';
+                logDebug('Dropdown forced to show');
+                updateStatus('Dropdown forced to show', 'success');
+            }
+        }
+        
+        function forceHide() {
+            logDebug('Force hide button clicked');
+            const analyticsMenu = document.getElementById('analytics-dropdown-menu');
+            if (analyticsMenu) {
+                analyticsMenu.classList.remove('show');
+                analyticsMenu.style.display = 'none';
+                analyticsMenu.style.visibility = 'hidden';
+                analyticsMenu.style.opacity = '0';
+                logDebug('Dropdown forced to hide');
+                updateStatus('Dropdown forced to hide', 'success');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -14,13 +14,18 @@
             <p class="lead text-muted mb-4">
                 Your advanced trading platform with AI-powered signals, real-time analytics, and machine learning insights.
             </p>
-            <div class="d-flex justify-content-center gap-3">
+            <div class="d-flex justify-content-center gap-3 align-items-center">
                 <a href="{% url 'dashboard:dashboard' %}" class="btn btn-primary btn-lg">
                     <i class="fas fa-tachometer-alt me-2"></i>Go to Trading Dashboard
                 </a>
                 <a href="{% url 'dashboard:signals' %}" class="btn btn-outline-primary btn-lg">
                     <i class="fas fa-signal me-2"></i>View Trading Signals
                 </a>
+                {% if not user.is_authenticated %}
+                    <button class="btn btn-outline-secondary btn-lg" id="theme-toggle-home" title="Toggle Dark/Light Mode">
+                        <i class="fas fa-moon" id="theme-icon-home"></i>
+                    </button>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -186,4 +191,38 @@
         </div>
     </div>
 </div>
+
+<!-- Theme Toggle Script for Home Page (only for non-authenticated users) -->
+{% if not user.is_authenticated %}
+<script>
+    // Theme toggle functionality for home page
+    const themeToggleHome = document.getElementById('theme-toggle-home');
+    const themeIconHome = document.getElementById('theme-icon-home');
+    const body = document.body;
+    
+    // Check for saved theme preference or default to light mode
+    const currentTheme = localStorage.getItem('theme') || 'light';
+    body.setAttribute('data-theme', currentTheme);
+    updateThemeIconHome(currentTheme);
+    
+    themeToggleHome.addEventListener('click', () => {
+        const currentTheme = body.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        body.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateThemeIconHome(newTheme);
+    });
+    
+    function updateThemeIconHome(theme) {
+        if (theme === 'dark') {
+            themeIconHome.className = 'fas fa-sun';
+            themeToggleHome.title = 'Switch to Light Mode';
+        } else {
+            themeIconHome.className = 'fas fa-moon';
+            themeToggleHome.title = 'Switch to Dark Mode';
+        }
+    }
+</script>
+{% endif %}
 {% endblock %}

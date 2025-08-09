@@ -123,88 +123,339 @@
             color: var(--warning-color);
         }
 
-        /* Enhanced Navigation Styling */
+        /* Premium Navigation Styling */
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.4rem 0;
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: visible;
+            z-index: 9997;
+        }
+
+        .navbar .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .navbar-collapse {
+            flex-grow: 1;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar-nav {
+            align-items: center;
+            gap: 2px;
+        }
+
+        /* Right-side navigation alignment */
+        .navbar-nav:last-child {
+            margin-left: auto;
+            justify-content: flex-end;
+        }
+
+        /* Additional spacing for non-authenticated nav items */
+        .navbar-nav:last-child .nav-item:not(:last-child) {
+            margin-right: 8px;
+        }
+
+        .navbar-brand {
+            font-weight: 700 !important;
+            font-size: 1.3rem !important;
+            color: white !important;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            padding: 0.4rem 0.8rem;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: visible;
+            white-space: nowrap;
+            min-width: fit-content;
+            flex-shrink: 0;
+        }
+
+        .navbar-brand::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .navbar-brand:hover::before {
+            left: 100%;
+        }
+
+        .navbar-brand:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        /* Responsive adjustments for navbar brand */
+        @media (max-width: 768px) {
+            .navbar-brand {
+                font-size: 1.2rem !important;
+                padding: 0.4rem 0.8rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .navbar-brand {
+                font-size: 1.1rem !important;
+                padding: 0.3rem 0.6rem;
+            }
+        }
+
+        .navbar-brand:active {
+            transform: translateY(-1px) scale(1.02);
+            transition: all 0.1s ease;
+        }
+
         .nav-link {
             position: relative;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border-radius: 8px;
-            margin: 2px 4px;
-            padding: 8px 16px !important;
-            color: var(--text-color) !important;
+            border-radius: 12px;
+            margin: 0 3px;
+            padding: 10px 16px !important;
+            color: rgba(255, 255, 255, 0.9) !important;
             font-weight: 500;
+            font-size: 0.9rem;
+            letter-spacing: 0.3px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 100px;
+            text-align: center;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-decoration: none !important;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        /* Add extra spacing between Settings and Subscription */
+        #nav-settings {
+            margin-right: 12px !important;
+        }
+
+        #nav-subscription {
+            margin-left: 12px !important;
+        }
+
+        /* Additional spacing for better visual separation */
+        .nav-item:has(#nav-settings) {
+            margin-right: 8px;
+        }
+
+        .nav-item:has(#nav-subscription) {
+            margin-left: 8px;
+        }
+
+        /* Alternative approach for better browser compatibility */
+        .navbar-nav .nav-item:nth-last-child(2) {
+            margin-right: 12px;
+        }
+
+        .navbar-nav .nav-item:last-child {
+            margin-left: 12px;
+        }
+
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .nav-link:hover::before {
+            left: 100%;
         }
 
         .nav-link:hover {
-            background-color: rgba(52, 152, 219, 0.1) !important;
-            color: #3498db !important;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+            background: rgba(255, 255, 255, 0.15) !important;
+            color: white !important;
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.4);
+            text-decoration: none !important;
         }
 
-        /* Active navigation styling with smooth transitions */
+        .nav-link:active {
+            transform: translateY(-1px) scale(1.02);
+            transition: all 0.1s ease;
+        }
+
+        /* Active navigation styling with premium effects */
         .nav-link.active {
-            background: linear-gradient(135deg, #3498db, #2980b9) !important;
+            background: linear-gradient(135deg, #667eea, #764ba2) !important;
             color: white !important;
-            border-radius: 8px;
-            padding: 8px 16px !important;
-            margin: 2px 4px;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 12px;
+            padding: 10px 16px !important;
+            margin: 0 3px;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            font-weight: 600;
+            min-width: 100px;
+            text-align: center;
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 10;
+        }
+
+        .nav-link.active::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .nav-link.active:hover::before {
+            left: 100%;
+        }
+
+        /* Add a subtle indicator for active state */
+        .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 2px;
+            transition: all 0.3s ease;
         }
 
         .nav-link.active:hover {
-            background: linear-gradient(135deg, #2980b9, #1f5f8b) !important;
+            background: linear-gradient(135deg, #764ba2, #667eea) !important;
             color: white !important;
-            transform: translateY(-3px);
-            box-shadow: 0 6px 16px rgba(52, 152, 219, 0.5);
+            transform: translateY(-4px) scale(1.08);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
+            border-color: rgba(255, 255, 255, 0.5);
         }
 
-        /* Dropdown styling */
+        .nav-link.active:active {
+            transform: translateY(-2px) scale(1.05);
+            transition: all 0.1s ease;
+        }
+
+        /* Premium Dropdown styling */
         .dropdown-item {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border-radius: 6px;
-            margin: 2px 8px;
-            padding: 8px 16px !important;
+            border-radius: 10px;
+            margin: 4px 8px;
+            padding: 12px 20px !important;
+            color: #2c3e50;
+            font-weight: 500;
+            border: 1px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dropdown-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.4s ease;
+        }
+
+        .dropdown-item:hover::before {
+            left: 100%;
         }
 
         .dropdown-item:hover {
-            background-color: rgba(52, 152, 219, 0.1) !important;
-            color: #3498db !important;
-            transform: translateX(4px);
+            background: linear-gradient(135deg, #667eea, #764ba2) !important;
+            color: white !important;
+            transform: translateX(8px) scale(1.02);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .dropdown-item:active {
+            transform: translateX(6px) scale(1.01);
+            transition: all 0.1s ease;
         }
 
         .dropdown-item.active {
-            background: linear-gradient(135deg, #3498db, #2980b9) !important;
+            background: linear-gradient(135deg, #667eea, #764ba2) !important;
             color: white !important;
-            transform: translateX(4px);
-            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+            transform: translateX(6px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+            border-color: rgba(255, 255, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dropdown-item.active::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .dropdown-item.active:hover::before {
+            left: 100%;
         }
 
         .dropdown-item.active:hover {
-            background: linear-gradient(135deg, #2980b9, #1f5f8b) !important;
+            background: linear-gradient(135deg, #764ba2, #667eea) !important;
             color: white !important;
-            transform: translateX(6px);
-            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+            transform: translateX(10px) scale(1.03);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
+            border-color: rgba(255, 255, 255, 0.4);
         }
 
-        /* Dropdown menu styling */
-        .dropdown-menu {
-            border: none;
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            padding: 8px;
-            margin-top: 8px;
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.95);
-            min-width: 250px;
-            position: absolute;
-            z-index: 1000;
+        .dropdown-item.active:active {
+            transform: translateX(8px) scale(1.02);
+            transition: all 0.1s ease;
         }
 
-        /* Active dropdown parent styling */
+
+
+        /* Premium Active dropdown parent styling */
         .nav-item.dropdown .nav-link.active {
-            background: linear-gradient(135deg, #3498db, #2980b9) !important;
+            background: linear-gradient(135deg, #667eea, #764ba2) !important;
             color: white !important;
         }
 
@@ -213,31 +464,196 @@
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Dark mode adjustments for navigation */
+        /* Premium Theme Toggle Button */
+        .btn-outline-secondary {
+            background: rgba(255, 255, 255, 0.15) !important;
+            border: 3px solid rgba(255, 255, 255, 0.6) !important;
+            color: white !important;
+            border-radius: 12px;
+            padding: 8px 12px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            height: 40px;
+            min-height: 40px;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            position: relative;
+            overflow: hidden;
+            z-index: 1000;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+        }
+
+        /* Light mode theme toggle button */
+        body:not([data-theme="dark"]) .btn-outline-secondary {
+            background: rgba(0, 0, 0, 0.1) !important;
+            border: 3px solid rgba(0, 0, 0, 0.4) !important;
+            color: #2c3e50 !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+        }
+
+        body:not([data-theme="dark"]) .btn-outline-secondary:hover {
+            background: rgba(0, 0, 0, 0.2) !important;
+            border: 3px solid rgba(0, 0, 0, 0.6) !important;
+            color: #1a252f !important;
+            transform: translateY(-3px) scale(1.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Brightness Toggle Button - Enhanced Visibility */
+        #brightness-toggle {
+            background: rgba(255, 255, 255, 0.15) !important;
+            border: 3px solid rgba(255, 255, 255, 0.6) !important;
+            color: white !important;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+        }
+
+        /* Light mode brightness toggle button */
+        body:not([data-theme="dark"]) #brightness-toggle {
+            background: rgba(0, 0, 0, 0.1) !important;
+            border: 3px solid rgba(0, 0, 0, 0.4) !important;
+            color: #2c3e50 !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+        }
+
+        body:not([data-theme="dark"]) #brightness-toggle:hover {
+            background: rgba(0, 0, 0, 0.2) !important;
+            border: 3px solid rgba(0, 0, 0, 0.6) !important;
+            color: #1a252f !important;
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+        }
+
+        #brightness-toggle:hover {
+            background: rgba(255, 255, 255, 0.25) !important;
+            border: 3px solid rgba(255, 255, 255, 0.8) !important;
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+        }
+
+        #brightness-toggle:active {
+            transform: translateY(-1px) scale(1.02);
+        }
+
+        #brightness-toggle i {
+            font-size: 1.1rem;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Theme toggle button icon enhancement */
+        #theme-toggle i {
+            font-size: 1.1rem;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-outline-secondary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn-outline-secondary:hover::before {
+            left: 100%;
+        }
+
+        .btn-outline-secondary:hover {
+            background: rgba(255, 255, 255, 0.25) !important;
+            border: 3px solid rgba(255, 255, 255, 0.8) !important;
+            color: white !important;
+            transform: translateY(-3px) scale(1.1);
+            box-shadow: 0 10px 30px rgba(255, 255, 255, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+        }
+
+        .btn-outline-secondary:active {
+            transform: translateY(-1px) scale(1.05);
+            transition: all 0.1s ease;
+        }
+
+        /* Premium User Dropdown */
+        .navbar-nav .nav-item.dropdown .nav-link {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            height: 40px;
+            min-height: 40px;
+            min-width: 100px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 12px !important;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            pointer-events: auto;
+            z-index: 10001;
+        }
+
+
+
+        .navbar-nav .nav-item.dropdown .nav-link::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .navbar-nav .nav-item.dropdown .nav-link:hover::before {
+            left: 100%;
+        }
+
+        .navbar-nav .nav-item.dropdown .nav-link:hover {
+            background: rgba(255, 255, 255, 0.2) !important;
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 8px 25px rgba(255, 255, 255, 0.3);
+        }
+
+        .navbar-nav .nav-item.dropdown .nav-link:active {
+            transform: translateY(-1px) scale(1.02);
+            transition: all 0.1s ease;
+        }
+
+        /* Dark mode adjustments for premium navigation */
+        [data-theme="dark"] .navbar {
+            background: linear-gradient(135deg, #2c3e50, #34495e) !important;
+        }
+
         [data-theme="dark"] .nav-link {
-            color: #ffffff !important;
+            color: rgba(255, 255, 255, 0.9) !important;
+            background: rgba(255, 255, 255, 0.05);
         }
 
         [data-theme="dark"] .nav-link:hover {
-            background-color: rgba(52, 152, 219, 0.2) !important;
-            color: #74b9ff !important;
+            background: rgba(255, 255, 255, 0.15) !important;
+            color: white !important;
         }
 
         [data-theme="dark"] .dropdown-menu {
-            background: rgba(45, 45, 45, 0.95);
+            background: rgba(44, 62, 80, 0.95);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            min-width: 250px;
-            position: absolute;
-            z-index: 1000;
+            backdrop-filter: blur(20px);
         }
 
         [data-theme="dark"] .dropdown-item {
-            color: #ffffff;
+            color: rgba(255, 255, 255, 0.9);
         }
 
         [data-theme="dark"] .dropdown-item:hover {
-            background-color: rgba(52, 152, 219, 0.2) !important;
-            color: #74b9ff !important;
+            background: linear-gradient(135deg, #667eea, #764ba2) !important;
+            color: white !important;
         }
 
         /* Comprehensive Dark Mode Styling for Better Text Visibility */
@@ -315,6 +731,239 @@
         [data-theme="dark"] .btn-outline-secondary:hover {
             background-color: #b0b0b0;
             color: #1a1a1a;
+        }
+
+        /* Light mode button fixes - ensure visibility */
+        body:not([data-theme="dark"]) .btn {
+            color: inherit !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-outline-primary {
+            color: #007bff !important;
+            border-color: #007bff !important;
+            background-color: transparent !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-outline-primary:hover {
+            color: #ffffff !important;
+            background-color: #007bff !important;
+            border-color: #007bff !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-outline-success {
+            color: #28a745 !important;
+            border-color: #28a745 !important;
+            background-color: transparent !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-outline-success:hover {
+            color: #ffffff !important;
+            background-color: #28a745 !important;
+            border-color: #28a745 !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-outline-secondary {
+            color: #6c757d !important;
+            border-color: #6c757d !important;
+            background-color: transparent !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-outline-secondary:hover {
+            color: #ffffff !important;
+            background-color: #6c757d !important;
+            border-color: #6c757d !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-outline-info {
+            color: #17a2b8 !important;
+            border-color: #17a2b8 !important;
+            background-color: transparent !important;
+        }
+
+        body:not([data-theme="dark"]) .btn-outline-info:hover {
+            color: #ffffff !important;
+            background-color: #17a2b8 !important;
+            border-color: #17a2b8 !important;
+        }
+
+        /* Dark mode button fixes - ensure visibility */
+        [data-theme="dark"] .btn-outline-primary {
+            color: #4da6ff !important;
+            border-color: #4da6ff !important;
+            background-color: transparent !important;
+        }
+
+        [data-theme="dark"] .btn-outline-primary:hover {
+            color: #ffffff !important;
+            background-color: #4da6ff !important;
+            border-color: #4da6ff !important;
+        }
+
+        [data-theme="dark"] .btn-outline-success {
+            color: #5cb85c !important;
+            border-color: #5cb85c !important;
+            background-color: transparent !important;
+        }
+
+        [data-theme="dark"] .btn-outline-success:hover {
+            color: #ffffff !important;
+            background-color: #5cb85c !important;
+            border-color: #5cb85c !important;
+        }
+
+        [data-theme="dark"] .btn-outline-secondary {
+            color: #cccccc !important;
+            border-color: #cccccc !important;
+            background-color: transparent !important;
+        }
+
+        [data-theme="dark"] .btn-outline-secondary:hover {
+            color: #ffffff !important;
+            background-color: #cccccc !important;
+            border-color: #cccccc !important;
+        }
+
+        [data-theme="dark"] .btn-outline-info {
+            color: #5bc0de !important;
+            border-color: #5bc0de !important;
+            background-color: transparent !important;
+        }
+
+        [data-theme="dark"] .btn-outline-info:hover {
+            color: #ffffff !important;
+            background-color: #5bc0de !important;
+            border-color: #5bc0de !important;
+        }
+
+        /* Dark mode button enhancements for home page */
+        [data-theme="dark"] .btn-primary {
+            background: linear-gradient(135deg, #007bff, #0056b3) !important;
+            border: 2px solid #007bff !important;
+            color: #ffffff !important;
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+        }
+
+        [data-theme="dark"] .btn-primary:hover {
+            background: linear-gradient(135deg, #0056b3, #004085) !important;
+            border-color: #0056b3 !important;
+            color: #ffffff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4);
+        }
+
+        [data-theme="dark"] .btn-outline-primary {
+            background: transparent !important;
+            border: 2px solid #007bff !important;
+            color: #007bff !important;
+        }
+
+        [data-theme="dark"] .btn-outline-primary:hover {
+            background: #007bff !important;
+            border-color: #007bff !important;
+            color: #ffffff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4);
+        }
+
+        [data-theme="dark"] .btn-success {
+            background: linear-gradient(135deg, #28a745, #1e7e34) !important;
+            border: 2px solid #28a745 !important;
+            color: #ffffff !important;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        [data-theme="dark"] .btn-success:hover {
+            background: linear-gradient(135deg, #1e7e34, #155724) !important;
+            border-color: #1e7e34 !important;
+            color: #ffffff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+
+        [data-theme="dark"] .btn-info {
+            background: linear-gradient(135deg, #17a2b8, #117a8b) !important;
+            border: 2px solid #17a2b8 !important;
+            color: #ffffff !important;
+            box-shadow: 0 4px 15px rgba(23, 162, 184, 0.3);
+        }
+
+        [data-theme="dark"] .btn-info:hover {
+            background: linear-gradient(135deg, #117a8b, #0c5460) !important;
+            border-color: #117a8b !important;
+            color: #ffffff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(23, 162, 184, 0.4);
+        }
+
+        [data-theme="dark"] .btn-warning {
+            background: linear-gradient(135deg, #ffc107, #e0a800) !important;
+            border: 2px solid #ffc107 !important;
+            color: #212529 !important;
+            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+        }
+
+        [data-theme="dark"] .btn-warning:hover {
+            background: linear-gradient(135deg, #e0a800, #d39e00) !important;
+            border-color: #e0a800 !important;
+            color: #212529 !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 193, 7, 0.4);
+        }
+
+        /* Enhanced button transitions for dark mode */
+        [data-theme="dark"] .btn {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] .btn-lg {
+            padding: 12px 24px !important;
+            font-size: 1.1rem !important;
+        }
+
+        /* Dark mode call-to-action button fixes */
+        [data-theme="dark"] .card.bg-primary .btn-light {
+            background: #ffffff !important;
+            border: 2px solid #ffffff !important;
+            color: #007bff !important;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+        }
+
+        [data-theme="dark"] .card.bg-primary .btn-light:hover {
+            background: #f8f9fa !important;
+            border-color: #f8f9fa !important;
+            color: #0056b3 !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
+        }
+
+        [data-theme="dark"] .card.bg-primary .btn-outline-light {
+            background: transparent !important;
+            border: 2px solid #ffffff !important;
+            color: #ffffff !important;
+            font-weight: 600;
+        }
+
+        [data-theme="dark"] .card.bg-primary .btn-outline-light:hover {
+            background: #ffffff !important;
+            border-color: #ffffff !important;
+            color: #007bff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
+        }
+
+        /* Dark mode brightness button */
+        [data-theme="dark"] #brightness-toggle {
+            background: rgba(255, 255, 255, 0.1) !important;
+            border: 2px solid rgba(255, 255, 255, 0.3) !important;
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] #brightness-toggle:hover {
+            background: rgba(255, 255, 255, 0.2) !important;
+            border-color: rgba(255, 255, 255, 0.5) !important;
         }
 
         [data-theme="dark"] .navbar {
@@ -468,6 +1117,46 @@
             background-color: var(--card-bg);
         }
 
+        /* Navbar Toggler Hover Effects */
+        .navbar-toggler {
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            background: rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .navbar-toggler::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .navbar-toggler:hover::before {
+            left: 100%;
+        }
+
+        .navbar-toggler:hover {
+            background: rgba(255, 255, 255, 0.2) !important;
+            border-color: rgba(255, 255, 255, 0.5) !important;
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+        }
+
+        .navbar-toggler:focus {
+            box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.25) !important;
+        }
+
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.9%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+        }
+
         /* Loading animation for navigation transitions */
         .nav-link.loading {
             position: relative;
@@ -490,11 +1179,833 @@
             100% { left: 100%; }
         }
 
-        /* Enhanced focus states for accessibility */
+        /* Premium focus states for accessibility */
         .nav-link:focus,
         .dropdown-item:focus {
-            outline: 2px solid #3498db;
+            outline: 2px solid rgba(255, 255, 255, 0.5);
             outline-offset: 2px;
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1);
+        }
+
+        /* Premium Navigation Animations */
+        .navbar-nav .nav-item {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .navbar-nav .nav-item:nth-child(1) { animation-delay: 0.1s; }
+        .navbar-nav .nav-item:nth-child(2) { animation-delay: 0.2s; }
+        .navbar-nav .nav-item:nth-child(3) { animation-delay: 0.3s; }
+        .navbar-nav .nav-item:nth-child(4) { animation-delay: 0.4s; }
+        .navbar-nav .nav-item:nth-child(5) { animation-delay: 0.5s; }
+        .navbar-nav .nav-item:nth-child(6) { animation-delay: 0.6s; }
+        .navbar-nav .nav-item:nth-child(7) { animation-delay: 0.7s; }
+        .navbar-nav .nav-item:nth-child(8) { animation-delay: 0.8s; }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Premium Glassmorphism Effect */
+        .navbar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            backdrop-filter: blur(10px);
+            z-index: -1;
+        }
+
+        /* Premium Hover Glow Effect */
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at center, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: 12px;
+            pointer-events: none !important;
+            z-index: 1;
+        }
+
+        .nav-link:hover::after {
+            opacity: 1;
+        }
+
+        /* Fix navigation layout and hover effects */
+        .navbar-nav {
+            display: flex !important;
+            align-items: center !important;
+            flex-wrap: nowrap !important;
+            width: 100% !important;
+            position: relative;
+        }
+        
+        /* Ensure navbar items are visible */
+        .navbar-nav .nav-item {
+            display: flex !important;
+            align-items: center !important;
+            margin: 0 2px !important;
+        }
+
+        /* Clean and Simple Dropdown Styling */
+        .navbar-nav .nav-item.dropdown {
+            position: relative;
+            z-index: 9998;
+        }
+
+        .dropdown-menu {
+            position: absolute !important;
+            top: 100% !important;
+            left: 0 !important;
+            z-index: 9999 !important;
+            display: block;
+            min-width: 250px;
+            padding: 8px 0;
+            margin: 0;
+            font-size: 14px;
+            color: #333;
+            text-align: left;
+            list-style: none;
+            background-color: #ffffff;
+            border: 1px solid rgba(0,0,0,0.15);
+            border-radius: 8px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.175);
+            pointer-events: auto !important;
+            /* Smooth animations */
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+        }
+
+        .dropdown-menu.show {
+            opacity: 1 !important;
+            visibility: visible !important;
+            transform: translateY(0) !important;
+        }
+        
+        /* Force dropdown visibility when needed */
+        .dropdown-menu[style*="display: block"],
+        .dropdown-menu.show {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        /* Ensure dropdown items are always visible when parent is shown */
+        .dropdown-menu.show .dropdown-item {
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+        
+        /* Specific analytics dropdown fixes */
+        #analytics-dropdown-menu {
+            display: block;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+        }
+        
+        #analytics-dropdown-menu.show {
+            opacity: 1 !important;
+            visibility: visible !important;
+            transform: translateY(0) !important;
+            z-index: 10000 !important;
+        }
+        
+        #analytics-dropdown-menu .dropdown-item {
+            cursor: pointer !important;
+            pointer-events: auto !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+        
+        #analytics-dropdown-menu .dropdown-item {
+            cursor: pointer !important;
+            pointer-events: auto !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            transition: all 0.2s ease;
+        }
+        
+        #analytics-dropdown-menu .dropdown-item:hover {
+            background: linear-gradient(135deg, #667eea, #764ba2) !important;
+            color: white !important;
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Light mode specific analytics dropdown fixes */
+        body:not([data-theme="dark"]) #analytics-dropdown-menu {
+            background-color: #ffffff !important;
+            border: 1px solid rgba(0,0,0,0.15) !important;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.175) !important;
+        }
+
+        body:not([data-theme="dark"]) #analytics-dropdown-menu .dropdown-item {
+            color: #333333 !important;
+            background-color: transparent !important;
+        }
+
+        body:not([data-theme="dark"]) #analytics-dropdown-menu .dropdown-item:hover {
+            background: linear-gradient(135deg, #667eea, #764ba2) !important;
+            color: white !important;
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        body:not([data-theme="dark"]) #user-dropdown-menu {
+            background-color: #ffffff !important;
+            border: 1px solid rgba(0,0,0,0.15) !important;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.175) !important;
+        }
+
+        body:not([data-theme="dark"]) #user-dropdown-menu .dropdown-item {
+            color: #333333 !important;
+            background-color: transparent !important;
+        }
+
+        body:not([data-theme="dark"]) #user-dropdown-menu .dropdown-item:hover {
+            background-color: #f8f9fa !important;
+            color: #333333 !important;
+        }
+
+        /* Light mode fixes for all dropdowns in analytics pages */
+        body:not([data-theme="dark"]) .dropdown-menu-right {
+            background-color: #ffffff !important;
+            border: 1px solid rgba(0,0,0,0.15) !important;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.175) !important;
+        }
+
+        body:not([data-theme="dark"]) .dropdown-menu-right .dropdown-item {
+            color: #333333 !important;
+            background-color: transparent !important;
+        }
+
+        body:not([data-theme="dark"]) .dropdown-menu-right .dropdown-item:hover {
+            background-color: #f8f9fa !important;
+            color: #333333 !important;
+        }
+
+        body:not([data-theme="dark"]) .dropdown-header {
+            color: #6c757d !important;
+            background-color: transparent !important;
+        }
+
+        /* Light mode fixes for dropdown toggles */
+        body:not([data-theme="dark"]) .dropdown-toggle {
+            color: inherit !important;
+        }
+
+        body:not([data-theme="dark"]) .dropdown-toggle:hover {
+            color: inherit !important;
+        }
+
+        /* Light mode fixes for text colors */
+        body:not([data-theme="dark"]) .text-gray-400 {
+            color: #6c757d !important;
+        }
+
+        body:not([data-theme="dark"]) .text-gray-800 {
+            color: #333333 !important;
+        }
+
+        body:not([data-theme="dark"]) .text-gray-300 {
+            color: #6c757d !important;
+        }
+
+        /* Light mode table fixes - ensure visibility */
+        body:not([data-theme="dark"]) .table {
+            color: #333333 !important;
+            background-color: #ffffff !important;
+        }
+
+        body:not([data-theme="dark"]) .table th {
+            color: #333333 !important;
+            background-color: #f8f9fa !important;
+            border-color: #dee2e6 !important;
+        }
+
+        body:not([data-theme="dark"]) .table td {
+            color: #333333 !important;
+            background-color: #ffffff !important;
+            border-color: #dee2e6 !important;
+        }
+
+        body:not([data-theme="dark"]) .table-hover tbody tr:hover {
+            background-color: #f8f9fa !important;
+            color: #333333 !important;
+        }
+
+        body:not([data-theme="dark"]) .table-bordered {
+            border-color: #dee2e6 !important;
+        }
+
+        body:not([data-theme="dark"]) .table-bordered th,
+        body:not([data-theme="dark"]) .table-bordered td {
+            border-color: #dee2e6 !important;
+        }
+
+        /* Light mode card fixes */
+        body:not([data-theme="dark"]) .card {
+            background-color: #ffffff !important;
+            border-color: #dee2e6 !important;
+        }
+
+        body:not([data-theme="dark"]) .card-header {
+            background-color: #f8f9fa !important;
+            border-bottom-color: #dee2e6 !important;
+        }
+
+        body:not([data-theme="dark"]) .card-body {
+            background-color: #ffffff !important;
+        }
+
+        /* Light mode form label fixes */
+        body:not([data-theme="dark"]) .form-label {
+            color: #333333 !important;
+        }
+
+        body:not([data-theme="dark"]) label {
+            color: #333333 !important;
+        }
+
+        /* Light mode text-muted fixes */
+        body:not([data-theme="dark"]) .text-muted {
+            color: #6c757d !important;
+        }
+
+        /* Light mode badge fixes */
+        body:not([data-theme="dark"]) .badge {
+            color: #ffffff !important;
+        }
+
+        body:not([data-theme="dark"]) .badge-danger {
+            background-color: #dc3545 !important;
+        }
+
+        body:not([data-theme="dark"]) .badge-warning {
+            background-color: #ffc107 !important;
+            color: #000000 !important;
+        }
+
+        body:not([data-theme="dark"]) .badge-success {
+            background-color: #28a745 !important;
+        }
+
+        /* Light mode progress bar fixes */
+        body:not([data-theme="dark"]) .progress {
+            background-color: #e9ecef !important;
+        }
+
+        body:not([data-theme="dark"]) .progress-bar {
+            color: #ffffff !important;
+        }
+
+        /* Light mode list fixes */
+        body:not([data-theme="dark"]) .list-unstyled li {
+            color: #333333 !important;
+        }
+
+        /* Light mode h6 fixes */
+        body:not([data-theme="dark"]) h6 {
+            color: #333333 !important;
+        }
+
+        /* Light mode strong fixes */
+        body:not([data-theme="dark"]) strong {
+            color: #333333 !important;
+        }
+
+        /* Light mode table fixes - ensure visibility */
+        body:not([data-theme="dark"]) .table {
+            color: #333333 !important;
+            background-color: #ffffff !important;
+        }
+
+        body:not([data-theme="dark"]) .table th {
+            color: #333333 !important;
+            background-color: #f8f9fa !important;
+            border-color: #dee2e6 !important;
+        }
+
+        body:not([data-theme="dark"]) .table td {
+            color: #333333 !important;
+            background-color: #ffffff !important;
+            border-color: #dee2e6 !important;
+        }
+
+        body:not([data-theme="dark"]) .table-hover tbody tr:hover {
+            background-color: #f8f9fa !important;
+            color: #333333 !important;
+        }
+
+        body:not([data-theme="dark"]) .table-bordered {
+            border-color: #dee2e6 !important;
+        }
+
+        body:not([data-theme="dark"]) .table-bordered th,
+        body:not([data-theme="dark"]) .table-bordered td {
+            border-color: #dee2e6 !important;
+        }
+
+        /* Light mode card fixes */
+        body:not([data-theme="dark"]) .card {
+            background-color: #ffffff !important;
+            border-color: #dee2e6 !important;
+        }
+
+        body:not([data-theme="dark"]) .card-header {
+            background-color: #f8f9fa !important;
+            border-bottom-color: #dee2e6 !important;
+        }
+
+        body:not([data-theme="dark"]) .card-body {
+            background-color: #ffffff !important;
+        }
+
+        /* Light mode form label fixes */
+        body:not([data-theme="dark"]) .form-label {
+            color: #333333 !important;
+        }
+
+        body:not([data-theme="dark"]) label {
+            color: #333333 !important;
+        }
+
+        /* Light mode text-muted fixes */
+        body:not([data-theme="dark"]) .text-muted {
+            color: #6c757d !important;
+        }
+
+        /* Light mode badge fixes */
+        body:not([data-theme="dark"]) .badge {
+            color: #ffffff !important;
+        }
+
+        body:not([data-theme="dark"]) .badge-danger {
+            background-color: #dc3545 !important;
+        }
+
+        body:not([data-theme="dark"]) .badge-warning {
+            background-color: #ffc107 !important;
+            color: #000000 !important;
+        }
+
+        body:not([data-theme="dark"]) .badge-success {
+            background-color: #28a745 !important;
+        }
+
+        /* Light mode progress bar fixes */
+        body:not([data-theme="dark"]) .progress {
+            background-color: #e9ecef !important;
+        }
+
+        body:not([data-theme="dark"]) .progress-bar {
+            color: #ffffff !important;
+        }
+
+        /* Light mode list fixes */
+        body:not([data-theme="dark"]) .list-unstyled li {
+            color: #333333 !important;
+        }
+
+        /* Light mode h6 fixes */
+        body:not([data-theme="dark"]) h6 {
+            color: #333333 !important;
+        }
+
+        /* Light mode strong fixes */
+        body:not([data-theme="dark"]) strong {
+            color: #333333 !important;
+        }
+
+        .navbar-nav .nav-item.dropdown {
+            position: relative !important;
+            z-index: 9998 !important;
+        }
+
+        .navbar-nav .nav-item.dropdown .dropdown-menu {
+            position: absolute !important;
+            top: 100% !important;
+            left: 0 !important;
+            z-index: 9999 !important;
+            margin-top: 0 !important;
+            min-width: 250px !important;
+            background-color: #ffffff !important;
+            border: 1px solid rgba(0,0,0,0.15) !important;
+            border-radius: 8px !important;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.175) !important;
+        }
+
+        /* Ensure dropdown items are visible and clickable */
+        .dropdown-item {
+            position: relative !important;
+            z-index: 10000 !important;
+            display: block !important;
+            width: 100% !important;
+            padding: 10px 20px !important;
+            clear: both !important;
+            font-weight: 400 !important;
+            color: #333 !important;
+            text-align: inherit !important;
+            text-decoration: none !important;
+            white-space: nowrap !important;
+            background-color: transparent !important;
+            border: 0 !important;
+            transition: background-color 0.15s ease-in-out !important;
+            cursor: pointer !important;
+            pointer-events: auto !important;
+            user-select: none !important;
+        }
+        
+        /* Ensure navigation links are clickable */
+        .nav-link {
+            cursor: pointer !important;
+            pointer-events: auto !important;
+        }
+
+        .dropdown-item:hover {
+            color: #333 !important;
+            background-color: #f8f9fa !important;
+            text-decoration: none !important;
+        }
+
+        /* Light mode dropdown fixes - ensure visibility */
+        body:not([data-theme="dark"]) .dropdown-menu {
+            background-color: #ffffff !important;
+            border-color: rgba(0,0,0,0.15) !important;
+            color: #333333 !important;
+            z-index: 9999 !important;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.175) !important;
+        }
+
+        body:not([data-theme="dark"]) .dropdown-item {
+            color: #333333 !important;
+            background-color: transparent !important;
+        }
+
+        body:not([data-theme="dark"]) .dropdown-item:hover {
+            background-color: #f8f9fa !important;
+            color: #333333 !important;
+        }
+
+        body:not([data-theme="dark"]) .dropdown-item:focus {
+            background-color: #e9ecef !important;
+            color: #333333 !important;
+        }
+
+        /* Dark theme dropdown fixes */
+        [data-theme="dark"] .dropdown-menu {
+            background-color: #2d2d2d !important;
+            border-color: #444 !important;
+            color: #ffffff !important;
+            z-index: 9999 !important;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.5) !important;
+        }
+
+        [data-theme="dark"] .dropdown-item {
+            color: #ffffff !important;
+            background-color: transparent !important;
+        }
+
+        [data-theme="dark"] .dropdown-item:hover {
+            background-color: #444 !important;
+            color: #ffffff !important;
+        }
+
+        /* Dark mode specific analytics dropdown fixes */
+        [data-theme="dark"] #analytics-dropdown-menu {
+            background-color: #2d2d2d !important;
+            border: 1px solid #444 !important;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.5) !important;
+        }
+
+        [data-theme="dark"] #analytics-dropdown-menu .dropdown-item {
+            color: #ffffff !important;
+            background-color: transparent !important;
+        }
+
+        [data-theme="dark"] #analytics-dropdown-menu .dropdown-item:hover {
+            background: linear-gradient(135deg, #667eea, #764ba2) !important;
+            color: white !important;
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        [data-theme="dark"] #user-dropdown-menu {
+            background-color: #2d2d2d !important;
+            border: 1px solid #444 !important;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.5) !important;
+        }
+
+        [data-theme="dark"] #user-dropdown-menu .dropdown-item {
+            color: #ffffff !important;
+            background-color: transparent !important;
+        }
+
+        [data-theme="dark"] #user-dropdown-menu .dropdown-item:hover {
+            background-color: #444 !important;
+            color: #ffffff !important;
+        }
+
+        /* Dark mode fixes for all dropdowns in analytics pages */
+        [data-theme="dark"] .dropdown-menu-right {
+            background-color: #2d2d2d !important;
+            border: 1px solid #444 !important;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.5) !important;
+        }
+
+        [data-theme="dark"] .dropdown-menu-right .dropdown-item {
+            color: #ffffff !important;
+            background-color: transparent !important;
+        }
+
+        [data-theme="dark"] .dropdown-menu-right .dropdown-item:hover {
+            background-color: #444 !important;
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .dropdown-header {
+            color: #cccccc !important;
+            background-color: transparent !important;
+        }
+
+        /* Dark mode fixes for dropdown toggles */
+        [data-theme="dark"] .dropdown-toggle {
+            color: inherit !important;
+        }
+
+        [data-theme="dark"] .dropdown-toggle:hover {
+            color: inherit !important;
+        }
+
+        /* Dark mode fixes for text colors */
+        [data-theme="dark"] .text-gray-400 {
+            color: #cccccc !important;
+        }
+
+        [data-theme="dark"] .text-gray-800 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .text-gray-300 {
+            color: #cccccc !important;
+        }
+
+        /* Dark mode table fixes - ensure visibility */
+        [data-theme="dark"] .table {
+            color: #ffffff !important;
+            background-color: #2d2d2d !important;
+        }
+
+        [data-theme="dark"] .table th {
+            color: #ffffff !important;
+            background-color: #444 !important;
+            border-color: #555 !important;
+        }
+
+        [data-theme="dark"] .table td {
+            color: #ffffff !important;
+            background-color: #2d2d2d !important;
+            border-color: #555 !important;
+        }
+
+        [data-theme="dark"] .table-hover tbody tr:hover {
+            background-color: #444 !important;
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .table-bordered {
+            border-color: #555 !important;
+        }
+
+        [data-theme="dark"] .table-bordered th,
+        [data-theme="dark"] .table-bordered td {
+            border-color: #555 !important;
+        }
+
+        /* Dark mode card fixes */
+        [data-theme="dark"] .card {
+            background-color: #2d2d2d !important;
+            border-color: #444 !important;
+        }
+
+        [data-theme="dark"] .card-header {
+            background-color: #444 !important;
+            border-bottom-color: #555 !important;
+        }
+
+        [data-theme="dark"] .card-body {
+            background-color: #2d2d2d !important;
+        }
+
+        /* Dark mode form label fixes */
+        [data-theme="dark"] .form-label {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] label {
+            color: #ffffff !important;
+        }
+
+        /* Dark mode text-muted fixes */
+        [data-theme="dark"] .text-muted {
+            color: #cccccc !important;
+        }
+
+        /* Dark mode badge fixes */
+        [data-theme="dark"] .badge {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .badge-danger {
+            background-color: #dc3545 !important;
+        }
+
+        [data-theme="dark"] .badge-warning {
+            background-color: #ffc107 !important;
+            color: #000000 !important;
+        }
+
+        [data-theme="dark"] .badge-success {
+            background-color: #28a745 !important;
+        }
+
+        /* Dark mode progress bar fixes */
+        [data-theme="dark"] .progress {
+            background-color: #444 !important;
+        }
+
+        [data-theme="dark"] .progress-bar {
+            color: #ffffff !important;
+        }
+
+        /* Dark mode list fixes */
+        [data-theme="dark"] .list-unstyled li {
+            color: #ffffff !important;
+        }
+
+        /* Dark mode h6 fixes */
+        [data-theme="dark"] h6 {
+            color: #ffffff !important;
+        }
+
+        /* Dark mode strong fixes */
+        [data-theme="dark"] strong {
+            color: #ffffff !important;
+        }
+
+        /* Brightness Control Styles */
+        .brightness-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 9995;
+            pointer-events: none;
+            transition: background 0.3s ease;
+        }
+
+        .brightness-overlay.high {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .brightness-overlay.low {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .brightness-overlay.normal {
+            background: transparent;
+        }
+
+        /* Brightness Modal */
+        .brightness-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            min-width: 300px;
+            display: none;
+        }
+
+        .brightness-modal.show {
+            display: block;
+        }
+
+        .brightness-modal h5 {
+            color: var(--text-color);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .brightness-slider {
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        .brightness-options {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+
+        .brightness-option {
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .brightness-option:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .brightness-option.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .brightness-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .brightness-close:hover {
+            color: var(--danger-color);
         }
 
 
@@ -503,15 +2014,13 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Navigation -->
+    <!-- Premium Navigation -->
     <nav class="navbar navbar-expand-lg navbar-light shadow-sm" style="background-color: var(--navbar-bg);">
         <div class="container">
             <a class="navbar-brand" href="{% url 'dashboard:home' %}">
                 <i class="fas fa-chart-line me-2"></i>
                 AI Trading Engine
             </a>
-            
-
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -524,70 +2033,82 @@
                             <i class="fas fa-home me-1"></i>Home
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard:dashboard' %}" id="nav-dashboard">
-                            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard:portfolio' %}" id="nav-portfolio">
-                            <i class="fas fa-briefcase me-1"></i>Portfolio
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard:signals' %}" id="nav-signals">
-                            <i class="fas fa-signal me-1"></i>Signals
-                        </a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" id="nav-analytics">
-                            <i class="fas fa-chart-bar me-1"></i>Analytics
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'analytics:dashboard' %}" id="nav-analytics-dashboard">
-                                <i class="fas fa-tachometer-alt me-2"></i>Analytics Dashboard
-                            </a></li>
-                            <li><a class="dropdown-item" href="{% url 'analytics:portfolio' %}" id="nav-analytics-portfolio">
-                                <i class="fas fa-briefcase me-2"></i>Portfolio Analytics
-                            </a></li>
-                            <li><a class="dropdown-item" href="{% url 'analytics:performance' %}" id="nav-analytics-performance">
-                                <i class="fas fa-chart-line me-2"></i>Performance Analytics
-                            </a></li>
-                            <li><a class="dropdown-item" href="{% url 'analytics:risk_management' %}" id="nav-analytics-risk">
-                                <i class="fas fa-shield-alt me-2"></i>Risk Management
-                            </a></li>
-                            <li><a class="dropdown-item" href="{% url 'analytics:market_analysis' %}" id="nav-analytics-market">
-                                <i class="fas fa-globe me-2"></i>Market Analysis
-                            </a></li>
-                            <li><a class="dropdown-item" href="{% url 'analytics:backtesting' %}" id="nav-analytics-backtesting">
-                                <i class="fas fa-history me-2"></i>Backtesting
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{% url 'analytics:ml_dashboard' %}" id="nav-analytics-ml">
-                                <i class="fas fa-robot me-2"></i>AI/ML Models
-                            </a></li>
-                        </ul>
-                    </li>
+                    {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'dashboard:dashboard' %}" id="nav-dashboard">
+                                <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'dashboard:portfolio' %}" id="nav-portfolio">
+                                <i class="fas fa-briefcase me-1"></i>Portfolio
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'dashboard:signals' %}" id="nav-signals">
+                                <i class="fas fa-signal me-1"></i>Signals
+                            </a>
+                        </li>
+                        <li class="nav-item dropdown" id="analytics-dropdown-container">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" aria-expanded="false" id="nav-analytics">
+                                <i class="fas fa-chart-bar me-1"></i>Analytics
+                            </a>
+                            <ul class="dropdown-menu" id="analytics-dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'analytics:dashboard' %}" data-analytics-link="dashboard">
+                                    <i class="fas fa-tachometer-alt me-2"></i>Analytics Dashboard
+                                </a></li>
+                                <li><a class="dropdown-item" href="{% url 'analytics:portfolio' %}" data-analytics-link="portfolio">
+                                    <i class="fas fa-briefcase me-2"></i>Portfolio Analytics
+                                </a></li>
+                                <li><a class="dropdown-item" href="{% url 'analytics:performance' %}" data-analytics-link="performance">
+                                    <i class="fas fa-chart-line me-2"></i>Performance Analytics
+                                </a></li>
+                                <li><a class="dropdown-item" href="{% url 'analytics:risk_management' %}" data-analytics-link="risk">
+                                    <i class="fas fa-shield-alt me-2"></i>Risk Management
+                                </a></li>
+                                <li><a class="dropdown-item" href="{% url 'analytics:market_analysis' %}" data-analytics-link="market">
+                                    <i class="fas fa-globe me-2"></i>Market Analysis
+                                </a></li>
+                                <li><a class="dropdown-item" href="{% url 'analytics:backtesting' %}" data-analytics-link="backtesting">
+                                    <i class="fas fa-history me-2"></i>Backtesting
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{% url 'analytics:ml_dashboard' %}" data-analytics-link="ml">
+                                    <i class="fas fa-robot me-2"></i>AI/ML Models
+                                </a></li>
+                            </ul>
+                        </li>
 
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard:settings' %}" id="nav-settings">
-                            <i class="fas fa-cog me-1"></i>Settings
-                        </a>
-                    </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'dashboard:settings' %}" id="nav-settings">
+                                <i class="fas fa-cog me-1"></i>Settings
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'subscription:subscription_choice' %}" id="nav-subscription">
+                                <i class="fas fa-crown me-1"></i>Subscription
+                            </a>
+                        </li>
+                    {% endif %}
                 </ul>
                 
                 <ul class="navbar-nav">
                     {% if user.is_authenticated %}
                         <li class="nav-item">
-                            <button class="btn btn-outline-secondary btn-sm me-2" id="theme-toggle" title="Toggle Dark/Light Mode">
+                            <button class="btn btn-outline-secondary btn-sm me-3" id="theme-toggle" title="Toggle Dark/Light Mode" style="display: flex !important; align-items: center; justify-content: center;">
                                 <i class="fas fa-moon" id="theme-icon"></i>
                             </button>
                         </li>
+                        <li class="nav-item">
+                            <button class="btn btn-outline-secondary btn-sm me-3" id="brightness-toggle" title="Adjust Brightness" style="display: flex !important; align-items: center; justify-content: center;">
+                                <i class="fas fa-adjust" id="brightness-icon"></i>
+                            </button>
+                        </li>
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button">
                                 <i class="fas fa-user me-1"></i>{{ user.username }}
                             </a>
-                            <ul class="dropdown-menu">
+                            <ul class="dropdown-menu" id="user-dropdown-menu">
                                 <li><a class="dropdown-item" href="{% url 'dashboard:settings' %}"><i class="fas fa-cog me-2"></i>Settings</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{% url 'dashboard:logout' %}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
@@ -595,13 +2116,36 @@
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'dashboard:login' %}"><i class="fas fa-sign-in-alt me-1"></i>Login</a>
+                            <button class="btn btn-outline-secondary btn-sm me-3" id="brightness-toggle" title="Adjust Brightness" style="display: flex !important; align-items: center; justify-content: center;">
+                                <i class="fas fa-adjust" id="brightness-icon"></i>
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link me-3" href="{% url 'subscription:signup' %}"><i class="fas fa-user-plus me-1"></i>Sign Up</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link me-2" href="{% url 'dashboard:login' %}"><i class="fas fa-sign-in-alt me-1"></i>Login</a>
                         </li>
                     {% endif %}
                 </ul>
             </div>
         </div>
     </nav>
+
+    <!-- Brightness Overlay -->
+    <div class="brightness-overlay" id="brightness-overlay"></div>
+
+    <!-- Brightness Modal -->
+    <div class="brightness-modal" id="brightness-modal">
+        <button class="brightness-close" id="brightness-close">&times;</button>
+        <h5><i class="fas fa-adjust me-2"></i>Adjust Brightness</h5>
+        <input type="range" class="brightness-slider" id="brightness-slider" min="0" max="100" value="50">
+        <div class="brightness-options">
+            <button class="brightness-option" data-brightness="low">Low</button>
+            <button class="brightness-option active" data-brightness="normal">Normal</button>
+            <button class="brightness-option" data-brightness="high">High</button>
+        </div>
+    </div>
 
     <!-- Main Content -->
     <div class="container-fluid">
@@ -650,37 +2194,109 @@
         }
     </script>
 
-    <!-- Enhanced Active Navigation Script -->
+    <!-- Brightness Control Script -->
     <script>
-        // Function to smoothly set active navigation based on current URL
+        // Brightness control functionality
+        const brightnessToggle = document.getElementById('brightness-toggle');
+        const brightnessModal = document.getElementById('brightness-modal');
+        const brightnessClose = document.getElementById('brightness-close');
+        const brightnessSlider = document.getElementById('brightness-slider');
+        const brightnessOptions = document.querySelectorAll('.brightness-option');
+        const brightnessOverlay = document.getElementById('brightness-overlay');
+        
+        // Check for saved brightness preference or default to normal
+        const currentBrightness = localStorage.getItem('brightness') || 'normal';
+        applyBrightness(currentBrightness);
+        updateBrightnessSlider(currentBrightness);
+        
+        // Toggle brightness modal
+        brightnessToggle.addEventListener('click', () => {
+            brightnessModal.classList.add('show');
+        });
+        
+        // Close brightness modal
+        brightnessClose.addEventListener('click', () => {
+            brightnessModal.classList.remove('show');
+        });
+        
+        // Close modal when clicking outside
+        document.addEventListener('click', (e) => {
+            if (e.target === brightnessModal) {
+                brightnessModal.classList.remove('show');
+            }
+        });
+        
+        // Brightness slider control
+        brightnessSlider.addEventListener('input', (e) => {
+            const value = e.target.value;
+            let brightness = 'normal';
+            
+            if (value < 30) brightness = 'low';
+            else if (value > 70) brightness = 'high';
+            else brightness = 'normal';
+            
+            applyBrightness(brightness);
+            updateBrightnessOptions(brightness);
+        });
+        
+        // Brightness option buttons
+        brightnessOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                const brightness = option.dataset.brightness;
+                applyBrightness(brightness);
+                updateBrightnessSlider(brightness);
+                updateBrightnessOptions(brightness);
+            });
+        });
+        
+        function applyBrightness(brightness) {
+            brightnessOverlay.className = `brightness-overlay ${brightness}`;
+            localStorage.setItem('brightness', brightness);
+        }
+        
+        function updateBrightnessSlider(brightness) {
+            let value = 50; // normal
+            if (brightness === 'low') value = 20;
+            else if (brightness === 'high') value = 80;
+            brightnessSlider.value = value;
+        }
+        
+        function updateBrightnessOptions(brightness) {
+            brightnessOptions.forEach(option => {
+                option.classList.remove('active');
+                if (option.dataset.brightness === brightness) {
+                    option.classList.add('active');
+                }
+            });
+        }
+    </script>
+
+    <!-- Enhanced Navigation Script with Analytics Dropdown Fix -->
+    <script>
+        // Function to set active navigation based on current URL
         function setActiveNavigation() {
             const currentPath = window.location.pathname;
             
-            // Remove all active classes with smooth transition
+            // Remove all active classes
             document.querySelectorAll('.nav-link, .dropdown-item').forEach(link => {
-                if (link.classList.contains('active')) {
-                    link.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-                    link.classList.remove('active');
-                }
+                link.classList.remove('active');
             });
             
             // Define URL patterns and their corresponding nav IDs
             const navPatterns = {
                 '/': 'nav-home',
+                '/home/': 'nav-home',
                 '/dashboard/': 'nav-dashboard',
                 '/portfolio/': 'nav-portfolio',
                 '/signals/': 'nav-signals',
                 '/settings/': 'nav-settings',
-                '/analytics/': 'nav-analytics-dashboard',
-                '/analytics/portfolio/': 'nav-analytics-portfolio',
-                '/analytics/performance/': 'nav-analytics-performance',
-                '/analytics/risk/': 'nav-analytics-risk',
-                '/analytics/market/': 'nav-analytics-market',
-                '/analytics/backtesting/': 'nav-analytics-backtesting',
-                '/analytics/ml/': 'nav-analytics-ml'
+                '/subscription/': 'nav-subscription',
+                '/analytics/': 'nav-analytics',
+                '/trading/': 'nav-dashboard',
+                '/data/': 'nav-dashboard',
+                '/sentiment/': 'nav-dashboard'
             };
             
-            // Find matching pattern and set active class with delay for smooth transition
             // Sort patterns by length (longest first) to ensure more specific matches
             const sortedPatterns = Object.entries(navPatterns).sort((a, b) => b[0].length - a[0].length);
             
@@ -688,84 +2304,246 @@
                 if (currentPath === pattern || currentPath.startsWith(pattern)) {
                     const navElement = document.getElementById(navId);
                     if (navElement) {
-                        // Add small delay for smooth transition
-                        setTimeout(() => {
-                            navElement.classList.add('active');
-                            
-                            // If it's an analytics dropdown item, also highlight the dropdown
-                            if (navId.startsWith('nav-analytics-')) {
-                                const analyticsDropdown = document.getElementById('nav-analytics');
-                                if (analyticsDropdown) {
-                                    analyticsDropdown.classList.add('active');
-                                }
-                            }
-                        }, 50);
+                        navElement.classList.add('active');
                     }
                     break;
                 }
             }
         }
         
-        // Function to smoothly transition active state
-        function smoothTransitionActive(clickedElement) {
-            // Remove all active classes first
-            document.querySelectorAll('.nav-link, .dropdown-item').forEach(link => {
-                link.classList.remove('active');
+        // Unified dropdown initialization - NO Bootstrap conflicts
+        function initializeDropdowns() {
+            console.log('Initializing unified dropdowns (no Bootstrap conflicts)...');
+            
+            // Get all dropdown toggles EXCEPT analytics and user dropdowns (we handle them separately)
+            const dropdownElementList = document.querySelectorAll('.dropdown-toggle:not(#nav-analytics):not(#navbarDropdown)');
+            dropdownElementList.forEach((dropdownToggle) => {
+                try {
+                    // Destroy existing dropdown if any
+                    const existingDropdown = bootstrap.Dropdown.getInstance(dropdownToggle);
+                    if (existingDropdown) {
+                        existingDropdown.dispose();
+                    }
+                    
+                    // Create new dropdown with proper configuration
+                    const dropdown = new bootstrap.Dropdown(dropdownToggle, {
+                        autoClose: true,
+                        boundary: 'viewport'
+                    });
+                    
+                    console.log('Bootstrap dropdown initialized for:', dropdownToggle.textContent.trim());
+                    
+                } catch (error) {
+                    console.error('Error initializing Bootstrap dropdown:', error);
+                }
             });
             
-            // Add active class to clicked link immediately
-            clickedElement.classList.add('active');
-            
-            // If it's an analytics dropdown item, also highlight the dropdown
-            if (clickedElement.id && clickedElement.id.startsWith('nav-analytics-')) {
-                const analyticsDropdown = document.getElementById('nav-analytics');
-                if (analyticsDropdown) {
-                    analyticsDropdown.classList.add('active');
-                }
-            }
+            console.log('Unified dropdown initialization complete');
         }
         
         // Set active navigation when page loads
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Setting up navigation...');
             setActiveNavigation();
+            initializeDropdowns();
+            console.log('Navigation setup complete');
+        });
+        
+        // Set active navigation when navigating (for browser back/forward)
+        window.addEventListener('popstate', setActiveNavigation);
+        
+        // Re-initialize dropdowns if Bootstrap loads after DOM
+        if (typeof bootstrap !== 'undefined') {
+            initializeDropdowns();
+        } else {
+            // Wait for Bootstrap to load
+            window.addEventListener('load', function() {
+                if (typeof bootstrap !== 'undefined') {
+                    initializeDropdowns();
+                }
+            });
+        }
+        
+        // SINGLE Analytics Dropdown Handler - No Conflicts
+        function setupAnalyticsDropdown() {
+            console.log('Setting up SINGLE analytics dropdown handler...');
             
-            // Add hover effects for better UX
-            document.querySelectorAll('.nav-link, .dropdown-item').forEach(link => {
-                link.addEventListener('mouseenter', function() {
-                    if (!this.classList.contains('active')) {
-                        this.style.transform = 'translateY(-1px)';
-                        this.style.boxShadow = '0 2px 8px rgba(52, 152, 219, 0.2)';
+            const analyticsToggle = document.getElementById('nav-analytics');
+            const analyticsMenu = document.getElementById('analytics-dropdown-menu');
+            
+            if (!analyticsToggle || !analyticsMenu) {
+                console.error('Analytics dropdown elements not found');
+                return;
+            }
+            
+            console.log('Found analytics dropdown elements');
+            
+            // Remove ALL existing event listeners by cloning
+            const newToggle = analyticsToggle.cloneNode(true);
+            analyticsToggle.parentNode.replaceChild(newToggle, analyticsToggle);
+            
+            // Remove Bootstrap dropdown instance if it exists
+            try {
+                const existingDropdown = bootstrap.Dropdown.getInstance(newToggle);
+                if (existingDropdown) {
+                    existingDropdown.dispose();
+                    console.log('Removed existing Bootstrap dropdown instance');
+                }
+            } catch (error) {
+                console.log('No existing Bootstrap dropdown to remove');
+            }
+            
+            // SINGLE click handler for analytics dropdown
+            newToggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('Analytics dropdown clicked - SINGLE handler');
+                
+                // Close all other dropdowns first
+                document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+                    if (menu !== analyticsMenu) {
+                        menu.classList.remove('show');
                     }
                 });
                 
-                link.addEventListener('mouseleave', function() {
-                    if (!this.classList.contains('active')) {
-                        this.style.transform = 'translateY(0)';
-                        this.style.boxShadow = 'none';
+                // Toggle analytics dropdown
+                const isVisible = analyticsMenu.classList.contains('show');
+                if (isVisible) {
+                    analyticsMenu.classList.remove('show');
+                    console.log('Analytics dropdown hidden');
+                } else {
+                    analyticsMenu.classList.add('show');
+                    analyticsMenu.style.zIndex = '10000';
+                    console.log('Analytics dropdown shown');
+                }
+            });
+            
+            // Handle clicks on dropdown items
+            const dropdownItems = analyticsMenu.querySelectorAll('.dropdown-item');
+            dropdownItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    console.log('Analytics item clicked:', this.textContent.trim());
+                    
+                    // Close the dropdown smoothly
+                    analyticsMenu.classList.remove('show');
+                    
+                    // Navigate to the link
+                    if (this.href && this.href !== '#') {
+                        console.log('Navigating to:', this.href);
+                        window.location.href = this.href;
                     }
                 });
             });
             
-
-        });
+            console.log('SINGLE analytics dropdown setup complete with', dropdownItems.length, 'items');
+        }
         
-        // Set active navigation when navigating (for SPA-like behavior)
-        window.addEventListener('popstate', setActiveNavigation);
-        
-        // Add smooth scroll behavior for anchor links
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-                anchor.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    const target = document.querySelector(this.getAttribute('href'));
-                    if (target) {
-                        target.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'start'
-                        });
+        // SINGLE User Dropdown Handler - No Conflicts
+        function setupUserDropdown() {
+            console.log('Setting up SINGLE user dropdown handler...');
+            
+            const userToggle = document.getElementById('navbarDropdown');
+            const userMenu = document.getElementById('user-dropdown-menu');
+            
+            if (!userToggle || !userMenu) {
+                console.error('User dropdown elements not found');
+                return;
+            }
+            
+            console.log('Found user dropdown elements');
+            
+            // Remove ALL existing event listeners by cloning
+            const newToggle = userToggle.cloneNode(true);
+            userToggle.parentNode.replaceChild(newToggle, userToggle);
+            
+            // Remove Bootstrap dropdown instance if it exists
+            try {
+                const existingDropdown = bootstrap.Dropdown.getInstance(newToggle);
+                if (existingDropdown) {
+                    existingDropdown.dispose();
+                    console.log('Removed existing Bootstrap dropdown instance for user dropdown');
+                }
+            } catch (error) {
+                console.log('No existing Bootstrap dropdown to remove for user dropdown');
+            }
+            
+            // SINGLE click handler for user dropdown
+            newToggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('User dropdown clicked - SINGLE handler');
+                
+                // Close all other dropdowns first
+                document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+                    if (menu !== userMenu) {
+                        menu.classList.remove('show');
+                    }
+                });
+                
+                // Toggle user dropdown
+                const isVisible = userMenu.classList.contains('show');
+                if (isVisible) {
+                    userMenu.classList.remove('show');
+                    console.log('User dropdown hidden');
+                } else {
+                    userMenu.classList.add('show');
+                    userMenu.style.zIndex = '10000';
+                    console.log('User dropdown shown');
+                }
+            });
+            
+            // Handle clicks on dropdown items
+            const dropdownItems = userMenu.querySelectorAll('.dropdown-item');
+            dropdownItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    console.log('User item clicked:', this.textContent.trim());
+                    
+                    // Close the dropdown smoothly
+                    userMenu.classList.remove('show');
+                    
+                    // Navigate to the link
+                    if (this.href && this.href !== '#') {
+                        console.log('Navigating to:', this.href);
+                        window.location.href = this.href;
                     }
                 });
             });
+            
+            console.log('SINGLE user dropdown setup complete with', dropdownItems.length, 'items');
+        }
+        
+        // Global click handler to close dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown')) {
+                document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+                    menu.classList.remove('show');
+                });
+            }
+        });
+        
+        // Initialize analytics dropdown when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing analytics dropdown...');
+            setupAnalyticsDropdown();
+            setupUserDropdown();
+        });
+        
+        // Also initialize when window loads (in case DOMContentLoaded already fired)
+        window.addEventListener('load', function() {
+            console.log('Window loaded, checking dropdowns...');
+            const analyticsToggle = document.getElementById('nav-analytics');
+            if (analyticsToggle && !analyticsToggle.hasAttribute('data-analytics-initialized')) {
+                setupAnalyticsDropdown();
+                analyticsToggle.setAttribute('data-analytics-initialized', 'true');
+            }
+            
+            const userToggle = document.getElementById('navbarDropdown');
+            if (userToggle && !userToggle.hasAttribute('data-user-initialized')) {
+                setupUserDropdown();
+                userToggle.setAttribute('data-user-initialized', 'true');
+            }
         });
     </script>
     

@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smooth Analytics Dropdown Test</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            background: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+        }
+        
+        .navbar {
+            background: #2c3e50 !important;
+            margin-bottom: 30px;
+        }
+        
+        .navbar-brand {
+            color: white !important;
+            font-weight: bold;
+        }
+        
+        .nav-link {
+            color: rgba(255, 255, 255, 0.9) !important;
+            padding: 12px 16px !important;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            margin: 0 4px;
+        }
+        
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.15) !important;
+            color: white !important;
+            transform: translateY(-2px);
+        }
+        
+        /* Smooth dropdown animations */
+        .dropdown-menu {
+            position: absolute !important;
+            top: 100% !important;
+            left: 0 !important;
+            z-index: 9999 !important;
+            display: block;
+            min-width: 250px;
+            padding: 8px 0;
+            margin: 0;
+            font-size: 14px;
+            color: #333;
+            text-align: left;
+            list-style: none;
+            background-color: #ffffff;
+            border: 1px solid rgba(0,0,0,0.15);
+            border-radius: 8px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.175);
+            pointer-events: auto !important;
+            /* Smooth animations */
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+        }
+
+        .dropdown-menu.show {
+            opacity: 1 !important;
+            visibility: visible !important;
+            transform: translateY(0) !important;
+        }
+        
+        .dropdown-item {
+            display: block !important;
+            width: 100% !important;
+            padding: 10px 20px !important;
+            clear: both !important;
+            font-weight: 400 !important;
+            color: #333 !important;
+            text-align: inherit !important;
+            text-decoration: none !important;
+            white-space: nowrap !important;
+            background-color: transparent !important;
+            border: 0 !important;
+            cursor: pointer !important;
+            pointer-events: auto !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            transition: all 0.2s ease;
+        }
+        
+        .dropdown-item:hover {
+            background: linear-gradient(135deg, #667eea, #764ba2) !important;
+            color: white !important;
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        .test-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-success {
+            background-color: #28a745;
+        }
+        
+        .status-error {
+            background-color: #dc3545;
+        }
+        
+        .status-warning {
+            background-color: #ffc107;
+        }
+        
+        .animation-info {
+            background: #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-chart-line me-2"></i>AI Trading Engine
+            </a>
+            
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="#">
+                    <i class="fas fa-home me-1"></i>Home
+                </a>
+                <a class="nav-link" href="#">
+                    <i class="fas fa-briefcase me-1"></i>Portfolio
+                </a>
+                <a class="nav-link" href="#">
+                    <i class="fas fa-signal me-1"></i>Signals
+                </a>
+                
+                <!-- Analytics Dropdown -->
+                <li class="nav-item dropdown" id="analytics-dropdown-container">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" id="nav-analytics">
+                        <i class="fas fa-chart-bar me-1"></i>Analytics
+                    </a>
+                    <ul class="dropdown-menu" id="analytics-dropdown-menu">
+                        <li><a class="dropdown-item" href="#" data-analytics-link="dashboard">
+                            <i class="fas fa-tachometer-alt me-2"></i>Analytics Dashboard
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" data-analytics-link="portfolio">
+                            <i class="fas fa-briefcase me-2"></i>Portfolio Analytics
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" data-analytics-link="performance">
+                            <i class="fas fa-chart-line me-2"></i>Performance Analytics
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" data-analytics-link="risk">
+                            <i class="fas fa-shield-alt me-2"></i>Risk Management
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" data-analytics-link="market">
+                            <i class="fas fa-globe me-2"></i>Market Analysis
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" data-analytics-link="backtesting">
+                            <i class="fas fa-history me-2"></i>Backtesting
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" data-analytics-link="ml">
+                            <i class="fas fa-robot me-2"></i>AI/ML Models
+                        </a></li>
+                    </ul>
+                </li>
+                
+                <a class="nav-link" href="#">
+                    <i class="fas fa-cog me-1"></i>Settings
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="test-container">
+            <h2><i class="fas fa-magic me-2"></i>Smooth Analytics Dropdown Test</h2>
+            
+            <div class="animation-info">
+                <h5><i class="fas fa-info-circle me-2"></i>Animation Features:</h5>
+                <ul>
+                    <li><strong>Smooth Fade In/Out:</strong> Opacity transitions (0.3s ease)</li>
+                    <li><strong>Slide Animation:</strong> Transform translateY (-10px to 0)</li>
+                    <li><strong>Hover Effects:</strong> Items slide right with shadow</li>
+                    <li><strong>No Jerky Display:</strong> Uses opacity/visibility instead of display</li>
+                </ul>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <h4>Test Instructions:</h4>
+                    <ol>
+                        <li>Click on the "Analytics" dropdown in the navigation</li>
+                        <li>Notice the smooth fade-in and slide-up animation</li>
+                        <li>Hover over dropdown items to see smooth hover effects</li>
+                        <li>Click outside to see smooth fade-out animation</li>
+                        <li>Try clicking dropdown items to test navigation</li>
+                    </ol>
+                    
+                    <div class="mt-3">
+                        <button class="btn btn-primary" onclick="testSmoothDropdown()">
+                            <i class="fas fa-play me-2"></i>Test Smooth Animation
+                        </button>
+                        <button class="btn btn-success" onclick="toggleAnimation()">
+                            <i class="fas fa-toggle-on me-2"></i>Toggle Animation
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <h4>Status Check:</h4>
+                    <div id="status-list">
+                        <p><span class="status-indicator status-success"></span>Page loaded successfully</p>
+                        <p><span class="status-indicator status-success"></span>Bootstrap CSS loaded</p>
+                        <p><span class="status-indicator status-success"></span>Font Awesome loaded</p>
+                        <p><span class="status-indicator status-warning"></span>Smooth animations - Ready to test</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <h4>Animation Debug:</h4>
+                <div id="debug-info" class="bg-dark text-light p-3 rounded">
+                    <p>Click the Analytics dropdown to see smooth animation debug info...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        let debugInfo;
+        let statusList;
+        let animationEnabled = true;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, setting up smooth analytics dropdown test...');
+            
+            debugInfo = document.getElementById('debug-info');
+            statusList = document.getElementById('status-list');
+            
+            const analyticsToggle = document.getElementById('nav-analytics');
+            const analyticsMenu = document.getElementById('analytics-dropdown-menu');
+            
+            if (analyticsToggle && analyticsMenu) {
+                logDebug('Found analytics dropdown elements');
+                updateStatus('Analytics dropdown elements found', 'success');
+                
+                // Smooth click handler for analytics dropdown
+                analyticsToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    logDebug('Analytics dropdown clicked - smooth animation triggered');
+                    
+                    // Close all other dropdowns first
+                    document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+                        if (menu !== analyticsMenu) {
+                            menu.classList.remove('show');
+                        }
+                    });
+                    
+                    // Toggle analytics dropdown with smooth animation
+                    const isVisible = analyticsMenu.classList.contains('show');
+                    if (isVisible) {
+                        analyticsMenu.classList.remove('show');
+                        logDebug('Analytics dropdown hidden - smooth fade out');
+                        updateStatus('Analytics dropdown hidden - smooth animation', 'success');
+                    } else {
+                        analyticsMenu.classList.add('show');
+                        analyticsMenu.style.zIndex = '10000';
+                        logDebug('Analytics dropdown shown - smooth fade in + slide up');
+                        updateStatus('Analytics dropdown shown - smooth animation', 'success');
+                    }
+                });
+                
+                // Handle clicks on dropdown items with smooth effects
+                const dropdownItems = analyticsMenu.querySelectorAll('.dropdown-item');
+                dropdownItems.forEach(item => {
+                    item.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        logDebug('Analytics item clicked: ' + this.textContent.trim() + ' - smooth close');
+                        
+                        // Close the dropdown smoothly
+                        analyticsMenu.classList.remove('show');
+                        
+                        updateStatus('Dropdown item clicked: ' + this.textContent.trim(), 'success');
+                    });
+                });
+                
+                // Close dropdown when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!analyticsToggle.contains(e.target) && !analyticsMenu.contains(e.target)) {
+                        if (analyticsMenu.classList.contains('show')) {
+                            analyticsMenu.classList.remove('show');
+                            logDebug('Analytics dropdown closed (clicked outside) - smooth animation');
+                        }
+                    }
+                });
+                
+                logDebug('Smooth analytics dropdown setup complete with ' + dropdownItems.length + ' items');
+                updateStatus('Smooth analytics dropdown setup complete', 'success');
+                
+            } else {
+                logDebug('Analytics dropdown elements not found');
+                updateStatus('Analytics dropdown elements not found', 'error');
+            }
+        });
+        
+        function logDebug(message) {
+            debugInfo.innerHTML += '<p>' + new Date().toLocaleTimeString() + ': ' + message + '</p>';
+            console.log(message);
+        }
+        
+        function updateStatus(message, type = 'success') {
+            const statusItem = statusList.querySelector('p:last-child');
+            const indicator = statusItem.querySelector('.status-indicator');
+            
+            if (type === 'success') {
+                indicator.className = 'status-indicator status-success';
+            } else if (type === 'error') {
+                indicator.className = 'status-indicator status-error';
+            } else if (type === 'warning') {
+                indicator.className = 'status-indicator status-warning';
+            }
+            
+            statusItem.innerHTML = indicator.outerHTML + message;
+        }
+        
+        function testSmoothDropdown() {
+            logDebug('Manual smooth animation test triggered');
+            const analyticsToggle = document.getElementById('nav-analytics');
+            if (analyticsToggle) {
+                analyticsToggle.click();
+            }
+        }
+        
+        function toggleAnimation() {
+            animationEnabled = !animationEnabled;
+            const analyticsMenu = document.getElementById('analytics-dropdown-menu');
+            if (analyticsMenu) {
+                if (animationEnabled) {
+                    analyticsMenu.style.transition = 'opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease';
+                    logDebug('Smooth animations enabled');
+                    updateStatus('Smooth animations enabled', 'success');
+                } else {
+                    analyticsMenu.style.transition = 'none';
+                    logDebug('Smooth animations disabled');
+                    updateStatus('Smooth animations disabled', 'warning');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

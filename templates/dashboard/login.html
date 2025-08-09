@@ -17,7 +17,7 @@
                     </div>
                     {% endif %}
                     
-                    <form method="post">
+                    <form method="post" id="login-form">
                         {% csrf_token %}
                         <div class="mb-3">
                             <label for="username" class="form-label">
@@ -32,7 +32,7 @@
                             <input type="password" class="form-control" id="password" name="password" required>
                         </div>
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="btn btn-primary" id="login-btn">
                                 <i class="fas fa-sign-in-alt"></i> Login
                             </button>
                         </div>
@@ -79,6 +79,59 @@
         border-radius: 8px;
     }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loginForm = document.getElementById('login-form');
+    const loginBtn = document.getElementById('login-btn');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    
+    // Add form submission handling
+    loginForm.addEventListener('submit', function(e) {
+        console.log('Login form submitted');
+        
+        // Validate form
+        if (!usernameInput.value.trim()) {
+            e.preventDefault();
+            alert('Please enter a username');
+            usernameInput.focus();
+            return false;
+        }
+        
+        if (!passwordInput.value.trim()) {
+            e.preventDefault();
+            alert('Please enter a password');
+            passwordInput.focus();
+            return false;
+        }
+        
+        // Show loading state
+        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
+        loginBtn.disabled = true;
+        
+        console.log('Form validation passed, submitting...');
+    });
+    
+    // Add input validation
+    usernameInput.addEventListener('input', function() {
+        this.classList.remove('is-invalid');
+    });
+    
+    passwordInput.addEventListener('input', function() {
+        this.classList.remove('is-invalid');
+    });
+    
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && (document.activeElement === usernameInput || document.activeElement === passwordInput)) {
+            loginForm.submit();
+        }
+    });
+    
+    console.log('Login form enhanced');
+});
+</script>
 {% endblock %}
 
 
