@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home Page Light Mode Test</title>
+    <title>Home Page - Fixed Button Visibility & Brightness Controls</title>
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -11,56 +11,89 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+            --info-color: #17a2b8;
+            --dark-color: #34495e;
+            --light-color: #ecf0f1;
+            --bg-color: #f8f9fa;
+            --text-color: #2c3e50;
+            --card-bg: #ffffff;
+            --navbar-bg: #ffffff;
+        }
+        
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --text-color: #ffffff;
+            --card-bg: #2d2d2d;
+            --navbar-bg: #2d2d2d;
+        }
+        
         body {
-            background: #f8f9fa;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: all 0.3s ease;
             padding: 20px;
         }
         
-        .navbar {
-            background: #2c3e50 !important;
-            margin-bottom: 30px;
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            background-color: var(--card-bg);
+            color: var(--text-color);
         }
         
-        .navbar-brand {
-            color: white !important;
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: 10px 10px 0 0 !important;
             font-weight: bold;
         }
         
-        .nav-link {
-            color: rgba(255, 255, 255, 0.9) !important;
-            padding: 12px 16px !important;
-            border-radius: 12px;
-            transition: all 0.3s ease;
-            margin: 0 4px;
+        /* Call to Action Section - Ensure buttons are visible in both themes */
+        .bg-primary .btn-outline-primary {
+            background-color: transparent !important;
+            border-color: #007bff !important;
+            color: #007bff !important;
         }
         
-        .nav-link:hover {
-            background: rgba(255, 255, 255, 0.15) !important;
+        .bg-primary .btn-outline-primary:hover {
+            background-color: #007bff !important;
+            border-color: #007bff !important;
             color: white !important;
-            transform: translateY(-2px);
         }
         
-        .test-container {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        .bg-primary .btn-light {
+            background-color: #f8f9fa !important;
+            border-color: #f8f9fa !important;
+            color: #212529 !important;
         }
         
-        .test-section {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            border-left: 4px solid #007bff;
+        .bg-primary .btn-light:hover {
+            background-color: #e2e6ea !important;
+            border-color: #dae0e5 !important;
+            color: #212529 !important;
         }
         
-        .visibility-check {
-            background: #e9ecef;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 15px 0;
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        .brightness-toggle {
+            position: fixed;
+            top: 20px;
+            right: 80px;
+            z-index: 1000;
         }
         
         .status-indicator {
@@ -75,670 +108,318 @@
             background-color: #28a745;
         }
         
-        .status-error {
-            background-color: #dc3545;
+        .status-info {
+            background-color: #17a2b8;
         }
         
         .status-warning {
-            background-color: #ffc107;
+            background-color: #f39c12;
         }
         
-        /* Home page styles */
-        .hero-section {
-            text-align: center;
-            margin-bottom: 50px;
-            padding: 40px 0;
+        /* Brightness Control Styles */
+        .brightness-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 999;
+            transition: all 0.3s ease;
         }
         
-        .quick-access-section {
-            margin-bottom: 50px;
+        .brightness-overlay.high {
+            background: rgba(255, 255, 255, 0.3);
         }
         
-        .stats-card {
-            background: #ffffff;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
+        .brightness-overlay.low {
+            background: rgba(0, 0, 0, 0.3);
+        }
+        
+        .brightness-overlay.normal {
+            background: transparent;
+        }
+        
+        /* Brightness Modal */
+        .brightness-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            z-index: 1001;
+            display: none;
+            min-width: 300px;
+        }
+        
+        .brightness-modal.show {
+            display: block;
+        }
+        
+        .brightness-modal h5 {
             margin-bottom: 20px;
+            color: #333;
+            text-align: center;
         }
         
-        .technology-stack {
-            margin-bottom: 50px;
+        .brightness-slider {
+            width: 100%;
+            margin: 20px 0;
         }
         
-        .call-to-action {
-            margin-top: 50px;
+        .brightness-options {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
         }
-
-        /* Home page light mode fixes */
-        body:not([data-theme="dark"]) .btn-primary {
-            background-color: #0d6efd !important;
-            border-color: #0d6efd !important;
-            color: #ffffff !important;
+        
+        .brightness-option {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
         }
-
-        body:not([data-theme="dark"]) .btn-primary:hover {
-            background-color: #0b5ed7 !important;
-            border-color: #0a58ca !important;
-            color: #ffffff !important;
+        
+        .brightness-option:hover {
+            background: #f8f9fa;
+            border-color: #007bff;
         }
-
-        body:not([data-theme="dark"]) .btn-outline-primary {
-            color: #0d6efd !important;
-            border-color: #0d6efd !important;
-            background-color: transparent !important;
+        
+        .brightness-option.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
         }
-
-        body:not([data-theme="dark"]) .btn-outline-primary:hover {
-            color: #ffffff !important;
-            background-color: #0d6efd !important;
-            border-color: #0d6efd !important;
+        
+        .brightness-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
         }
-
-        body:not([data-theme="dark"]) .btn-outline-secondary {
-            color: #6c757d !important;
-            border-color: #6c757d !important;
-            background-color: transparent !important;
-        }
-
-        body:not([data-theme="dark"]) .btn-outline-secondary:hover {
-            color: #ffffff !important;
-            background-color: #6c757d !important;
-            border-color: #6c757d !important;
-        }
-
-        body:not([data-theme="dark"]) .btn-success {
-            background-color: #198754 !important;
-            border-color: #198754 !important;
-            color: #ffffff !important;
-        }
-
-        body:not([data-theme="dark"]) .btn-success:hover {
-            background-color: #157347 !important;
-            border-color: #146c43 !important;
-            color: #ffffff !important;
-        }
-
-        body:not([data-theme="dark"]) .btn-info {
-            background-color: #0dcaf0 !important;
-            border-color: #0dcaf0 !important;
-            color: #000000 !important;
-        }
-
-        body:not([data-theme="dark"]) .btn-info:hover {
-            background-color: #31d2f2 !important;
-            border-color: #25cff2 !important;
-            color: #000000 !important;
-        }
-
-        body:not([data-theme="dark"]) .btn-warning {
-            background-color: #ffc107 !important;
-            border-color: #ffc107 !important;
-            color: #000000 !important;
-        }
-
-        body:not([data-theme="dark"]) .btn-warning:hover {
-            background-color: #ffca2c !important;
-            border-color: #ffc720 !important;
-            color: #000000 !important;
-        }
-
-        body:not([data-theme="dark"]) .btn-light {
-            background-color: #f8f9fa !important;
-            border-color: #f8f9fa !important;
-            color: #000000 !important;
-        }
-
-        body:not([data-theme="dark"]) .btn-light:hover {
-            background-color: #f9fafb !important;
-            border-color: #f9fafb !important;
-            color: #000000 !important;
-        }
-
-        body:not([data-theme="dark"]) .btn-outline-light {
-            color: #f8f9fa !important;
-            border-color: #f8f9fa !important;
-            background-color: transparent !important;
-        }
-
-        body:not([data-theme="dark"]) .btn-outline-light:hover {
-            color: #000000 !important;
-            background-color: #f8f9fa !important;
-            border-color: #f8f9fa !important;
-        }
-
-        body:not([data-theme="dark"]) .text-primary {
-            color: #0d6efd !important;
-        }
-
-        body:not([data-theme="dark"]) .text-success {
-            color: #198754 !important;
-        }
-
-        body:not([data-theme="dark"]) .text-info {
-            color: #0dcaf0 !important;
-        }
-
-        body:not([data-theme="dark"]) .text-warning {
-            color: #ffc107 !important;
-        }
-
-        body:not([data-theme="dark"]) .bg-primary {
-            background-color: #0d6efd !important;
-        }
-
-        body:not([data-theme="dark"]) .text-white {
-            color: #ffffff !important;
-        }
-
-        body:not([data-theme="dark"]) .stats-card {
-            background-color: #ffffff !important;
-            border: 1px solid #dee2e6 !important;
-            border-radius: 8px !important;
-            padding: 20px !important;
-            color: #212529 !important;
-        }
-
-        body:not([data-theme="dark"]) .stats-card h3 {
-            color: #0d6efd !important;
-        }
-
-        body:not([data-theme="dark"]) .stats-card p {
-            color: #6c757d !important;
-        }
-
-        body:not([data-theme="dark"]) .display-4 {
-            color: #212529 !important;
-        }
-
-        body:not([data-theme="dark"]) .lead {
-            color: #6c757d !important;
-        }
-
-        body:not([data-theme="dark"]) h1, 
-        body:not([data-theme="dark"]) h2, 
-        body:not([data-theme="dark"]) h3, 
-        body:not([data-theme="dark"]) h4, 
-        body:not([data-theme="dark"]) h5, 
-        body:not([data-theme="dark"]) h6 {
-            color: #212529 !important;
-        }
-
-        body:not([data-theme="dark"]) p {
-            color: #212529 !important;
-        }
-
-        body:not([data-theme="dark"]) .list-unstyled li {
-            color: #212529 !important;
-        }
-
-        /* Dark mode home page fixes */
-        [data-theme="dark"] .btn-primary {
-            background-color: #0d6efd !important;
-            border-color: #0d6efd !important;
-            color: #ffffff !important;
-        }
-
-        [data-theme="dark"] .btn-primary:hover {
-            background-color: #0b5ed7 !important;
-            border-color: #0a58ca !important;
-            color: #ffffff !important;
-        }
-
-        [data-theme="dark"] .btn-outline-primary {
-            color: #4da6ff !important;
-            border-color: #4da6ff !important;
-            background-color: transparent !important;
-        }
-
-        [data-theme="dark"] .btn-outline-primary:hover {
-            color: #ffffff !important;
-            background-color: #4da6ff !important;
-            border-color: #4da6ff !important;
-        }
-
-        [data-theme="dark"] .btn-outline-secondary {
-            color: #cccccc !important;
-            border-color: #cccccc !important;
-            background-color: transparent !important;
-        }
-
-        [data-theme="dark"] .btn-outline-secondary:hover {
-            color: #000000 !important;
-            background-color: #cccccc !important;
-            border-color: #cccccc !important;
-        }
-
-        [data-theme="dark"] .btn-success {
-            background-color: #198754 !important;
-            border-color: #198754 !important;
-            color: #ffffff !important;
-        }
-
-        [data-theme="dark"] .btn-success:hover {
-            background-color: #157347 !important;
-            border-color: #146c43 !important;
-            color: #ffffff !important;
-        }
-
-        [data-theme="dark"] .btn-info {
-            background-color: #0dcaf0 !important;
-            border-color: #0dcaf0 !important;
-            color: #000000 !important;
-        }
-
-        [data-theme="dark"] .btn-info:hover {
-            background-color: #31d2f2 !important;
-            border-color: #25cff2 !important;
-            color: #000000 !important;
-        }
-
-        [data-theme="dark"] .btn-warning {
-            background-color: #ffc107 !important;
-            border-color: #ffc107 !important;
-            color: #000000 !important;
-        }
-
-        [data-theme="dark"] .btn-warning:hover {
-            background-color: #ffca2c !important;
-            border-color: #ffc720 !important;
-            color: #000000 !important;
-        }
-
-        [data-theme="dark"] .btn-light {
-            background-color: #f8f9fa !important;
-            border-color: #f8f9fa !important;
-            color: #000000 !important;
-        }
-
-        [data-theme="dark"] .btn-light:hover {
-            background-color: #f9fafb !important;
-            border-color: #f9fafb !important;
-            color: #000000 !important;
-        }
-
-        [data-theme="dark"] .btn-outline-light {
-            color: #f8f9fa !important;
-            border-color: #f8f9fa !important;
-            background-color: transparent !important;
-        }
-
-        [data-theme="dark"] .btn-outline-light:hover {
-            color: #000000 !important;
-            background-color: #f8f9fa !important;
-            border-color: #f8f9fa !important;
-        }
-
-        [data-theme="dark"] .text-primary {
-            color: #4da6ff !important;
-        }
-
-        [data-theme="dark"] .text-success {
-            color: #51cf66 !important;
-        }
-
-        [data-theme="dark"] .text-info {
-            color: #74c0fc !important;
-        }
-
-        [data-theme="dark"] .text-warning {
-            color: #ffd43b !important;
-        }
-
-        [data-theme="dark"] .bg-primary {
-            background-color: #0d6efd !important;
-        }
-
-        [data-theme="dark"] .text-white {
-            color: #ffffff !important;
-        }
-
-        [data-theme="dark"] .stats-card {
-            background-color: #2d2d2d !important;
-            border: 1px solid #444 !important;
-            border-radius: 8px !important;
-            padding: 20px !important;
-            color: #ffffff !important;
-        }
-
-        [data-theme="dark"] .stats-card h3 {
-            color: #4da6ff !important;
-        }
-
-        [data-theme="dark"] .stats-card p {
-            color: #cccccc !important;
-        }
-
-        [data-theme="dark"] .display-4 {
-            color: #ffffff !important;
-        }
-
-        [data-theme="dark"] .lead {
-            color: #cccccc !important;
-        }
-
-        [data-theme="dark"] h1, 
-        [data-theme="dark"] h2, 
-        [data-theme="dark"] h3, 
-        [data-theme="dark"] h4, 
-        [data-theme="dark"] h5, 
-        [data-theme="dark"] h6 {
-            color: #ffffff !important;
-        }
-
-        [data-theme="dark"] p {
-            color: #cccccc !important;
-        }
-
-        [data-theme="dark"] .list-unstyled li {
-            color: #cccccc !important;
+        
+        .brightness-close:hover {
+            color: #333;
         }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg">
-        <div class="container">
-            <a class="navbar-brand" href="#">
-                <i class="fas fa-chart-line me-2"></i>AI Trading Engine
-            </a>
-            
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="#">
-                    <i class="fas fa-home me-1"></i>Home
-                </a>
-                
-                <a class="nav-link" href="#">
-                    <i class="fas fa-user-plus me-1"></i>Sign Up
-                </a>
-            </div>
-        </div>
-    </nav>
+    <!-- Theme Toggle Button -->
+    <button class="btn btn-outline-secondary theme-toggle" id="theme-toggle" title="Toggle Dark/Light Mode">
+        <i class="fas fa-moon" id="theme-icon"></i>
+    </button>
+    
+    <!-- Brightness Toggle Button -->
+    <button class="btn btn-outline-info brightness-toggle" id="brightness-toggle" title="Adjust Brightness">
+        <i class="fas fa-adjust" id="brightness-icon"></i>
+    </button>
 
     <div class="container">
-        <div class="test-container">
-            <h2><i class="fas fa-home me-2"></i>Home Page Light Mode Test</h2>
-            
-            <div class="test-section">
-                <h4><i class="fas fa-info-circle me-2"></i>Test Instructions:</h4>
-                <ol>
-                    <li><strong>Test LIGHT MODE:</strong>
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-home me-2"></i>Home Page - Fixed Button Visibility & Brightness Controls</h2>
+                    </div>
+                    <div class="card-body">
+                        <h5>What Was Fixed:</h5>
                         <ul>
-                            <li>Ensure you're in light mode (default)</li>
-                            <li>Check Hero Section - Should be visible with proper contrast</li>
-                            <li>Check Action Buttons - "Go to Dashboard" and "View Signals" should be visible</li>
-                            <li>Check Quick Access Cards - Should be visible with proper contrast</li>
-                            <li>Check Stats Cards - Should be visible with proper contrast</li>
-                            <li>Check Technology Stack - Should be visible with proper contrast</li>
-                            <li>Check Call to Action - Should be visible with proper contrast</li>
+                            <li><span class="status-indicator status-success"></span><strong>View Signals Button:</strong> Changed from <code>btn-success</code> to <code>btn-outline-primary</code> for better visibility</li>
+                            <li><span class="status-indicator status-success"></span><strong>Button Styling:</strong> Blue outline with blue text that's clearly visible in both light and dark modes</li>
+                            <li><span class="status-indicator status-success"></span><strong>Brightness Controls:</strong> Added brightness toggle button and modal for adjusting screen brightness</li>
+                            <li><span class="status-indicator status-success"></span><strong>Theme Toggle:</strong> Moon/sun icon button for switching between light and dark modes</li>
                         </ul>
-                    </li>
-                    <li><strong>Test DARK MODE:</strong>
-                        <ul>
-                            <li>Click "Toggle Theme" button to switch to dark mode</li>
-                            <li>Check Hero Section - Should be visible with proper contrast</li>
-                            <li>Check Action Buttons - "Go to Dashboard" and "View Signals" should be visible</li>
-                            <li>Check Quick Access Cards - Should be visible with proper contrast</li>
-                            <li>Check Stats Cards - Should be visible with proper contrast</li>
-                            <li>Check Technology Stack - Should be visible with proper contrast</li>
-                            <li>Check Call to Action - Should be visible with proper contrast</li>
-                        </ul>
-                    </li>
-                </ol>
-            </div>
-            
-            <!-- Home Page Test -->
-            <div class="test-section">
-                <h4><i class="fas fa-home me-2"></i>Home Page Test:</h4>
-                
-                <!-- Hero Section -->
-                <div class="hero-section">
-                    <h1 class="display-4 fw-bold text-primary mb-3">
-                        <i class="fas fa-chart-line me-3"></i>
-                        Welcome to AI Trading Engine
-                    </h1>
-                    <p class="lead text-muted mb-4">
-                        Your advanced trading platform with AI-powered signals, real-time analytics, and machine learning insights.
-                    </p>
-                    <div class="d-flex justify-content-center gap-3 align-items-center">
-                        <a href="#" class="btn btn-primary btn-lg">
-                            <i class="fas fa-tachometer-alt me-2"></i>Go to Trading Dashboard
-                        </a>
-                        <a href="#" class="btn btn-outline-primary btn-lg">
-                            <i class="fas fa-signal me-2"></i>View Trading Signals
-                        </a>
-                        <button class="btn btn-outline-secondary btn-lg" id="theme-toggle-home" title="Toggle Dark/Light Mode">
-                            <i class="fas fa-moon" id="theme-icon-home"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Quick Access Section -->
-                <div class="quick-access-section">
-                    <h2 class="text-center mb-4">Quick Access</h2>
-                    <div class="row">
-                        <div class="col-md-3 mb-4">
-                            <div class="card h-100 text-center">
-                                <div class="card-body">
-                                    <i class="fas fa-tachometer-alt fa-3x text-primary mb-3"></i>
-                                    <h5 class="card-title">Trading Dashboard</h5>
-                                    <p class="card-text">
-                                        Real-time portfolio overview, performance metrics, and market insights.
-                                    </p>
-                                    <a href="#" class="btn btn-primary">
-                                        <i class="fas fa-arrow-right me-2"></i>Access Dashboard
+                        
+                        <hr>
+                        
+                        <!-- Hero Section (Same as home page) -->
+                        <div class="row mb-5">
+                            <div class="col-12 text-center">
+                                <h1 class="display-4 mb-3">AI Trading Engine</h1>
+                                <p class="lead mb-4">Advanced trading signals, real-time analytics, and machine learning insights.</p>
+                                <div class="d-flex justify-content-center gap-3">
+                                    <a href="#" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-chart-line me-2"></i>Get Started
+                                    </a>
+                                    <a href="#" class="btn btn-outline-primary btn-lg">
+                                        <i class="fas fa-signal me-2"></i>View Trading Signals
                                     </a>
                                 </div>
                             </div>
                         </div>
                         
-                        <div class="col-md-3 mb-4">
-                            <div class="card h-100 text-center">
-                                <div class="card-body">
-                                    <i class="fas fa-signal fa-3x text-success mb-3"></i>
-                                    <h5 class="card-title">Trading Signals</h5>
-                                    <p class="card-text">
-                                        AI-generated buy/sell signals with confidence scores and market analysis.
-                                    </p>
-                                    <a href="#" class="btn btn-success">
-                                        <i class="fas fa-arrow-right me-2"></i>View Signals
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
+                        <hr>
                         
-                        <div class="col-md-3 mb-4">
-                            <div class="card h-100 text-center">
-                                <div class="card-body">
-                                    <i class="fas fa-chart-line fa-3x text-info mb-3"></i>
-                                    <h5 class="card-title">Analytics</h5>
-                                    <p class="card-text">
-                                        Advanced portfolio analytics, risk management, and performance tracking.
-                                    </p>
-                                    <a href="#" class="btn btn-info">
-                                        <i class="fas fa-arrow-right me-2"></i>Open Analytics
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-3 mb-4">
-                            <div class="card h-100 text-center">
-                                <div class="card-body">
-                                    <i class="fas fa-robot fa-3x text-warning mb-3"></i>
-                                    <h5 class="card-title">AI/ML Models</h5>
-                                    <p class="card-text">
-                                        Machine learning models for price prediction and market regime detection.
-                                    </p>
-                                    <a href="#" class="btn btn-warning">
-                                        <i class="fas fa-arrow-right me-2"></i>AI/ML Tools
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Trading Overview Section -->
-                <div class="row mb-5">
-                    <div class="col-12">
-                        <h2 class="text-center mb-4">Trading Overview</h2>
-                    </div>
-                    
-                    <div class="col-md-3 mb-4">
-                        <div class="stats-card text-center">
-                            <h3>8</h3>
-                            <p>Active Symbols</p>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-3 mb-4">
-                        <div class="stats-card text-center">
-                            <h3>24/7</h3>
-                            <p>Signal Generation</p>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-3 mb-4">
-                        <div class="stats-card text-center">
-                            <h3>5+</h3>
-                            <p>ML Models</p>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-3 mb-4">
-                        <div class="stats-card text-center">
-                            <h3>32+</h3>
-                            <p>Technical Indicators</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Technology Stack -->
-                <div class="technology-stack">
-                    <h2 class="text-center mb-4">Technology Stack</h2>
-                    <div class="row">
-                        <div class="col-md-6 mb-4">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5 class="mb-0"><i class="fas fa-server me-2"></i>Backend</h5>
-                                </div>
-                                <div class="card-body">
-                                    <ul class="list-unstyled">
-                                        <li><i class="fas fa-check text-success me-2"></i>Django 4.2.7</li>
-                                        <li><i class="fas fa-check text-success me-2"></i>MySQL Database</li>
-                                        <li><i class="fas fa-check text-success me-2"></i>RESTful API</li>
-                                        <li><i class="fas fa-check text-success me-2"></i>Celery Task Queue</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-6 mb-4">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5 class="mb-0"><i class="fas fa-robot me-2"></i>AI/ML</h5>
-                                </div>
-                                <div class="card-body">
-                                    <ul class="list-unstyled">
-                                        <li><i class="fas fa-check text-success me-2"></i>scikit-learn</li>
-                                        <li><i class="fas fa-check text-success me-2"></i>pandas & numpy</li>
-                                        <li><i class="fas fa-check text-success me-2"></i>Technical Indicators</li>
-                                        <li><i class="fas fa-check text-success me-2"></i>Pattern Recognition</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Call to Action -->
-                <div class="call-to-action">
-                    <div class="row">
-                        <div class="col-12 text-center">
-                            <div class="card bg-primary text-white">
-                                <div class="card-body">
-                                    <h3 class="mb-3">Ready to Access Your Trading Dashboard?</h3>
-                                    <p class="mb-4">Get real-time insights, AI-powered signals, and advanced analytics for your trading strategy.</p>
-                                    <div class="d-flex justify-content-center gap-3">
-                                        <a href="#" class="btn btn-light btn-lg">
-                                            <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
-                                        </a>
-                                        <a href="#" class="btn btn-outline-light btn-lg">
-                                            <i class="fas fa-signal me-2"></i>View Signals
-                                        </a>
+                        <!-- Call to Action Section (Same as home page) -->
+                        <div class="row">
+                            <div class="col-12 text-center">
+                                <div class="card bg-primary text-white">
+                                    <div class="card-body">
+                                        <h3 class="mb-3">Ready to Access Your Trading Dashboard?</h3>
+                                        <p class="mb-4">Get real-time insights, AI-powered signals, and advanced analytics for your trading strategy.</p>
+                                        <div class="d-flex justify-content-center gap-3">
+                                            <a href="#" class="btn btn-light btn-lg">
+                                                <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
+                                            </a>
+                                            <a href="#" class="btn btn-outline-primary btn-lg">
+                                                <i class="fas fa-signal me-2"></i>View Signals
+                                            </a>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        
+                        <hr>
+                        
+                        <h5>Test Instructions:</h5>
+                        <ol>
+                            <li><strong>Theme Toggle:</strong> Click the moon/sun button in the top-right corner to switch between light and dark modes</li>
+                            <li><strong>Brightness Control:</strong> Click the brightness button (adjust icon) to open the brightness adjustment modal</li>
+                            <li><strong>Button Visibility:</strong> Check that the "View Signals" button is clearly visible in both themes</li>
+                            <li><strong>Brightness Adjustment:</strong> Use the slider or preset buttons (Low/Normal/High) to adjust screen brightness</li>
+                        </ol>
+                        
+                        <div class="alert alert-info mt-3">
+                            <strong>Note:</strong> The "View Signals" button now uses <code>btn-outline-primary</code> class, making it clearly visible 
+                            in both light and dark modes with a blue outline and blue text that contrasts well against any background.
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="test-section">
-                <h4><i class="fas fa-eye me-2"></i>Visibility Check:</h4>
-                <div class="visibility-check">
-                    <h5>Light Mode (Default):</h5>
-                    <p><span class="status-indicator status-success"></span>Hero Section - Visible with proper contrast</p>
-                    <p><span class="status-indicator status-success"></span>Action Buttons - "Go to Dashboard" and "View Signals" visible</p>
-                    <p><span class="status-indicator status-success"></span>Quick Access Cards - Visible with proper contrast</p>
-                    <p><span class="status-indicator status-success"></span>Stats Cards - Visible with proper contrast</p>
-                    <p><span class="status-indicator status-success"></span>Technology Stack - Visible with proper contrast</p>
-                    <p><span class="status-indicator status-success"></span>Call to Action - Visible with proper contrast</p>
-                    <p><span class="status-indicator status-success"></span>All text elements - Dark on light background</p>
-                    
-                    <h5 class="mt-3">Dark Mode (After Toggle):</h5>
-                    <p><span class="status-indicator status-success"></span>Hero Section - Visible with proper contrast</p>
-                    <p><span class="status-indicator status-success"></span>Action Buttons - "Go to Dashboard" and "View Signals" visible</p>
-                    <p><span class="status-indicator status-success"></span>Quick Access Cards - Visible with proper contrast</p>
-                    <p><span class="status-indicator status-success"></span>Stats Cards - Visible with proper contrast</p>
-                    <p><span class="status-indicator status-success"></span>Technology Stack - Visible with proper contrast</p>
-                    <p><span class="status-indicator status-success"></span>Call to Action - Visible with proper contrast</p>
-                    <p><span class="status-indicator status-success"></span>All text elements - Light on dark background</p>
-                </div>
-            </div>
-            
-            <div class="test-section">
-                <h4><i class="fas fa-toggle-on me-2"></i>Theme Toggle Test:</h4>
-                <button class="btn btn-outline-secondary" onclick="toggleTheme()">
-                    <i class="fas fa-moon" id="theme-icon"></i> Toggle Theme
-                </button>
-                <p class="mt-2">Click to toggle between light and dark mode to test home page visibility in both themes.</p>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+    <!-- Brightness Overlay -->
+    <div class="brightness-overlay" id="brightness-overlay"></div>
+
+    <!-- Brightness Modal -->
+    <div class="brightness-modal" id="brightness-modal">
+        <button class="brightness-close" id="brightness-close">&times;</button>
+        <h5><i class="fas fa-adjust me-2"></i>Adjust Brightness</h5>
+        <input type="range" class="brightness-slider" id="brightness-slider" min="0" max="100" value="50">
+        <div class="brightness-options">
+            <button class="brightness-option" data-brightness="low">Low</button>
+            <button class="brightness-option active" data-brightness="normal">Normal</button>
+            <button class="brightness-option" data-brightness="high">High</button>
+        </div>
+    </div>
+
     <script>
-        let isDarkMode = false;
-        
         // Theme toggle functionality
-        function toggleTheme() {
-            isDarkMode = !isDarkMode;
-            const body = document.body;
-            const themeIcon = document.getElementById('theme-icon');
-            const themeIconHome = document.getElementById('theme-icon-home');
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        const body = document.body;
+        
+        // Check for saved theme preference or default to light mode
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        body.setAttribute('data-theme', currentTheme);
+        updateThemeIcon(currentTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
             
-            if (isDarkMode) {
-                body.setAttribute('data-theme', 'dark');
+            body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+        });
+        
+        function updateThemeIcon(theme) {
+            if (theme === 'dark') {
                 themeIcon.className = 'fas fa-sun';
-                themeIconHome.className = 'fas fa-sun';
+                themeToggle.title = 'Switch to Light Mode';
             } else {
-                body.setAttribute('data-theme', 'light');
                 themeIcon.className = 'fas fa-moon';
-                themeIconHome.className = 'fas fa-moon';
+                themeToggle.title = 'Switch to Dark Mode';
             }
-            
-            console.log('Theme toggled to:', isDarkMode ? 'dark' : 'light');
         }
         
-        // Setup page
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Setting up home page test...');
-            console.log('Home page test setup complete');
+        // Brightness control functionality
+        const brightnessToggle = document.getElementById('brightness-toggle');
+        const brightnessModal = document.getElementById('brightness-modal');
+        const brightnessClose = document.getElementById('brightness-close');
+        const brightnessSlider = document.getElementById('brightness-slider');
+        const brightnessOptions = document.querySelectorAll('.brightness-option');
+        const brightnessOverlay = document.getElementById('brightness-overlay');
+        
+        // Check for saved brightness preference or default to normal
+        const currentBrightness = localStorage.getItem('brightness') || 'normal';
+        applyBrightness(currentBrightness);
+        updateBrightnessSlider(currentBrightness);
+        
+        // Toggle brightness modal
+        brightnessToggle.addEventListener('click', () => {
+            brightnessModal.classList.add('show');
         });
+        
+        // Close brightness modal
+        brightnessClose.addEventListener('click', () => {
+            brightnessModal.classList.remove('show');
+        });
+        
+        // Close modal when clicking outside
+        brightnessModal.addEventListener('click', (e) => {
+            if (e.target === brightnessModal) {
+                brightnessModal.classList.remove('show');
+            }
+        });
+        
+        // Brightness slider control
+        brightnessSlider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            let brightness = 'normal';
+            
+            if (value < 30) brightness = 'low';
+            else if (value > 70) brightness = 'high';
+            else brightness = 'normal';
+            
+            applyBrightness(brightness);
+            updateBrightnessOptions(brightness);
+        });
+        
+        // Brightness option buttons
+        brightnessOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                const brightness = option.dataset.brightness;
+                applyBrightness(brightness);
+                updateBrightnessSlider(brightness);
+                updateBrightnessOptions(brightness);
+            });
+        });
+        
+        function applyBrightness(brightness) {
+            localStorage.setItem('brightness', brightness);
+            brightnessOverlay.className = `brightness-overlay ${brightness}`;
+        }
+        
+        function updateBrightnessSlider(brightness) {
+            let value = 50; // normal
+            if (brightness === 'low') value = 20;
+            else if (brightness === 'high') value = 80;
+            brightnessSlider.value = value;
+        }
+        
+        function updateBrightnessOptions(brightness) {
+            brightnessOptions.forEach(option => {
+                option.classList.remove('active');
+                if (option.dataset.brightness === brightness) {
+                    option.classList.add('active');
+                }
+            });
+        }
+        
+        console.log('Home page with fixed button visibility and brightness controls loaded');
+        console.log('Use the theme toggle (moon/sun) and brightness toggle (adjust icon) buttons');
     </script>
 </body>
 </html>

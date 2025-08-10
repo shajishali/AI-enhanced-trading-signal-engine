@@ -25,6 +25,7 @@
                     <button class="btn btn-outline-secondary btn-lg" id="theme-toggle-home" title="Toggle Dark/Light Mode">
                         <i class="fas fa-moon" id="theme-icon-home"></i>
                     </button>
+
                 {% endif %}
             </div>
         </div>
@@ -182,7 +183,7 @@
                         <a href="{% url 'dashboard:dashboard' %}" class="btn btn-light btn-lg">
                             <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
                         </a>
-                        <a href="{% url 'dashboard:signals' %}" class="btn btn-outline-light btn-lg">
+                        <a href="{% url 'dashboard:signals' %}" class="btn btn-success btn-lg">
                             <i class="fas fa-signal me-2"></i>View Signals
                         </a>
                     </div>
@@ -191,6 +192,8 @@
         </div>
     </div>
 </div>
+
+
 
 <!-- Theme Toggle Script for Home Page (only for non-authenticated users) -->
 {% if not user.is_authenticated %}
@@ -223,6 +226,8 @@
             themeToggleHome.title = 'Switch to Dark Mode';
         }
     }
+    
+
 </script>
 {% endif %}
 {% endblock %}
