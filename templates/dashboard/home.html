@@ -3,6 +3,39 @@
 {% block title %}AI-Enhanced Trading Signal Engine - Home{% endblock %}
 
 {% block content %}
+<style>
+    /* Fix button margins and spacing in cards */
+    .card .btn {
+        margin: 15px 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .card-body .btn {
+        margin: 20px auto;
+        width: auto;
+        min-width: 200px;
+    }
+    
+    /* Ensure proper spacing in Quick Access cards */
+    .col-md-3 .card .btn {
+        margin: 20px auto;
+        display: block;
+    }
+    
+    /* Fix Call to Action button spacing */
+    .bg-primary .btn {
+        margin: 10px;
+        min-width: 220px;
+    }
+    
+    /* Hero section button spacing */
+    .hero-buttons .btn {
+        margin: 0 10px;
+    }
+</style>
+
 <div class="container">
     <!-- Hero Section -->
     <div class="row mb-5">
@@ -14,15 +47,15 @@
             <p class="lead text-muted mb-4">
                 Your advanced trading platform with AI-powered signals, real-time analytics, and machine learning insights.
             </p>
-            <div class="d-flex justify-content-center gap-3 align-items-center">
-                <a href="{% url 'dashboard:dashboard' %}" class="btn btn-primary btn-lg">
+            <div class="d-flex justify-content-center gap-3 align-items-center hero-buttons">
+                <a href="{% url 'dashboard:dashboard' %}" class="btn btn-primary btn-lg px-5 py-3">
                     <i class="fas fa-tachometer-alt me-2"></i>Go to Trading Dashboard
                 </a>
-                <a href="{% url 'dashboard:signals' %}" class="btn btn-outline-primary btn-lg">
+                <a href="{% url 'dashboard:signals' %}" class="btn btn-outline-primary btn-lg px-5 py-3">
                     <i class="fas fa-signal me-2"></i>View Trading Signals
                 </a>
                 {% if not user.is_authenticated %}
-                    <button class="btn btn-outline-secondary btn-lg" id="theme-toggle-home" title="Toggle Dark/Light Mode">
+                    <button class="btn btn-outline-secondary btn-lg px-4 py-3" id="theme-toggle-home" title="Toggle Dark/Light Mode">
                         <i class="fas fa-moon" id="theme-icon-home"></i>
                     </button>
 
@@ -45,7 +78,7 @@
                     <p class="card-text">
                         Real-time portfolio overview, performance metrics, and market insights.
                     </p>
-                    <a href="{% url 'dashboard:dashboard' %}" class="btn btn-primary">
+                    <a href="{% url 'dashboard:dashboard' %}" class="btn btn-primary px-4 py-2">
                         <i class="fas fa-arrow-right me-2"></i>Access Dashboard
                     </a>
                 </div>
@@ -60,7 +93,7 @@
                     <p class="card-text">
                         AI-generated buy/sell signals with confidence scores and market analysis.
                     </p>
-                    <a href="{% url 'dashboard:signals' %}" class="btn btn-success">
+                    <a href="{% url 'dashboard:signals' %}" class="btn btn-success px-4 py-2">
                         <i class="fas fa-arrow-right me-2"></i>View Signals
                     </a>
                 </div>
@@ -75,7 +108,7 @@
                     <p class="card-text">
                         Advanced portfolio analytics, risk management, and performance tracking.
                     </p>
-                    <a href="{% url 'analytics:dashboard' %}" class="btn btn-info">
+                    <a href="{% url 'analytics:dashboard' %}" class="btn btn-info px-4 py-2">
                         <i class="fas fa-arrow-right me-2"></i>Open Analytics
                     </a>
                 </div>
@@ -90,7 +123,7 @@
                     <p class="card-text">
                         Machine learning models for price prediction and market regime detection.
                     </p>
-                    <a href="{% url 'analytics:ml_dashboard' %}" class="btn btn-warning">
+                    <a href="{% url 'analytics:ml_dashboard' %}" class="btn btn-warning px-4 py-2">
                         <i class="fas fa-arrow-right me-2"></i>AI/ML Tools
                     </a>
                 </div>
@@ -176,14 +209,14 @@
     <div class="row">
         <div class="col-12 text-center">
             <div class="card bg-primary text-white">
-                <div class="card-body">
-                    <h3 class="mb-3">Ready to Access Your Trading Dashboard?</h3>
-                    <p class="mb-4">Get real-time insights, AI-powered signals, and advanced analytics for your trading strategy.</p>
-                    <div class="d-flex justify-content-center gap-3">
-                        <a href="{% url 'dashboard:dashboard' %}" class="btn btn-light btn-lg">
+                <div class="card-body py-5">
+                    <h3 class="mb-4">Ready to Access Your Trading Dashboard?</h3>
+                    <p class="mb-5">Get real-time insights, AI-powered signals, and advanced analytics for your trading strategy.</p>
+                    <div class="d-flex justify-content-center gap-4 flex-wrap">
+                        <a href="{% url 'dashboard:dashboard' %}" class="btn btn-light btn-lg px-5 py-3">
                             <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
                         </a>
-                        <a href="{% url 'dashboard:signals' %}" class="btn btn-success btn-lg">
+                        <a href="{% url 'dashboard:signals' %}" class="btn btn-success btn-lg px-5 py-3">
                             <i class="fas fa-signal me-2"></i>View Signals
                         </a>
                     </div>

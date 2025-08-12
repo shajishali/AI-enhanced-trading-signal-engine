@@ -69,10 +69,53 @@
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
             border: none;
             border-radius: 5px;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         
         .btn-primary:hover {
             background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .btn-lg {
+            padding: 12px 24px;
+            font-size: 1.1rem;
+        }
+        
+        .btn-outline-primary {
+            border: 2px solid var(--secondary-color);
+            color: var(--secondary-color);
+            background: transparent;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-outline-primary:hover {
+            background: var(--secondary-color);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .btn-outline-secondary {
+            border: 2px solid var(--dark-color);
+            color: var(--dark-color);
+            background: transparent;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-outline-secondary:hover {
+            background: var(--dark-color);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(52, 73, 94, 0.3);
         }
         
         .stats-card {
@@ -2579,6 +2622,322 @@
             color: #212529 !important;
         }
 
+        /* Enhanced button styling for consistency */
+        .btn {
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-1px);
+            text-decoration: none;
+        }
+        
+        .btn:focus {
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.3);
+            outline: none;
+        }
+        
+        /* Card button container styling */
+        .card .btn {
+            margin: 15px auto;
+            display: block;
+            width: auto;
+            min-width: 180px;
+        }
+        
+        .card-body .btn {
+            margin: 20px auto;
+            display: block;
+            width: auto;
+            min-width: 200px;
+        }
+        
+        /* Fix button centering in all containers */
+        .text-center .btn {
+            margin: 15px auto;
+            display: inline-block;
+        }
+        
+        /* Ensure buttons in flex containers are properly spaced */
+        .d-flex .btn {
+            margin: 0 5px;
+        }
+        
+        /* Fix button margins in different contexts */
+        .btn-primary, .btn-success, .btn-info, .btn-warning, .btn-danger {
+            margin: 10px 5px;
+        }
+        
+        /* Fix icon positioning and centering */
+        .fas, .fa, .far, .fab {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            line-height: 1;
+        }
+        
+        /* Specific fix for gear/settings icon */
+        .fa-cog, .fa-gear, .fa-settings {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            line-height: 1;
+            position: relative;
+            top: 0;
+            left: 0;
+        }
+        
+        /* Fix navigation icon alignment */
+        .nav-link .fas, .nav-link .fa {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            line-height: 1;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Specific fix for settings navigation */
+        #nav-settings .fas, #nav-settings .fa {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            line-height: 1;
+            margin: 0;
+            padding: 0;
+            position: relative;
+            top: 0;
+            left: 0;
+        }
+        
+        /* Fix all navigation items icon alignment */
+        .navbar-nav .nav-item .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+        }
+        
+        .navbar-nav .nav-item .nav-link .fas,
+        .navbar-nav .nav-item .nav-link .fa {
+            flex-shrink: 0;
+            width: auto;
+            height: auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Ensure proper icon spacing */
+        .me-1, .me-2, .me-3 {
+            margin-right: 0.25rem !important;
+        }
+        
+        .ms-1, .ms-2, .ms-3 {
+            margin-left: 0.25rem !important;
+        }
+
+        .navbar-nav .nav-item .nav-link .fas,
+        .navbar-nav .nav-item .nav-link .fa {
+            flex-shrink: 0;
+            width: auto;
+            height: auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Fix dropdown icon alignment */
+        .dropdown-item .fas, .dropdown-item .fa {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            line-height: 1;
+            margin: 0;
+            padding: 0;
+            flex-shrink: 0;
+            width: auto;
+            height: auto;
+        }
+        
+        /* Ensure dropdown items have proper icon alignment */
+        .dropdown-menu .dropdown-item {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+        }
+        
+        /* Fix any remaining icon positioning issues */
+        .btn .fas, .btn .fa {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            line-height: 1;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Comprehensive icon centering fix */
+        * .fas, * .fa, * .far, * .fab {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            vertical-align: middle !important;
+            line-height: 1 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            position: relative !important;
+            top: 0 !important;
+            left: 0 !important;
+        }
+        
+        /* Fix icon containers */
+        .icon-container, [class*="icon"], [class*="Icon"] {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        
+        /* Ensure proper icon sizing */
+        .fas, .fa, .far, .fab {
+            font-size: inherit;
+            width: auto;
+            height: auto;
+            min-width: auto;
+            min-height: auto;
+        }
+        
+        /* Simple icon centering fix */
+        .fa-cog, .fa-gear, .fa-settings {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            line-height: 1;
+        }
+        
+        /* Fix navigation icon alignment */
+        .navbar-nav .nav-item .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .navbar-nav .nav-item .nav-link .fas,
+        .navbar-nav .nav-item .nav-link .fa {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            line-height: 1;
+        }
+        
+        /* Simple fix for gear icon vertical centering */
+        .fa-cog {
+            vertical-align: middle;
+            line-height: 1;
+            display: inline-block;
+        }
+        
+        /* Ensure navigation items center their content properly */
+        .navbar-nav .nav-item .nav-link {
+            text-align: center;
+            vertical-align: middle;
+        }
+        
+        /* Target the settings navigation specifically */
+        #nav-settings .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        
+        #nav-settings .fa-cog {
+            margin: 0;
+            padding: 0;
+            vertical-align: middle;
+            line-height: 1;
+        }
+        
+        /* Quick fix: Force gear icon to exact center */
+        .fa-cog {
+            position: relative;
+            top: 50%;
+            transform: translateY(-50%);
+            display: inline-block;
+            vertical-align: middle;
+        }
+        
+        /* Ensure the container allows proper centering */
+        .nav-link {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        
+        /* Specific fix for the settings navigation item */
+        #nav-settings {
+            display: flex;
+            align-items: center;
+        }
+        
+        #nav-settings .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        #nav-settings .nav-link .fa-cog {
+            position: relative;
+            top: 0;
+            transform: none;
+            margin: 0;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            line-height: 1;
+        }
+        
+        /* Override Bootstrap margin classes */
+        .me-1, .me-2, .me-3 {
+            margin-right: 0 !important;
+        }
+        
+        /* Force perfect centering for the gear icon */
+        #nav-settings .fa-cog {
+            margin: 0 !important;
+            padding: 0 !important;
+            position: static !important;
+            top: auto !important;
+            left: auto !important;
+            right: auto !important;
+            bottom: auto !important;
+            transform: none !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            vertical-align: middle !important;
+            line-height: 1 !important;
+        }
     </style>
     
     {% block extra_css %}{% endblock %}
