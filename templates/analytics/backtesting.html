@@ -62,18 +62,16 @@
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="strategy" class="form-label">Strategy</label>
-                                <select class="form-select" id="strategy" name="strategy" required>
+                                <label for="strategy_name" class="form-label">Strategy</label>
+                                <select class="form-select" id="strategy_name" name="strategy_name" required>
                                     <option value="">Select Strategy</option>
-                                    <option value="moving_average">Moving Average Crossover</option>
-                                    <option value="rsi">RSI Strategy</option>
-                                    <option value="macd">MACD Strategy</option>
-                                    <option value="bollinger">Bollinger Bands</option>
+                                    <option value="Moving Average Crossover">Moving Average Crossover</option>
+                                    <option value="RSI Strategy">RSI Strategy</option>
+                                    <option value="MACD Strategy">MACD Strategy</option>
+                                    <option value="Bollinger Bands">Bollinger Bands</option>
+                                    <option value="Breakout Strategy">Breakout Strategy</option>
+                                    <option value="Mean Reversion">Mean Reversion</option>
                                 </select>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="position_size" class="form-label">Position Size (%)</label>
-                                <input type="number" class="form-control" id="position_size" name="position_size" value="10" min="1" max="100" required>
                             </div>
                         </div>
                         <button type="submit" class="btn btn-primary">
@@ -86,7 +84,7 @@
     </div>
 
     <!-- Backtest Results -->
-    {% if backtest_results %}
+    {% if latest_result %}
     <div class="row">
         <div class="col-md-6 mb-4">
             <div class="card">
@@ -97,23 +95,23 @@
                     <div class="row">
                         <div class="col-6">
                             <h6>Total Return</h6>
-                            <p class="h4 {% if backtest_results.total_return >= 0 %}positive{% else %}negative{% endif %}">
-                                {{ backtest_results.total_return }}%
+                            <p class="h4 {% if latest_result.total_return >= 0 %}positive{% else %}negative{% endif %}">
+                                {{ latest_result.total_return }}%
                             </p>
                         </div>
                         <div class="col-6">
                             <h6>Sharpe Ratio</h6>
-                            <p class="h4">{{ backtest_results.sharpe_ratio|floatformat:2 }}</p>
+                            <p class="h4">{{ latest_result.sharpe_ratio|floatformat:2 }}</p>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-6">
                             <h6>Max Drawdown</h6>
-                            <p class="h4 negative">{{ backtest_results.max_drawdown }}%</p>
+                            <p class="h4 negative">{{ latest_result.max_drawdown }}%</p>
                         </div>
                         <div class="col-6">
                             <h6>Win Rate</h6>
-                            <p class="h4">{{ backtest_results.win_rate }}%</p>
+                            <p class="h4">{{ latest_result.win_rate }}%</p>
                         </div>
                     </div>
                 </div>
@@ -129,27 +127,78 @@
                     <div class="row">
                         <div class="col-6">
                             <h6>Total Trades</h6>
-                            <p class="h4">{{ backtest_results.total_trades }}</p>
+                            <p class="h4">{{ latest_result.total_trades }}</p>
                         </div>
                         <div class="col-6">
                             <h6>Profitable Trades</h6>
-                            <p class="h4">{{ backtest_results.profitable_trades }}</p>
+                            <p class="h4">{{ latest_result.winning_trades }}</p>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-6">
-                            <h6>Avg Win</h6>
-                            <p class="h4 positive">${{ backtest_results.avg_win }}</p>
+                            <h6>Annualized Return</h6>
+                            <p class="h4 {% if latest_result.annualized_return >= 0 %}positive{% else %}negative{% endif %}">
+                                {{ latest_result.annualized_return }}%
+                            </p>
                         </div>
                         <div class="col-6">
-                            <h6>Avg Loss</h6>
-                            <p class="h4 negative">${{ backtest_results.avg_loss }}</p>
+                            <h6>Profit Factor</h6>
+                            <p class="h4">{{ latest_result.profit_factor|floatformat:2 }}</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+    
+    <!-- All Backtest Results Table -->
+    {% if backtest_results %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-table me-2"></i>All Backtest Results</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Strategy</th>
+                                    <th>Symbol</th>
+                                    <th>Period</th>
+                                    <th>Total Return</th>
+                                    <th>Sharpe Ratio</th>
+                                    <th>Max Drawdown</th>
+                                    <th>Win Rate</th>
+                                    <th>Total Trades</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in backtest_results %}
+                                <tr>
+                                    <td>{{ result.strategy_name }}</td>
+                                    <td>{{ result.symbol|default:"N/A" }}</td>
+                                    <td>{{ result.start_date|date:"M d" }} - {{ result.end_date|date:"M d, Y" }}</td>
+                                    <td class="{% if result.total_return >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ result.total_return }}%
+                                    </td>
+                                    <td>{{ result.sharpe_ratio|floatformat:2 }}</td>
+                                    <td class="text-danger">{{ result.max_drawdown }}%</td>
+                                    <td>{{ result.win_rate }}%</td>
+                                    <td>{{ result.total_trades }}</td>
+                                    <td>{{ result.created_at|date:"M d, Y H:i" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
     {% endif %}
 </div>
 {% endblock %}
