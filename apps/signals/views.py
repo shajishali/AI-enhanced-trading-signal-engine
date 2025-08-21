@@ -7,9 +7,13 @@ from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.shortcuts import render
-from django.db.models import Q, Avg, Count
+from django.db.models import Q, Avg, Count, Prefetch
 from django.utils import timezone
+from django.core.cache import cache
+from django.views.decorators.cache import cache_page
+from django.utils.decorators import method_decorator
 import json
+from django.conf import settings
 
 from apps.signals.models import (
     TradingSignal, SignalType, SignalFactor, SignalAlert,
@@ -36,8 +40,18 @@ class SignalAPIView(View):
             is_valid = request.GET.get('is_valid', 'true').lower() == 'true'
             limit = int(request.GET.get('limit', 50))
             
-            # Build query
-            queryset = TradingSignal.objects.select_related('symbol', 'signal_type')
+            # Create cache key based on parameters
+            cache_key = f"signals_api_{symbol}_{signal_type}_{is_valid}_{limit}"
+            cached_data = cache.get(cache_key)
+            
+            if cached_data:
+                logger.info(f"Returning cached data for key: {cache_key}")
+                return JsonResponse(cached_data)
+            
+            # Build optimized query with select_related and prefetch_related
+            queryset = TradingSignal.objects.select_related(
+                'symbol', 'signal_type'
+            )
             
             if symbol:
                 queryset = queryset.filter(symbol__symbol__iexact=symbol)
@@ -48,12 +62,31 @@ class SignalAPIView(View):
             queryset = queryset.filter(is_valid=is_valid)
             signals = queryset.order_by('-created_at')[:limit]
             
-            # Serialize signals
+            # Get live prices for symbols
+            live_prices = {}
+            try:
+                from apps.data.real_price_service import get_live_prices
+                live_prices = get_live_prices()
+            except Exception as e:
+                logger.warning(f"Could not fetch live prices: {e}")
+                live_prices = {}
+            
+            # Serialize signals with optimized data access and live prices
             signal_data = []
             for signal in signals:
+                symbol = signal.symbol.symbol
+                current_price = None
+                price_change_24h = None
+                
+                # Get current live price for this symbol
+                if symbol in live_prices:
+                    price_data = live_prices[symbol]
+                    current_price = price_data.get('price')
+                    price_change_24h = price_data.get('change_24h')
+                
                 signal_data.append({
                     'id': signal.id,
-                    'symbol': signal.symbol.symbol,
+                    'symbol': symbol,
                     'signal_type': signal.signal_type.name,
                     'strength': signal.strength,
                     'confidence_score': signal.confidence_score,
@@ -61,6 +94,8 @@ class SignalAPIView(View):
                     'entry_price': float(signal.entry_price) if signal.entry_price else None,
                     'target_price': float(signal.target_price) if signal.target_price else None,
                     'stop_loss': float(signal.stop_loss) if signal.stop_loss else None,
+                    'current_price': current_price,  # Live current price
+                    'price_change_24h': price_change_24h,  # 24h price change
                     'risk_reward_ratio': signal.risk_reward_ratio,
                     'quality_score': signal.quality_score,
                     'is_valid': signal.is_valid,
@@ -76,11 +111,17 @@ class SignalAPIView(View):
                     'pattern_score': signal.pattern_score
                 })
             
-            return JsonResponse({
+            response_data = {
                 'success': True,
                 'signals': signal_data,
-                'count': len(signal_data)
-            })
+                'count': len(signal_data),
+                'cached_at': timezone.now().isoformat()
+            }
+            
+            # Cache the response for 5 minutes
+            cache.set(cache_key, response_data, 300)
+            
+            return JsonResponse(response_data)
             
         except Exception as e:
             logger.error(f"Error getting signals: {e}")
@@ -113,6 +154,17 @@ class SignalAPIView(View):
             # Generate signals
             signal_service = SignalGenerationService()
             signals = signal_service.generate_signals_for_symbol(symbol)
+            
+            # Invalidate related caches to ensure data consistency
+            cache_keys_to_delete = [
+                "signal_statistics",
+                f"signals_api_{symbol.symbol}_None_true_50",
+                f"signals_api_None_None_true_50"
+            ]
+            
+            for cache_key in cache_keys_to_delete:
+                cache.delete(cache_key)
+                logger.info(f"Invalidated cache key: {cache_key}")
             
             return JsonResponse({
                 'success': True,
@@ -512,7 +564,15 @@ def signal_dashboard(request):
 def signal_statistics(request):
     """Get signal statistics"""
     try:
-        # Calculate statistics
+        # Check cache first
+        cache_key = "signal_statistics"
+        cached_stats = cache.get(cache_key)
+        
+        if cached_stats:
+            logger.info("Returning cached signal statistics")
+            return JsonResponse(cached_stats)
+        
+        # Calculate statistics with optimized queries
         total_signals = TradingSignal.objects.count()
         active_signals = TradingSignal.objects.filter(is_valid=True).count()
         executed_signals = TradingSignal.objects.filter(is_executed=True).count()
@@ -522,25 +582,23 @@ def signal_statistics(request):
         
         win_rate = profitable_signals / executed_signals if executed_signals > 0 else 0.0
         
-        # Get average metrics for recent signals
+        # Get average metrics for recent signals with optimized query
         recent_signals = TradingSignal.objects.filter(
             created_at__gte=timezone.now() - timedelta(days=7)
+        ).aggregate(
+            avg_confidence=Avg('confidence_score'),
+            avg_quality=Avg('quality_score')
         )
         
-        avg_confidence = recent_signals.aggregate(
-            avg_confidence=Avg('confidence_score')
-        )['avg_confidence'] or 0.0
+        avg_confidence = recent_signals['avg_confidence'] or 0.0
+        avg_quality = recent_signals['avg_quality'] or 0.0
         
-        avg_quality = recent_signals.aggregate(
-            avg_quality=Avg('quality_score')
-        )['avg_quality'] or 0.0
-        
-        # Get signal distribution by type
+        # Get signal distribution by type with optimized query
         signal_distribution = TradingSignal.objects.values('signal_type__name').annotate(
             count=Count('id')
         )
         
-        # Get signal distribution by strength
+        # Get signal distribution by strength with optimized query
         strength_distribution = TradingSignal.objects.values('strength').annotate(
             count=Count('id')
         )
@@ -554,16 +612,97 @@ def signal_statistics(request):
             'avg_confidence': avg_confidence,
             'avg_quality': avg_quality,
             'signal_distribution': list(signal_distribution),
-            'strength_distribution': list(strength_distribution)
+            'strength_distribution': list(strength_distribution),
+            'cached_at': timezone.now().isoformat()
         }
         
-        return JsonResponse({
+        response_data = {
             'success': True,
             'statistics': statistics
-        })
+        }
+        
+        # Cache the statistics for 10 minutes
+        cache.set(cache_key, response_data, 600)
+        
+        return JsonResponse(response_data)
         
     except Exception as e:
         logger.error(f"Error getting signal statistics: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def execute_signal(request, signal_id):
+    """Execute a trading signal"""
+    try:
+        # Get the signal
+        try:
+            signal = TradingSignal.objects.get(id=signal_id)
+        except TradingSignal.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': f'Signal {signal_id} not found'
+            }, status=404)
+        
+        # Check if signal is valid and not already executed
+        if not signal.is_valid:
+            return JsonResponse({
+                'success': False,
+                'error': 'Signal is not valid'
+            }, status=400)
+        
+        if signal.is_executed:
+            return JsonResponse({
+                'success': False,
+                'error': 'Signal has already been executed'
+            }, status=400)
+        
+        # Check if signal has expired
+        if signal.expires_at and signal.expires_at < timezone.now():
+            return JsonResponse({
+                'success': False,
+                'error': 'Signal has expired'
+            }, status=400)
+        
+        # Execute the signal
+        signal.is_executed = True
+        signal.executed_at = timezone.now()
+        signal.save()
+        
+        # Invalidate related caches to ensure data consistency
+        cache_keys_to_delete = [
+            "signal_statistics",
+            f"signals_api_{signal.symbol.symbol}_None_true_50",
+            f"signals_api_None_None_true_50"
+        ]
+        
+        for cache_key in cache_keys_to_delete:
+            cache.delete(cache_key)
+            logger.info(f"Invalidated cache key: {cache_key}")
+        
+        # Log the execution
+        logger.info(f"Signal {signal_id} executed successfully for {signal.symbol.symbol}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Signal {signal_id} executed successfully',
+            'signal': {
+                'id': signal.id,
+                'symbol': signal.symbol.symbol,
+                'signal_type': signal.signal_type.name,
+                'executed_at': signal.executed_at.isoformat(),
+                'entry_price': float(signal.entry_price) if signal.entry_price else None,
+                'target_price': float(signal.target_price) if signal.target_price else None,
+                'stop_loss': float(signal.stop_loss) if signal.stop_loss else None
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error executing signal {signal_id}: {e}")
         return JsonResponse({
             'success': False,
             'error': str(e)
@@ -597,6 +736,17 @@ def generate_signals_manual(request):
         signal_service = SignalGenerationService()
         signals = signal_service.generate_signals_for_symbol(symbol)
         
+        # Invalidate related caches to ensure data consistency
+        cache_keys_to_delete = [
+            "signal_statistics",
+            f"signals_api_{symbol.symbol}_None_true_50",
+            f"signals_api_None_None_true_50"
+        ]
+        
+        for cache_key in cache_keys_to_delete:
+            cache.delete(cache_key)
+            logger.info(f"Invalidated cache key: {cache_key}")
+        
         return JsonResponse({
             'success': True,
             'symbol': symbol.symbol,
@@ -606,6 +756,49 @@ def generate_signals_manual(request):
         
     except Exception as e:
         logger.error(f"Error generating signals manually: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@csrf_exempt
+def reset_signals_for_testing(request):
+    """Reset all signals to 'Active' status for testing purposes"""
+    try:
+        # Only allow in development/testing environment
+        if not settings.DEBUG:
+            return JsonResponse({
+                'success': False,
+                'error': 'This endpoint is only available in development mode'
+            }, status=403)
+        
+        # Reset all signals to not executed
+        signals_updated = TradingSignal.objects.filter(is_executed=True).update(
+            is_executed=False,
+            executed_at=None
+        )
+        
+        # Clear related caches
+        cache_keys_to_delete = [
+            "signal_statistics",
+            "signals_api_None_None_true_50"
+        ]
+        
+        for cache_key in cache_keys_to_delete:
+            cache.delete(cache_key)
+            logger.info(f"Invalidated cache key: {cache_key}")
+        
+        logger.info(f"Reset {signals_updated} signals for testing")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Reset {signals_updated} signals for testing',
+            'signals_reset': signals_updated
+        })
+        
+    except Exception as e:
+        logger.error(f"Error resetting signals for testing: {e}")
         return JsonResponse({
             'success': False,
             'error': str(e)

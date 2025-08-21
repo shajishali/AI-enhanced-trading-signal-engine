@@ -13,7 +13,9 @@ from apps.signals.models import (
 )
 from apps.trading.models import Symbol
 from apps.data.models import TechnicalIndicator, MarketData
+from apps.data.services import EconomicDataService, SectorAnalysisService
 from apps.sentiment.models import SentimentAggregate, CryptoMention
+from apps.signals.strategies import MovingAverageCrossoverStrategy, RSIStrategy, MACDStrategy, BollingerBandsStrategy, BreakoutStrategy, MeanReversionStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,20 @@ class SignalGenerationService:
         self.min_confidence_threshold = 0.7  # 70% minimum confidence
         self.min_risk_reward_ratio = 3.0     # 3:1 minimum risk-reward
         self.signal_expiry_hours = 24        # Signal expires in 24 hours
+        
+        # Initialize trading strategies
+        self.ma_crossover_strategy = MovingAverageCrossoverStrategy()
+        self.rsi_strategy = RSIStrategy()
+        self.macd_strategy = MACDStrategy()
+        self.bb_strategy = BollingerBandsStrategy()
+        self.breakout_strategy = BreakoutStrategy()
+        self.mean_reversion_strategy = MeanReversionStrategy()
+        
+        # Initialize economic data service
+        self.economic_service = EconomicDataService()
+        
+        # Initialize sector analysis service
+        self.sector_service = SectorAnalysisService()
         
     def generate_signals_for_symbol(self, symbol: Symbol) -> List[TradingSignal]:
         """Generate signals for a specific symbol"""
@@ -56,16 +72,44 @@ class SignalGenerationService:
         # Calculate pattern recognition
         pattern_score = self._calculate_pattern_score(symbol)
         
+        # Calculate economic/fundamental score
+        economic_score = self._calculate_economic_score(symbol)
+        
+        # Calculate sector analysis score
+        sector_score = self._calculate_sector_score(symbol)
+        
         # Generate signals based on combined analysis
         signals.extend(self._generate_buy_signals(
             symbol, market_data, technical_score, sentiment_score, 
-            news_score, volume_score, pattern_score
+            news_score, volume_score, pattern_score, economic_score, sector_score
         ))
         
         signals.extend(self._generate_sell_signals(
             symbol, market_data, technical_score, sentiment_score,
-            news_score, volume_score, pattern_score
+            news_score, volume_score, pattern_score, economic_score, sector_score
         ))
+        
+        # Generate signals from trading strategies
+        ma_strategy_signals = self.ma_crossover_strategy.generate_signals(symbol)
+        signals.extend(ma_strategy_signals)
+        
+        rsi_strategy_signals = self.rsi_strategy.generate_signals(symbol)
+        signals.extend(rsi_strategy_signals)
+        
+        macd_strategy_signals = self.macd_strategy.generate_signals(symbol)
+        signals.extend(macd_strategy_signals)
+        
+        # Generate signals from Bollinger Bands strategy
+        bb_strategy_signals = self.bb_strategy.generate_signals(symbol)
+        signals.extend(bb_strategy_signals)
+        
+        # Generate signals from Breakout strategy
+        breakout_strategy_signals = self.breakout_strategy.generate_signals(symbol)
+        signals.extend(breakout_strategy_signals)
+        
+        # Generate signals from Mean Reversion strategy
+        mean_reversion_signals = self.mean_reversion_strategy.generate_signals(symbol)
+        signals.extend(mean_reversion_signals)
         
         # Filter signals by quality criteria
         filtered_signals = self._filter_signals_by_quality(signals)
@@ -285,20 +329,77 @@ class SignalGenerationService:
             logger.error(f"Error calculating pattern score for {symbol.symbol}: {e}")
             return 0.0
     
+    def _calculate_economic_score(self, symbol: Symbol) -> float:
+        """Calculate economic/fundamental analysis score (-1 to 1)"""
+        try:
+            # Determine the country/region for the symbol
+            # For crypto, we'll primarily use US economic data
+            # as it's the global reserve currency and affects crypto markets
+            country = 'US'
+            
+            # Get market impact score from economic service
+            economic_impact = self.economic_service.get_market_impact_score(country)
+            
+            # Check for upcoming high-impact events
+            upcoming_events = self.economic_service.check_upcoming_events(days_ahead=3)
+            
+            event_impact = 0.0
+            if upcoming_events:
+                for event in upcoming_events:
+                    if event.impact_level in ['HIGH', 'CRITICAL']:
+                        event_analysis = self.economic_service.analyze_event_impact(event)
+                        if event_analysis:
+                            # Weight by time proximity (closer events have more impact)
+                            time_weight = max(0.1, 1.0 - (event_analysis.get('time_to_event', 72) / 72))
+                            event_impact += event_analysis.get('market_impact', 0.0) * time_weight
+            
+            # Combine economic sentiment and event impact
+            combined_economic_score = (economic_impact * 0.7) + (event_impact * 0.3)
+            
+            # Normalize to -1 to 1 range
+            normalized_score = max(-1.0, min(1.0, combined_economic_score))
+            
+            logger.debug(f"Economic score for {symbol.symbol}: {normalized_score:.3f} "
+                        f"(sentiment: {economic_impact:.3f}, events: {event_impact:.3f})")
+            
+            return normalized_score
+            
+        except Exception as e:
+            logger.error(f"Error calculating economic score for {symbol.symbol}: {e}")
+            return 0.0
+    
+    def _calculate_sector_score(self, symbol: Symbol) -> float:
+        """Calculate sector analysis score (-1 to 1)"""
+        try:
+            # Get sector impact score from sector service
+            sector_impact = self.sector_service.get_sector_impact_score(symbol)
+            
+            # Normalize to -1 to 1 range (sector_impact is already in this range)
+            sector_score = max(-1.0, min(1.0, sector_impact))
+            
+            logger.debug(f"Sector score for {symbol.symbol}: {sector_score}")
+            return sector_score
+            
+        except Exception as e:
+            logger.error(f"Error calculating sector score for {symbol.symbol}: {e}")
+            return 0.0
+    
     def _generate_buy_signals(self, symbol: Symbol, market_data: Dict, 
                              technical_score: float, sentiment_score: float,
                              news_score: float, volume_score: float, 
-                             pattern_score: float) -> List[TradingSignal]:
+                             pattern_score: float, economic_score: float, sector_score: float) -> List[TradingSignal]:
         """Generate buy signals based on analysis"""
         signals = []
         
         # Calculate combined score
         combined_score = (
-            technical_score * 0.35 +
-            sentiment_score * 0.25 +
+            technical_score * 0.25 +
+            sentiment_score * 0.20 +
             news_score * 0.15 +
             volume_score * 0.15 +
-            pattern_score * 0.10
+            pattern_score * 0.10 +
+            economic_score * 0.10 +
+            sector_score * 0.05
         )
         
         # Generate buy signal if conditions are met
@@ -315,7 +416,9 @@ class SignalGenerationService:
                     sentiment_score=sentiment_score,
                     news_score=news_score,
                     volume_score=volume_score,
-                    pattern_score=pattern_score
+                    pattern_score=pattern_score,
+                    economic_score=economic_score,
+                    sector_score=sector_score
                 )
                 
                 if signal:
@@ -335,7 +438,9 @@ class SignalGenerationService:
                     sentiment_score=sentiment_score,
                     news_score=news_score,
                     volume_score=volume_score,
-                    pattern_score=pattern_score
+                    pattern_score=pattern_score,
+                    economic_score=economic_score,
+                    sector_score=sector_score
                 )
                 
                 if signal:
@@ -346,17 +451,19 @@ class SignalGenerationService:
     def _generate_sell_signals(self, symbol: Symbol, market_data: Dict,
                               technical_score: float, sentiment_score: float,
                               news_score: float, volume_score: float,
-                              pattern_score: float) -> List[TradingSignal]:
+                              pattern_score: float, economic_score: float, sector_score: float) -> List[TradingSignal]:
         """Generate sell signals based on analysis"""
         signals = []
         
         # Calculate combined score
         combined_score = (
-            technical_score * 0.35 +
-            sentiment_score * 0.25 +
+            technical_score * 0.25 +
+            sentiment_score * 0.20 +
             news_score * 0.15 +
             volume_score * 0.15 +
-            pattern_score * 0.10
+            pattern_score * 0.10 +
+            economic_score * 0.10 +
+            sector_score * 0.05
         )
         
         # Generate sell signal if conditions are met
@@ -373,7 +480,9 @@ class SignalGenerationService:
                     sentiment_score=sentiment_score,
                     news_score=news_score,
                     volume_score=volume_score,
-                    pattern_score=pattern_score
+                    pattern_score=pattern_score,
+                    economic_score=economic_score,
+                    sector_score=sector_score
                 )
                 
                 if signal:
@@ -393,7 +502,9 @@ class SignalGenerationService:
                     sentiment_score=sentiment_score,
                     news_score=news_score,
                     volume_score=volume_score,
-                    pattern_score=pattern_score
+                    pattern_score=pattern_score,
+                    economic_score=economic_score,
+                    sector_score=sector_score
                 )
                 
                 if signal:
@@ -405,7 +516,7 @@ class SignalGenerationService:
                       confidence_score: float, market_data: Dict,
                       technical_score: float, sentiment_score: float,
                       news_score: float, volume_score: float,
-                      pattern_score: float) -> Optional[TradingSignal]:
+                      pattern_score: float, economic_score: float, sector_score: float) -> Optional[TradingSignal]:
         """Create a trading signal with all details"""
         try:
             # Get signal type
@@ -453,9 +564,11 @@ class SignalGenerationService:
             # Calculate quality score
             quality_score = (
                 confidence_score * 0.4 +
-                (1.0 if risk_reward_ratio >= self.min_risk_reward_ratio else 0.0) * 0.3 +
-                (technical_score + 1.0) / 2.0 * 0.2 +
-                (sentiment_score + 1.0) / 2.0 * 0.1
+                (1.0 if risk_reward_ratio >= self.min_risk_reward_ratio else 0.0) * 0.25 +
+                (technical_score + 1.0) / 2.0 * 0.15 +
+                (sentiment_score + 1.0) / 2.0 * 0.08 +
+                (economic_score + 1.0) / 2.0 * 0.07 +
+                (sector_score + 1.0) / 2.0 * 0.05
             )
             
             # Create signal
@@ -475,7 +588,9 @@ class SignalGenerationService:
                 sentiment_score=sentiment_score,
                 news_score=news_score,
                 volume_score=volume_score,
-                pattern_score=pattern_score
+                pattern_score=pattern_score,
+                economic_score=economic_score,
+                sector_score=sector_score
             )
             
             # Create factor contributions
@@ -484,7 +599,9 @@ class SignalGenerationService:
                 'sentiment': sentiment_score,
                 'news': news_score,
                 'volume': volume_score,
-                'pattern': pattern_score
+                'pattern': pattern_score,
+                'economic': economic_score,
+                'sector': sector_score
             })
             
             # Create alert
@@ -524,6 +641,16 @@ class SignalGenerationService:
                     name='Pattern Recognition',
                     factor_type='PATTERN',
                     defaults={'weight': 0.10, 'description': 'Chart pattern analysis'}
+                )[0],
+                'economic': SignalFactor.objects.get_or_create(
+                    name='Economic Analysis',
+                    factor_type='ECONOMIC',
+                    defaults={'weight': 0.10, 'description': 'Economic and fundamental analysis'}
+                )[0],
+                'sector': SignalFactor.objects.get_or_create(
+                    name='Sector Analysis',
+                    factor_type='SECTOR',
+                    defaults={'weight': 0.05, 'description': 'Sector momentum and rotation analysis'}
                 )[0]
             }
             

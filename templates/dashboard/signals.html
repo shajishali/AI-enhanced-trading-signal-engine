@@ -3,6 +3,12 @@
 
 {% block title %}Trading Signals - AI Trading Engine{% endblock %}
 
+{% block extra_css %}
+<!-- DataTables CSS -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <div class="row">
@@ -338,15 +344,13 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="signalModalLabel">Signal Details</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" id="signalModalBody">
                 <!-- Signal details will be loaded here -->
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-primary" id="executeSignalBtn">Execute Signal</button>
             </div>
         </div>
@@ -405,6 +409,17 @@
 .signal-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+/* Filtered out rows styling */
+.filtered-out {
+    opacity: 0.3;
+    background-color: #f8f9fa !important;
+}
+
+/* Clear button styling */
+.btn-block {
+    width: 100%;
 }
 </style>
 
@@ -514,8 +529,71 @@ function filterSignals() {
     const confidence = document.getElementById('confidence').value;
     const status = document.getElementById('status').value;
     
-    // Apply filters to DataTable
-    dataTable.draw();
+    // Apply filters to DataTable if it exists
+    if (dataTable && typeof dataTable.draw === 'function') {
+        dataTable.draw();
+    }
+    
+    // Apply custom filtering to table rows
+    const table = document.getElementById('signalsTable');
+    if (table) {
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            let shouldShow = true;
+            
+            // Filter by signal type
+            if (signalType && signalType !== '') {
+                const typeCell = row.querySelector('td:nth-child(2)');
+                if (typeCell && !typeCell.textContent.includes(signalType)) {
+                    shouldShow = false;
+                }
+            }
+            
+            // Filter by symbol
+            if (symbol && symbol !== '') {
+                const symbolCell = row.querySelector('td:nth-child(1)');
+                if (symbolCell && !symbolCell.textContent.includes(symbol)) {
+                    shouldShow = false;
+                }
+            }
+            
+            // Filter by confidence level
+            if (confidence && confidence !== '') {
+                const confidenceCell = row.querySelector('td:nth-child(3)');
+                if (confidenceCell) {
+                    const confidenceText = confidenceCell.textContent;
+                    let confidenceValue = 0;
+                    if (confidenceText.includes('%')) {
+                        confidenceValue = parseInt(confidenceText);
+                    }
+                    
+                    if (confidence === 'high' && confidenceValue < 80) shouldShow = false;
+                    if (confidence === 'medium' && (confidenceValue < 50 || confidenceValue >= 80)) shouldShow = false;
+                    if (confidence === 'low' && confidenceValue >= 50) shouldShow = false;
+                }
+            }
+            
+            // Filter by status
+            if (status && status !== '') {
+                const statusCell = row.querySelector('td:nth-child(7)');
+                if (statusCell) {
+                    const statusText = statusCell.textContent.toLowerCase();
+                    if (status === 'active' && !statusText.includes('active')) shouldShow = false;
+                    if (status === 'expired' && !statusText.includes('expired')) shouldShow = false;
+                    if (status === 'executed' && !statusText.includes('executed')) shouldShow = false;
+                }
+            }
+            
+            // Show/hide row
+            if (shouldShow) {
+                row.style.display = '';
+                row.classList.remove('filtered-out');
+            } else {
+                row.style.display = 'none';
+                row.classList.add('filtered-out');
+            }
+        });
+    }
     
     // Show filter summary
     showFilterSummary();
@@ -537,13 +615,29 @@ function sortSignals() {
 }
 
 function clearFilters() {
+    // Clear all form inputs
     document.getElementById('signalType').value = '';
     document.getElementById('symbol').value = '';
     document.getElementById('confidence').value = '';
     document.getElementById('status').value = '';
     document.getElementById('sortBy').value = 'created';
     
-    dataTable.search('').columns().search('').draw();
+    // Clear DataTable filters if it exists
+    if (dataTable && typeof dataTable.search === 'function') {
+        dataTable.search('').columns().search('').draw();
+    }
+    
+    // Reset table to default state
+    const table = document.getElementById('signalsTable');
+    if (table) {
+        // Remove any custom filtering classes
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            row.style.display = '';
+            row.classList.remove('filtered-out');
+        });
+    }
+    
     hideFilterSummary();
 }
 
@@ -635,30 +729,52 @@ function viewSignal(signalId) {
     fetch(`/signals/api/signals/${signalId}/`)
         .then(response => response.json())
         .then(data => {
-            document.getElementById('signalModalBody').innerHTML = `
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>Signal Information</h6>
-                        <p><strong>Symbol:</strong> ${data.symbol}</p>
-                        <p><strong>Type:</strong> ${data.signal_type}</p>
-                        <p><strong>Confidence:</strong> ${data.confidence}%</p>
-                        <p><strong>Created:</strong> ${data.created_at}</p>
+            // Check if data has the expected structure
+            if (data.success && data.signal) {
+                const signal = data.signal;
+                document.getElementById('signalModalBody').innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Signal Information</h6>
+                            <p><strong>Symbol:</strong> ${signal.symbol || 'N/A'}</p>
+                            <p><strong>Type:</strong> ${signal.signal_type || 'N/A'}</p>
+                            <p><strong>Confidence:</strong> ${signal.confidence_score || 'N/A'}%</p>
+                            <p><strong>Created:</strong> ${signal.created_at || 'N/A'}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Trading Parameters</h6>
+                            <p><strong>Price Target:</strong> $${signal.target_price || 'N/A'}</p>
+                            <p><strong>Stop Loss:</strong> $${signal.stop_loss || 'N/A'}</p>
+                            <p><strong>Risk/Reward:</strong> ${signal.risk_reward_ratio || 'N/A'}</p>
+                        </div>
                     </div>
-                    <div class="col-md-6">
-                        <h6>Trading Parameters</h6>
-                        <p><strong>Price Target:</strong> $${data.price_target || 'N/A'}</p>
-                        <p><strong>Stop Loss:</strong> $${data.stop_loss || 'N/A'}</p>
-                        <p><strong>Risk/Reward:</strong> ${data.risk_reward_ratio || 'N/A'}</p>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Analysis</h6>
+                            <p><strong>Technical Score:</strong> ${signal.technical_score || 'N/A'}</p>
+                            <p><strong>Sentiment Score:</strong> ${signal.sentiment_score || 'N/A'}</p>
+                            <p><strong>Quality Score:</strong> ${signal.quality_score || 'N/A'}</p>
+                        </div>
                     </div>
-                </div>
-                <div class="row mt-3">
-                    <div class="col-12">
-                        <h6>Analysis</h6>
-                        <p>${data.analysis || 'No analysis available.'}</p>
+                `;
+                
+                // Set the signal ID for the execute button
+                const executeBtn = document.getElementById('executeSignalBtn');
+                if (executeBtn) {
+                    executeBtn.setAttribute('data-signal-id', signalId);
+                }
+            } else {
+                // Handle error case
+                document.getElementById('signalModalBody').innerHTML = `
+                    <div class="alert alert-danger">
+                        <h6>Error Loading Signal</h6>
+                        <p>Unable to load signal details. Please try again.</p>
                     </div>
-                </div>
-            `;
-            $('#signalModal').modal('show');
+                `;
+            }
+            // Show modal using Bootstrap 5
+            const modal = new bootstrap.Modal(document.getElementById('signalModal'));
+            modal.show();
         })
         .catch(error => {
             console.error('Error loading signal details:', error);
@@ -694,27 +810,48 @@ function executeSignal(signalId) {
 }
 
 function generateSignals() {
-    if (confirm('Generate sample trading signals?')) {
+    if (confirm('Generate new trading signals?')) {
         showNotification('Generating signals...', 'info');
-        fetch('/signals/api/generate-sample/', {
+        
+        // Get the first available symbol from the table, or use a default
+        let symbol = 'BTC'; // Default fallback
+        const table = document.getElementById('signalsTable');
+        if (table) {
+            const firstRow = table.querySelector('tbody tr');
+            if (firstRow) {
+                const symbolCell = firstRow.querySelector('td:nth-child(1)');
+                if (symbolCell) {
+                    const symbolText = symbolCell.textContent.trim();
+                    const symbolMatch = symbolText.match(/^([A-Z]+)/);
+                    if (symbolMatch) {
+                        symbol = symbolMatch[1];
+                    }
+                }
+            }
+        }
+        
+        fetch('/signals/api/generate/', {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'),
                 'Content-Type': 'application/json',
-            }
+            },
+            body: JSON.stringify({
+                symbol: symbol
+            })
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showNotification('Sample signals generated successfully!', 'success');
+                showNotification(`Successfully generated ${data.signals_generated} signals for ${data.symbol}!`, 'success');
                 setTimeout(() => location.reload(), 1500);
             } else {
-                showNotification('Error generating signals: ' + data.error, 'danger');
+                showNotification('Error generating signals: ' + (data.error || 'Unknown error'), 'danger');
             }
         })
         .catch(error => {
             console.error('Error generating signals:', error);
-            showNotification('Error generating signals', 'danger');
+            showNotification('Error generating signals. Please try again.', 'danger');
         });
     }
 }
@@ -743,8 +880,31 @@ $(document).on('click', '#signalsTable tbody tr', function() {
 // Add keyboard navigation
 $(document).on('keydown', function(e) {
     if (e.key === 'Escape') {
-        $('.modal').modal('hide');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('signalModal'));
+        if (modal) modal.hide();
     }
 });
+
+// Add event listeners for modal buttons
+document.addEventListener('DOMContentLoaded', function() {
+    // Execute Signal button
+    const executeBtn = document.getElementById('executeSignalBtn');
+    if (executeBtn) {
+        executeBtn.addEventListener('click', function() {
+            const signalId = this.getAttribute('data-signal-id');
+            if (signalId) {
+                executeSignal(signalId);
+            }
+        });
+    }
+    
+    // Close button and X button are handled by Bootstrap 5 data-bs-dismiss="modal"
+});
 </script>
+
+<!-- DataTables JavaScript -->
+<script type="text/javascript" src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
 {% endblock %}

@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% block title %}AI-Enhanced Trading Signal Engine{% endblock %}</title>
     
     <!-- Bootstrap CSS -->
@@ -116,6 +117,122 @@
             color: white;
             transform: translateY(-2px);
             box-shadow: 0 4px 15px rgba(52, 73, 94, 0.3);
+        }
+        
+        /* Market Stat Cards - Compact Design */
+        .market-stat-card {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            border-radius: 12px;
+            padding: 16px 12px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.1);
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .market-stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            border-color: rgba(255,255,255,0.2);
+        }
+        
+        .market-stat-card .stat-icon {
+            font-size: 1.2rem;
+            margin-bottom: 8px;
+            opacity: 0.8;
+        }
+        
+        .market-stat-card .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.7;
+            margin-bottom: 4px;
+        }
+        
+        .market-stat-card .stat-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        
+        /* Sentiment-specific colors */
+        .market-stat-card .sentiment-bullish {
+            color: #27ae60;
+        }
+        
+        .market-stat-card .sentiment-bearish {
+            color: #e74c3c;
+        }
+        
+        .market-stat-card .sentiment-neutral {
+            color: #95a5a6;
+        }
+        
+        /* Responsive adjustments for market stat cards */
+        @media (max-width: 768px) {
+            .market-stat-card {
+                min-height: 70px;
+                padding: 12px 8px;
+            }
+            
+            .market-stat-card .stat-icon {
+                font-size: 1rem;
+                margin-bottom: 6px;
+            }
+            
+            .market-stat-card .stat-label {
+                font-size: 0.7rem;
+            }
+            
+            .market-stat-card .stat-value {
+                font-size: 1rem;
+            }
+        }
+        
+        /* Live Status Badge - Visible in all themes */
+        .live-status-badge {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%) !important;
+            color: white !important;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .live-status-badge:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        
+        .live-status-badge i {
+            font-size: 0.7rem;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        /* Ensure badge is visible in both light and dark themes */
+        [data-theme="light"] .live-status-badge,
+        [data-theme="dark"] .live-status-badge {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%) !important;
+            color: white !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         }
         
         .stats-card {
@@ -294,22 +411,9 @@
             pointer-events: auto;
         }
 
-        /* Add extra spacing between Settings and Subscription */
-        #nav-settings {
-            margin-right: 12px !important;
-        }
-
-        #nav-subscription {
-            margin-left: 12px !important;
-        }
-
-        /* Additional spacing for better visual separation */
-        .nav-item:has(#nav-settings) {
-            margin-right: 8px;
-        }
-
-        .nav-item:has(#nav-subscription) {
-            margin-left: 8px;
+        /* Clean spacing for navigation items */
+        .navbar-nav .nav-item {
+            margin: 0 4px;
         }
 
         /* Alternative approach for better browser compatibility */
@@ -2707,19 +2811,7 @@
             padding: 0;
         }
         
-        /* Specific fix for settings navigation */
-        #nav-settings .fas, #nav-settings .fa {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            vertical-align: middle;
-            line-height: 1;
-            margin: 0;
-            padding: 0;
-            position: relative;
-            top: 0;
-            left: 0;
-        }
+        /* Clean icon alignment for all navigation items */
         
         /* Fix all navigation items icon alignment */
         .navbar-nav .nav-item .nav-link {
@@ -2860,83 +2952,16 @@
             vertical-align: middle;
         }
         
-        /* Target the settings navigation specifically */
-        #nav-settings .nav-link {
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        /* Clean icon alignment for dropdown items */
+        .dropdown-item i {
+            width: 16px;
             text-align: center;
+            margin-right: 8px;
         }
         
-        #nav-settings .fa-cog {
-            margin: 0;
-            padding: 0;
-            vertical-align: middle;
-            line-height: 1;
-        }
-        
-        /* Quick fix: Force gear icon to exact center */
-        .fa-cog {
-            position: relative;
-            top: 50%;
-            transform: translateY(-50%);
-            display: inline-block;
-            vertical-align: middle;
-        }
-        
-        /* Ensure the container allows proper centering */
-        .nav-link {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-        
-        /* Specific fix for the settings navigation item */
-        #nav-settings {
-            display: flex;
-            align-items: center;
-        }
-        
-        #nav-settings .nav-link {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-        
-        #nav-settings .nav-link .fa-cog {
-            position: relative;
-            top: 0;
-            transform: none;
-            margin: 0;
-            padding: 0;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            vertical-align: middle;
-            line-height: 1;
-        }
-        
-        /* Override Bootstrap margin classes */
-        .me-1, .me-2, .me-3 {
-            margin-right: 0 !important;
-        }
-        
-        /* Force perfect centering for the gear icon */
-        #nav-settings .fa-cog {
-            margin: 0 !important;
-            padding: 0 !important;
-            position: static !important;
-            top: auto !important;
-            left: auto !important;
-            right: auto !important;
-            bottom: auto !important;
-            transform: none !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            vertical-align: middle !important;
-            line-height: 1 !important;
+        /* Ensure proper spacing in navigation */
+        .nav-link i {
+            margin-right: 0.5rem;
         }
     </style>
     
@@ -2974,7 +2999,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'dashboard:signals' %}" id="nav-signals">
+                            <a class="nav-link" href="/signals/" id="nav-signals">
                                 <i class="fas fa-signal me-1"></i>Signals
                             </a>
                         </li>
@@ -3008,11 +3033,7 @@
                             </ul>
                         </li>
 
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'dashboard:settings' %}" id="nav-settings">
-                                <i class="fas fa-cog me-1"></i>Settings
-                            </a>
-                        </li>
+                        <!-- Settings moved to user dropdown to avoid duplication -->
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'subscription:subscription_choice' %}" id="nav-subscription">
                                 <i class="fas fa-crown me-1"></i>Subscription
@@ -3218,7 +3239,7 @@
                 '/dashboard/': 'nav-dashboard',
                 '/portfolio/': 'nav-portfolio',
                 '/signals/': 'nav-signals',
-                '/settings/': 'nav-settings',
+                // Settings is now in user dropdown, no separate nav item
                 '/subscription/': 'nav-subscription',
                 '/analytics/': 'nav-analytics',
                 '/trading/': 'nav-dashboard',
@@ -3474,6 +3495,28 @@
                 userToggle.setAttribute('data-user-initialized', 'true');
             }
         });
+    </script>
+    
+    <!-- CSRF Token Setup -->
+    <script>
+        // Get CSRF token from meta tag
+        function getCSRFToken() {
+            return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        }
+        
+        // Setup CSRF token for all fetch requests
+        if (typeof fetch !== 'undefined') {
+            const originalFetch = fetch;
+            fetch = function(url, options = {}) {
+                if (options.method && options.method.toUpperCase() !== 'GET') {
+                    options.headers = options.headers || {};
+                    if (!options.headers['X-CSRFToken']) {
+                        options.headers['X-CSRFToken'] = getCSRFToken();
+                    }
+                }
+                return originalFetch(url, options);
+            };
+        }
     </script>
     
     {% block extra_js %}{% endblock %}

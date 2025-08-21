@@ -24,6 +24,70 @@
         display: block;
     }
     
+    /* Fix Quick Access card alignment */
+    .col-md-3 .card {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    
+    .col-md-3 .card .card-body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        flex: 1;
+    }
+    
+    .col-md-3 .card .card-text {
+        flex: 1;
+        margin-bottom: 20px;
+        text-align: center;
+        width: 100%;
+    }
+    
+    .col-md-3 .card .btn {
+        margin-top: auto;
+        align-self: center;
+        width: 100%;
+        max-width: 200px;
+    }
+    
+    /* Ensure consistent card heights and alignment */
+    .col-md-3 .card {
+        min-height: 300px;
+    }
+    
+    .col-md-3 .card .card-body {
+        padding: 1.5rem;
+    }
+    
+    .col-md-3 .card .card-title {
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+    
+    .col-md-3 .card .card-text {
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Fix any remaining alignment issues */
+    .col-md-3 .card .card-body > * {
+        text-align: center;
+    }
+    
+    .col-md-3 .card .card-body .btn {
+        text-align: center;
+        justify-content: center;
+    }
+    
+    /* Ensure icons are centered */
+    .col-md-3 .card .fa-3x {
+        display: block;
+        margin: 0 auto;
+    }
+    
     /* Fix Call to Action button spacing */
     .bg-primary .btn {
         margin: 10px;
@@ -51,7 +115,7 @@
                 <a href="{% url 'dashboard:dashboard' %}" class="btn btn-primary btn-lg px-5 py-3">
                     <i class="fas fa-tachometer-alt me-2"></i>Go to Trading Dashboard
                 </a>
-                <a href="{% url 'dashboard:signals' %}" class="btn btn-outline-primary btn-lg px-5 py-3">
+                <a href="/signals/" class="btn btn-outline-primary btn-lg px-5 py-3">
                     <i class="fas fa-signal me-2"></i>View Trading Signals
                 </a>
                 {% if not user.is_authenticated %}
@@ -64,6 +128,9 @@
         </div>
     </div>
 
+    <!-- Live Cryptocurrency Prices (Home Page Only) -->
+    {% include 'components/live_crypto_prices.html' %}
+
     <!-- Quick Access Section -->
     <div class="row mb-5">
         <div class="col-12">
@@ -71,14 +138,14 @@
         </div>
         
         <div class="col-md-3 mb-4">
-            <div class="card h-100 text-center">
-                <div class="card-body">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column align-items-center text-center">
                     <i class="fas fa-tachometer-alt fa-3x text-primary mb-3"></i>
                     <h5 class="card-title">Trading Dashboard</h5>
-                    <p class="card-text">
+                    <p class="card-text flex-grow-1">
                         Real-time portfolio overview, performance metrics, and market insights.
                     </p>
-                    <a href="{% url 'dashboard:dashboard' %}" class="btn btn-primary px-4 py-2">
+                    <a href="{% url 'dashboard:dashboard' %}" class="btn btn-primary px-4 py-2 mt-auto">
                         <i class="fas fa-arrow-right me-2"></i>Access Dashboard
                     </a>
                 </div>
@@ -86,14 +153,14 @@
         </div>
         
         <div class="col-md-3 mb-4">
-            <div class="card h-100 text-center">
-                <div class="card-body">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column align-items-center text-center">
                     <i class="fas fa-signal fa-3x text-success mb-3"></i>
                     <h5 class="card-title">Trading Signals</h5>
-                    <p class="card-text">
+                    <p class="card-text flex-grow-1">
                         AI-generated buy/sell signals with confidence scores and market analysis.
                     </p>
-                    <a href="{% url 'dashboard:signals' %}" class="btn btn-success px-4 py-2">
+                    <a href="/signals/" class="btn btn-success px-4 py-2 mt-auto">
                         <i class="fas fa-arrow-right me-2"></i>View Signals
                     </a>
                 </div>
@@ -101,14 +168,14 @@
         </div>
         
         <div class="col-md-3 mb-4">
-            <div class="card h-100 text-center">
-                <div class="card-body">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column align-items-center text-center">
                     <i class="fas fa-chart-line fa-3x text-info mb-3"></i>
                     <h5 class="card-title">Analytics</h5>
-                    <p class="card-text">
+                    <p class="card-text flex-grow-1">
                         Advanced portfolio analytics, risk management, and performance tracking.
                     </p>
-                    <a href="{% url 'analytics:dashboard' %}" class="btn btn-info px-4 py-2">
+                    <a href="{% url 'analytics:dashboard' %}" class="btn btn-info px-4 py-2 mt-auto">
                         <i class="fas fa-arrow-right me-2"></i>Open Analytics
                     </a>
                 </div>
@@ -116,14 +183,14 @@
         </div>
         
         <div class="col-md-3 mb-4">
-            <div class="card h-100 text-center">
-                <div class="card-body">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column align-items-center text-center">
                     <i class="fas fa-robot fa-3x text-warning mb-3"></i>
                     <h5 class="card-title">AI/ML Models</h5>
-                    <p class="card-text">
+                    <p class="card-text flex-grow-1">
                         Machine learning models for price prediction and market regime detection.
                     </p>
-                    <a href="{% url 'analytics:ml_dashboard' %}" class="btn btn-warning px-4 py-2">
+                    <a href="{% url 'analytics:ml_dashboard' %}" class="btn btn-warning px-4 py-2 mt-auto">
                         <i class="fas fa-arrow-right me-2"></i>AI/ML Tools
                     </a>
                 </div>

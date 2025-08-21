@@ -9,7 +9,7 @@ from decimal import Decimal
 import json
 
 from .models import AnalyticsPortfolio, AnalyticsPosition, AnalyticsTrade, PerformanceMetrics, BacktestResult, MarketData, Alert
-from .services import PortfolioAnalytics, TechnicalIndicators, BacktestEngine, RiskManager, MarketAnalyzer
+from .services import PortfolioAnalytics, TechnicalIndicators, BacktestEngine, RiskManager, MarketAnalyzer, MarketSentimentService
 
 @login_required
 def analytics_dashboard(request):
@@ -174,42 +174,68 @@ def backtesting_view(request):
     if request.method == 'POST':
         # Handle backtest form submission
         strategy_name = request.POST.get('strategy_name')
+        symbol = request.POST.get('symbol', 'BTC')  # Default symbol
         start_date = request.POST.get('start_date')
         end_date = request.POST.get('end_date')
         initial_capital = float(request.POST.get('initial_capital', 10000))
         
-        # Run backtest (simplified)
-        results = BacktestEngine.run_backtest(
-            strategy=strategy_name,
-            start_date=start_date,
-            end_date=end_date,
-            initial_capital=initial_capital
+        # Convert dates to datetime objects
+        from datetime import datetime
+        start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+        
+        # Create a mock strategy object for demonstration
+        class MockStrategy:
+            def __init__(self, name):
+                self.name = name
+                self.symbol = symbol
+        
+        strategy = MockStrategy(strategy_name)
+        
+        # Use the new BacktestingService
+        backtest_service = BacktestingService(initial_capital=initial_capital)
+        results = backtest_service.backtest_strategy(
+            strategy=strategy,
+            symbol=symbol,
+            start_date=start_dt,
+            end_date=end_dt
         )
         
-        # Save backtest results
-        BacktestResult.objects.create(
-            user=user,
-            strategy_name=strategy_name,
-            start_date=start_date,
-            end_date=end_date,
-            initial_capital=initial_capital,
-            final_capital=results['final_capital'],
-            total_return=results['total_return'],
-            annualized_return=results['annualized_return'],
-            sharpe_ratio=results['sharpe_ratio'],
-            max_drawdown=results['max_drawdown'],
-            win_rate=results['win_rate'],
-            profit_factor=results['profit_factor'],
-            total_trades=results['total_trades'],
-            winning_trades=results['winning_trades'],
-            losing_trades=results['losing_trades'],
-        )
+        if results:
+            metrics = results['performance_metrics']
+            
+            # Save backtest results
+            BacktestResult.objects.create(
+                user=user,
+                strategy_name=strategy_name,
+                start_date=start_dt,
+                end_date=end_dt,
+                initial_capital=initial_capital,
+                final_capital=metrics['final_capital'],
+                total_return=metrics['total_return'],
+                annualized_return=metrics['annualized_return'],
+                sharpe_ratio=metrics['sharpe_ratio'],
+                max_drawdown=metrics['max_drawdown'],
+                win_rate=metrics['win_rate'],
+                profit_factor=metrics['profit_factor'],
+                total_trades=metrics['total_trades'],
+                winning_trades=metrics['winning_trades'],
+                losing_trades=metrics['losing_trades'],
+                parameters=results.get('parameters', {})
+            )
+            
+            messages.success(request, f'Backtest completed for {strategy_name}')
+        else:
+            messages.error(request, f'Backtest failed for {strategy_name}')
         
-        messages.success(request, f'Backtest completed for {strategy_name}')
         return redirect('analytics:backtesting')
+    
+    # Get the latest backtest result for display
+    latest_result = backtest_results.first() if backtest_results.exists() else None
     
     context = {
         'backtest_results': backtest_results,
+        'latest_result': latest_result,
     }
     
     return render(request, 'analytics/backtesting.html', context)
@@ -374,3 +400,114 @@ def market_data_api(request):
     }
     
     return JsonResponse(chart_data)
+
+@login_required
+def market_sentiment_view(request):
+    """Market sentiment analysis dashboard"""
+    try:
+        user = request.user
+        
+        # Initialize sentiment service
+        sentiment_service = MarketSentimentService()
+        
+        # Get current sentiment data
+        current_sentiment = sentiment_service.calculate_market_sentiment()
+        fear_greed_data = sentiment_service.get_fear_greed_index()
+        vix_data = sentiment_service.get_vix_data()
+        put_call_data = sentiment_service.get_put_call_ratio()
+        
+        # Get sentiment signal
+        sentiment_signal = sentiment_service.get_sentiment_signal()
+        
+        # Get historical sentiment data (last 30 days)
+        from .models import MarketSentimentIndicator, FearGreedIndex, VIXData, PutCallRatio
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        end_date = timezone.now()
+        start_date = end_date - timedelta(days=30)
+        
+        historical_sentiment = MarketSentimentIndicator.objects.filter(
+            timestamp__range=(start_date, end_date)
+        ).order_by('timestamp')
+        
+        historical_fear_greed = FearGreedIndex.objects.filter(
+            date__range=(start_date.date(), end_date.date())
+        ).order_by('date')
+        
+        historical_vix = VIXData.objects.filter(
+            date__range=(start_date, end_date)
+        ).order_by('date')
+        
+        historical_put_call = PutCallRatio.objects.filter(
+            date__range=(start_date, end_date)
+        ).order_by('date')
+        
+        # Prepare chart data
+        sentiment_chart_data = {
+            'labels': [h.timestamp.strftime('%Y-%m-%d') for h in historical_sentiment],
+            'composite_scores': [float(h.fear_greed_index or 0) for h in historical_sentiment],
+            'confidence_scores': [float(h.confidence_score) for h in historical_sentiment],
+        }
+        
+        fear_greed_chart_data = {
+            'labels': [h.date.strftime('%Y-%m-%d') for h in historical_fear_greed],
+            'values': [h.value for h in historical_fear_greed],
+            'volatility_scores': [h.volatility_score or 0 for h in historical_fear_greed],
+            'momentum_scores': [h.market_momentum_score or 0 for h in historical_fear_greed],
+        }
+        
+        vix_chart_data = {
+            'labels': [h.date.strftime('%Y-%m-%d') for h in historical_vix],
+            'close_values': [float(h.close_value) for h in historical_vix],
+            'sma_20': [float(h.sma_20) if h.sma_20 else 0 for h in historical_vix],
+            'sma_50': [float(h.sma_50) if h.sma_50 else 0 for h in historical_vix],
+        }
+        
+        put_call_chart_data = {
+            'labels': [h.date.strftime('%Y-%m-%d') for h in historical_put_call],
+            'ratios': [float(h.total_put_call_ratio) for h in historical_put_call],
+            'sma_10': [float(h.sma_10) if h.sma_10 else 0 for h in historical_put_call],
+            'sma_20': [float(h.sma_20) if h.sma_20 else 0 for h in historical_put_call],
+        }
+        
+        context = {
+            'current_sentiment': current_sentiment,
+            'fear_greed_data': fear_greed_data,
+            'vix_data': vix_data,
+            'put_call_data': put_call_data,
+            'sentiment_signal': sentiment_signal,
+            'sentiment_chart_data': sentiment_chart_data,
+            'fear_greed_chart_data': fear_greed_chart_data,
+            'vix_chart_data': vix_chart_data,
+            'put_call_chart_data': put_call_chart_data,
+            'historical_sentiment': historical_sentiment[:10],  # Last 10 records
+            'historical_fear_greed': historical_fear_greed[:10],
+            'historical_vix': historical_vix[:10],
+            'historical_put_call': historical_put_call[:10],
+        }
+        
+        return render(request, 'analytics/market_sentiment_analysis.html', context)
+        
+    except Exception as e:
+        print(f"Error in market_sentiment_view: {e}")
+        messages.error(request, f'Error loading market sentiment analysis: {str(e)}')
+        return redirect('analytics:analytics_dashboard')
+
+@login_required
+def update_sentiment_data(request):
+    """Update sentiment data via AJAX"""
+    try:
+        if request.method == 'POST':
+            sentiment_service = MarketSentimentService()
+            success = sentiment_service.save_sentiment_data()
+            
+            if success:
+                return JsonResponse({'status': 'success', 'message': 'Sentiment data updated successfully'})
+            else:
+                return JsonResponse({'status': 'error', 'message': 'Failed to update sentiment data'})
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
+            
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})

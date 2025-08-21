@@ -30,6 +30,7 @@ class Symbol(models.Model):
     name = models.CharField(max_length=100)
     symbol_type = models.CharField(max_length=10, choices=SYMBOL_TYPES)
     exchange = models.CharField(max_length=50, blank=True)
+    sector = models.ForeignKey('data.Sector', on_delete=models.SET_NULL, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     

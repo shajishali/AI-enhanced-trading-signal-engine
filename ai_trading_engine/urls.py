@@ -19,9 +19,15 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework import routers
+from apps.core import views
 
 # API Router
 router = routers.DefaultRouter()
+
+# Custom error handlers for Phase 5
+handler404 = 'apps.core.views.handler404'
+handler500 = 'apps.core.views.handler500'
+handler403 = 'apps.core.views.handler403'
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -35,6 +41,7 @@ urlpatterns = [
     path('sentiment/', include('apps.sentiment.urls')),
     path('analytics/', include('apps.analytics.urls')),
     path('subscription/', include('apps.subscription.urls')),
+    path('core/', include('apps.core.urls')),
 ]
 
 # Serve static and media files during development

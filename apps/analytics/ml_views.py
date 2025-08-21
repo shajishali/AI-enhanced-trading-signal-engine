@@ -54,35 +54,58 @@ def train_model(request):
         model_type = request.POST.get('model_type', 'random_forest')
         lookback_days = int(request.POST.get('lookback_days', 365))
         
-        # Get market data
-        end_date = timezone.now()
-        start_date = end_date - timedelta(days=lookback_days)
+        if not symbol:
+            return JsonResponse({
+                'success': False,
+                'error': 'Symbol is required'
+            }, status=400)
         
-        market_data = MarketData.objects.filter(
-            symbol=symbol,
-            date__range=[start_date, end_date]
-        ).order_by('date')
-        
-        if len(market_data) < 100:
-            messages.error(request, f"Insufficient data for {symbol}. Need at least 100 data points.")
-            return redirect('analytics:ml_dashboard')
-        
-        # Convert to DataFrame
-        data = pd.DataFrame(list(market_data.values()))
-        data['date'] = pd.to_datetime(data['date'])
-        data.set_index('date', inplace=True)
-        
-        # Train model
-        ml_predictor = MLPredictor()
-        success, result = ml_predictor.train_price_predictor(symbol, data, model_type)
-        
-        if success:
-            messages.success(request, f"Model trained successfully for {symbol}. R² Score: {result['r2']:.3f}")
-        else:
-            messages.error(request, f"Model training failed: {result}")
-        
-        return redirect('analytics:ml_dashboard')
+        try:
+            # Get market data
+            end_date = timezone.now()
+            start_date = end_date - timedelta(days=lookback_days)
+            
+            market_data = MarketData.objects.filter(
+                symbol=symbol,
+                date__range=[start_date, end_date]
+            ).order_by('date')
+            
+            if len(market_data) < 100:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Insufficient data for {symbol}. Need at least 100 data points.'
+                }, status=400)
+            
+            # Convert to DataFrame
+            data = pd.DataFrame(list(market_data.values()))
+            data['date'] = pd.to_datetime(data['date'])
+            data.set_index('date', inplace=True)
+            
+            # Train model
+            ml_predictor = MLPredictor()
+            success, result = ml_predictor.train_price_predictor(symbol, data, model_type)
+            
+            if success:
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Model trained successfully for {symbol}. R² Score: {result.get("r2", 0):.3f}',
+                    'symbol': symbol,
+                    'model_type': model_type,
+                    'r2_score': result.get('r2', 0)
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Model training failed: {result}'
+                }, status=500)
+                
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': f'Training error: {str(e)}'
+            }, status=500)
     
+    # For GET requests, return the form
     symbols = MarketData.objects.values_list('symbol', flat=True).distinct()[:20]
     
     context = {

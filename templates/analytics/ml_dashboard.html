@@ -114,12 +114,16 @@
     
     .action-buttons {
         display: flex;
-        gap: 10px;
-        margin-top: 20px;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin: 30px 0;
+        justify-content: center;
+        align-items: center;
     }
     
+    /* Enhanced button styling */
     .btn-ml {
-        padding: 10px 20px;
+        padding: 15px 25px;
         border: none;
         border-radius: 25px;
         font-weight: 600;
@@ -127,6 +131,46 @@
         letter-spacing: 1px;
         transition: all 0.3s ease;
         cursor: pointer;
+        min-width: 180px;
+        text-align: center;
+        white-space: nowrap;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-ml::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+    
+    .btn-ml:hover::before {
+        left: 100%;
+    }
+    
+    .btn-ml:active {
+        transform: translateY(1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    
+    /* Button icon spacing */
+    .btn-ml i {
+        margin-right: 8px;
+        font-size: 1.1em;
+    }
+    
+    /* Ensure consistent button heights */
+    .action-buttons .btn-ml {
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     
     .btn-train {
@@ -149,9 +193,38 @@
         color: white;
     }
     
+    .btn-features {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        color: white;
+    }
+    
     .btn-ml:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    }
+    
+    /* Responsive button layout */
+    @media (max-width: 768px) {
+        .action-buttons {
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .btn-ml {
+            min-width: 100%;
+            padding: 18px 25px;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .action-buttons {
+            margin: 20px 0;
+        }
+        
+        .btn-ml {
+            font-size: 0.9rem;
+            padding: 16px 20px;
+        }
     }
     
     .model-performance {
@@ -510,20 +583,45 @@ function showPredictModal() {
 }
 
 function showRegimeModal() {
-    window.location.href = "{% url 'analytics:market_regime_analysis' %}";
+    try {
+        window.location.href = "{% url 'analytics:market_regime_analysis' %}";
+    } catch (error) {
+        console.error('Navigation error:', error);
+        // Fallback: show a notification
+        showNotification('Market Regime Analysis is loading...', 'info');
+    }
 }
 
 function showSentimentModal() {
-    window.location.href = "{% url 'analytics:sentiment_ml_analysis' %}";
+    try {
+        window.location.href = "{% url 'analytics:sentiment_ml_analysis' %}";
+    } catch (error) {
+        console.error('Navigation error:', error);
+        // Fallback: show a notification
+        showNotification('Sentiment Analysis is loading...', 'info');
+    }
 }
 
 function showFeaturesModal() {
-    window.location.href = "{% url 'analytics:feature_engineering_dashboard' %}";
+    try {
+        window.location.href = "{% url 'analytics:feature_engineering_dashboard' %}";
+    } catch (error) {
+        console.error('Navigation error:', error);
+        // Fallback: show a notification
+        showNotification('Feature Engineering is loading...', 'info');
+    }
 }
 
 function trainModel() {
     const form = document.getElementById('train-form');
     const formData = new FormData(form);
+    
+    // Get CSRF token
+    const csrfToken = getCookie('csrftoken');
+    if (!csrfToken) {
+        showNotification('CSRF token not found. Please refresh the page.', 'error');
+        return;
+    }
     
     showLoading();
     
@@ -531,10 +629,15 @@ function trainModel() {
         method: 'POST',
         body: formData,
         headers: {
-            'X-CSRFToken': getCookie('csrftoken')
+            'X-CSRFToken': csrfToken
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         hideLoading();
         if (data.success) {
@@ -542,12 +645,13 @@ function trainModel() {
             bootstrap.Modal.getInstance(document.getElementById('trainModal')).hide();
             loadModelPerformance();
         } else {
-            showNotification('Training failed: ' + data.error, 'error');
+            showNotification('Training failed: ' + (data.error || 'Unknown error'), 'error');
         }
     })
     .catch(error => {
         hideLoading();
-        showNotification('An error occurred during training', 'error');
+        console.error('Training error:', error);
+        showNotification('An error occurred during training: ' + error.message, 'error');
     });
 }
 
@@ -555,16 +659,28 @@ function makePrediction() {
     const form = document.getElementById('predict-form');
     const formData = new FormData(form);
     
+    // Get CSRF token
+    const csrfToken = getCookie('csrftoken');
+    if (!csrfToken) {
+        showNotification('CSRF token not found. Please refresh the page.', 'error');
+        return;
+    }
+    
     showLoading();
     
     fetch("{% url 'analytics:make_prediction' %}", {
         method: 'POST',
         body: formData,
         headers: {
-            'X-CSRFToken': getCookie('csrftoken')
+            'X-CSRFToken': csrfToken
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         hideLoading();
         if (data.success) {
@@ -572,12 +688,13 @@ function makePrediction() {
             bootstrap.Modal.getInstance(document.getElementById('predictModal')).hide();
             addPredictionCard(data.prediction);
         } else {
-            showNotification('Prediction failed: ' + data.error, 'error');
+            showNotification('Prediction failed: ' + (data.error || 'Unknown error'), 'error');
         }
     })
     .catch(error => {
         hideLoading();
-        showNotification('An error occurred during prediction', 'error');
+        console.error('Prediction error:', error);
+        showNotification('An error occurred during prediction: ' + error.message, 'error');
     });
 }
 
@@ -652,8 +769,30 @@ function hideLoading() {
 }
 
 function showNotification(message, type) {
-    // Simple notification - you can enhance this with a proper notification library
-    alert(message);
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'error' ? 'danger' : type === 'info' ? 'info' : 'success'} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);';
+    
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    // Add to body
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+    
+    // Remove on close button click
+    notification.querySelector('.btn-close').addEventListener('click', () => {
+        notification.remove();
+    });
 }
 
 function getCookie(name) {
@@ -672,3 +811,17 @@ function getCookie(name) {
 }
 </script>
 {% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

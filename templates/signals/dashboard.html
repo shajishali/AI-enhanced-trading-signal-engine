@@ -1,12 +1,298 @@
 {% extends 'base.html' %}
 
-{% block title %}Signal Dashboard - AI Trading Engine{% endblock %}
+{% block title %}Trading Signals - AI Trading Engine{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Trading Signals Table Styling */
+    .table-responsive {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    #signals-table {
+        margin-bottom: 0;
+        background: white;
+        border-collapse: collapse;
+        width: 100%;
+    }
+    
+    #signals-table thead th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 15px 12px;
+        border: none;
+        text-align: center;
+        vertical-align: middle;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    #signals-table thead th:first-child {
+        text-align: left;
+        padding-left: 20px;
+    }
+    
+    #signals-table thead th:last-child {
+        text-align: center;
+        padding-right: 20px;
+    }
+    
+    #signals-table tbody tr {
+        border-bottom: 1px solid #e9ecef;
+        transition: all 0.2s ease;
+    }
+    
+    #signals-table tbody tr:hover {
+        background-color: #f8f9fa;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    #signals-table tbody td {
+        padding: 15px 12px;
+        vertical-align: middle;
+        border: none;
+        text-align: center;
+    }
+    
+    #signals-table tbody td:first-child {
+        text-align: left;
+        padding-left: 20px;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    #signals-table tbody td:last-child {
+        text-align: center;
+        padding-right: 20px;
+    }
+    
+    /* Column-specific alignment */
+    #signals-table tbody td:nth-child(1) { /* Symbol */
+        text-align: left;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    #signals-table tbody td:nth-child(2) { /* Signal Type */
+        text-align: center;
+    }
+    
+    #signals-table tbody td:nth-child(3) { /* Confidence */
+        text-align: center;
+    }
+    
+    #signals-table tbody td:nth-child(4) { /* Current Price */
+        text-align: center;
+        font-family: 'Courier New', monospace;
+        font-weight: 600;
+        color: #2c3e50;
+        background-color: rgba(52, 152, 219, 0.05);
+        border-left: 3px solid #3498db;
+        border-right: 3px solid #3498db;
+        position: relative;
+    }
+    
+    /* Current price column styling */
+    .current-price {
+        line-height: 1.4;
+    }
+    
+    .current-price small {
+        display: block;
+        margin-top: 2px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    #signals-table tbody td:nth-child(5) { /* Target */
+        text-align: right;
+        font-family: 'Courier New', monospace;
+        font-weight: 600;
+    }
+    
+    #signals-table tbody td:nth-child(6) { /* Stop Loss */
+        text-align: right;
+        font-family: 'Courier New', monospace;
+        font-weight: 600;
+    }
+    
+    #signals-table tbody td:nth-child(7) { /* Created */
+        text-align: center;
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    
+    #signals-table tbody td:nth-child(8) { /* Status */
+        text-align: center;
+    }
+    
+    #signals-table tbody td:nth-child(9) { /* Actions */
+        text-align: center;
+    }
+    
+    /* Badge styling */
+    .badge {
+        padding: 8px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        min-width: 80px;
+        display: inline-block;
+        text-align: center;
+    }
+    
+    /* Signal Type Badges */
+    .badge.bg-success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+        color: white;
+        box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+    }
+    
+    .badge.bg-danger {
+        background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%) !important;
+        color: white;
+        box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+    }
+    
+    .badge.bg-warning {
+        background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%) !important;
+        color: #212529;
+        box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+    }
+    
+    .badge.bg-info {
+        background: linear-gradient(135deg, #17a2b8 0%, #6f42c1 100%) !important;
+        color: white;
+        box-shadow: 0 2px 8px rgba(23, 162, 184, 0.3);
+    }
+    
+    .badge.bg-secondary {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%) !important;
+        color: white;
+        box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
+    }
+    
+    /* Action Buttons */
+    .btn-group {
+        display: flex;
+        gap: 5px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .btn-group .btn {
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 0.8rem;
+        border: none;
+        transition: all 0.2s ease;
+        min-width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .btn-group .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    
+    .btn-group .btn:active {
+        transform: translateY(0);
+    }
+    
+    /* Price formatting */
+    .price-value {
+        font-family: 'Courier New', monospace;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    /* Responsive table */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.9rem;
+        }
+        
+        #signals-table thead th,
+        #signals-table tbody td {
+            padding: 10px 8px;
+        }
+        
+        #signals-table thead th:first-child,
+        #signals-table tbody td:first-child {
+            padding-left: 15px;
+        }
+        
+        #signals-table thead th:last-child,
+        #signals-table tbody td:last-child {
+            padding-right: 15px;
+        }
+        
+        /* Ensure current price column is visible on mobile */
+        #signals-table tbody td:nth-child(4) {
+            background-color: rgba(52, 152, 219, 0.1);
+            border-left: 2px solid #3498db;
+            border-right: 2px solid #3498db;
+        }
+        
+        .badge {
+            padding: 6px 10px;
+            font-size: 0.75rem;
+            min-width: 70px;
+        }
+        
+        .btn-group .btn {
+            padding: 5px 8px;
+            font-size: 0.75rem;
+            min-width: 30px;
+            height: 30px;
+        }
+    }
+    
+    /* Empty state styling */
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+    
+    /* Loading state */
+    .loading-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+    
+    .spinner-border {
+        width: 2rem;
+        height: 2rem;
+        margin-bottom: 15px;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            <h1 class="h3 mb-4">Signal Dashboard</h1>
+            <h1 class="h3 mb-4 text-white">Trading Signals - AI Trading Engine</h1>
         </div>
     </div>
 
@@ -62,6 +348,15 @@
                             <button class="btn btn-info" onclick="refreshSignals()">
                                 <i class="fas fa-sync"></i> Refresh
                             </button>
+                            <button class="btn btn-warning" onclick="testModal()">
+                                <i class="fas fa-test"></i> Test Modal
+                            </button>
+                            <button class="btn btn-danger" onclick="resetSignalsForTesting()">
+                                <i class="fas fa-undo"></i> Reset for Testing
+                            </button>
+                            <button class="btn btn-secondary" onclick="toggleTestMode()">
+                                <i class="fas fa-toggle-on"></i> Test Mode: <span id="test-mode-status">ON</span>
+                            </button>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
@@ -77,33 +372,38 @@
         </div>
     </div>
 
-    <!-- Recent Signals -->
+    <!-- Trading Signals Table -->
     <div class="row">
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">Recent Signals</h5>
+                    <h5 class="card-title mb-0">Market Signals</h5>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-hover" id="signals-table">
                             <thead>
                                 <tr>
-                                    <th>Symbol</th>
-                                    <th>Type</th>
-                                    <th>Strength</th>
-                                    <th>Confidence</th>
-                                    <th>Entry Price</th>
-                                    <th>Target</th>
-                                    <th>Stop Loss</th>
-                                    <th>R:R Ratio</th>
-                                    <th>Quality</th>
-                                    <th>Status</th>
-                                    <th>Created</th>
+                                    <th style="width: 10%;">Symbol</th>
+                                    <th style="width: 12%;">Signal Type</th>
+                                    <th style="width: 10%;">Confidence</th>
+                                    <th style="width: 12%;">Current Price</th>
+                                    <th style="width: 12%;">Target</th>
+                                    <th style="width: 12%;">Stop Loss</th>
+                                    <th style="width: 10%;">Created</th>
+                                    <th style="width: 8%;">Status</th>
+                                    <th style="width: 6%;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="signals-tbody">
-                                <!-- Signals will be loaded here -->
+                                <tr>
+                                    <td colspan="9" class="loading-state">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p>Loading trading signals...</p>
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -111,65 +411,76 @@
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Market Regime -->
-    <div class="row mt-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Market Regime</h5>
-                </div>
-                <div class="card-body">
-                    <div id="market-regime-info">
-                        <p class="text-muted">Loading market regime data...</p>
-                    </div>
-                </div>
+<!-- Signal Details Modal -->
+<div class="modal fade" id="signalModal" tabindex="-1" role="dialog" aria-labelledby="signalModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="signalModalLabel">Signal Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-        </div>
-        
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Signal Performance</h5>
-                </div>
-                <div class="card-body">
-                    <div id="performance-metrics">
-                        <p class="text-muted">Loading performance data...</p>
-                    </div>
-                </div>
+            <div class="modal-body" id="signalModalBody">
+                <!-- Signal details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="executeSignalBtn">Execute Signal</button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Notifications Container -->
+<div id="notifications-container" class="position-fixed" style="top: 20px; right: 20px; z-index: 9999;"></div>
+
 <script>
 // Global variables
 let signalsData = [];
 let symbols = [];
+let currentSignalId = null;
+let testMode = true; // Enable test mode by default
 
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', function() {
     loadSignals();
     loadStatistics();
-    loadMarketRegime();
     loadSymbols();
+    
+    // Setup execute button event listener
+    document.getElementById('executeSignalBtn').addEventListener('click', function() {
+        console.log('Execute button clicked!'); // Debug log
+        if (currentSignalId) {
+            console.log('Current signal ID:', currentSignalId); // Debug log
+            executeSignal(currentSignalId);
+        } else {
+            console.log('No current signal ID!'); // Debug log
+            showNotification('No signal selected to execute', 'warning');
+        }
+    });
 });
 
 // Load signals
 function loadSignals() {
+    console.log('Loading signals...'); // Debug log
     fetch('/signals/api/signals/')
         .then(response => response.json())
         .then(data => {
+            console.log('Signals API response:', data); // Debug log
             if (data.success) {
                 signalsData = data.signals;
+                console.log('Signals data loaded:', signalsData); // Debug log
                 displaySignals(signalsData);
                 updateSignalCount(data.count);
             } else {
                 console.error('Error loading signals:', data.error);
+                showNotification('Error loading signals: ' + data.error, 'danger');
             }
         })
         .catch(error => {
             console.error('Error:', error);
+            showNotification('Error loading signals', 'danger');
         });
 }
 
@@ -178,32 +489,71 @@ function displaySignals(signals) {
     const tbody = document.getElementById('signals-tbody');
     tbody.innerHTML = '';
     
+    if (!signals || signals.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" class="empty-state">
+                    <i class="fas fa-chart-line"></i>
+                    <h5>No Trading Signals Available</h5>
+                    <p>Generate new signals to get started with your trading strategy.</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
     signals.forEach(signal => {
+        console.log('Processing signal:', signal); // Debug log
+        console.log('Signal fields - isValid:', signal.is_valid, 'isExecuted:', signal.is_executed); // Debug log
+        
         const row = document.createElement('tr');
+        row.setAttribute('data-signal-id', signal.id);
         row.innerHTML = `
-            <td><strong>${signal.symbol}</strong></td>
+            <td><strong>${signal.symbol || 'N/A'}</strong></td>
             <td>
                 <span class="badge ${getSignalTypeBadge(signal.signal_type)}">
-                    ${signal.signal_type}
+                    ${formatSignalType(signal.signal_type)}
                 </span>
             </td>
-            <td>${signal.strength}</td>
-            <td>${(signal.confidence_score * 100).toFixed(1)}%</td>
-            <td>$${signal.entry_price ? signal.entry_price.toFixed(2) : 'N/A'}</td>
-            <td>$${signal.target_price ? signal.target_price.toFixed(2) : 'N/A'}</td>
-            <td>$${signal.stop_loss ? signal.stop_loss.toFixed(2) : 'N/A'}</td>
-            <td>${signal.risk_reward_ratio ? signal.risk_reward_ratio.toFixed(2) : 'N/A'}</td>
             <td>
-                <span class="badge ${getQualityBadge(signal.quality_score)}">
-                    ${signal.quality_score ? signal.quality_score.toFixed(1) : 'N/A'}
+                <span class="badge ${getConfidenceBadge(signal.confidence_score)}">
+                    ${formatConfidence(signal.confidence_score)}
                 </span>
             </td>
+            <td class="current-price">
+                ${signal.current_price ? `$${formatPrice(signal.current_price)}` : '<span class="text-muted">--</span>'}
+                ${signal.price_change_24h ? `
+                    <br><small class="text-${signal.price_change_24h >= 0 ? 'success' : 'danger'}">
+                        ${signal.price_change_24h >= 0 ? '+' : ''}${signal.price_change_24h.toFixed(2)}%
+                    </small>
+                ` : ''}
+            </td>
+            <td class="price-value">$${formatPrice(signal.target_price)}</td>
+            <td class="price-value">$${formatPrice(signal.stop_loss)}</td>
+            <td>${formatDate(signal.created_at)}</td>
             <td>
                 <span class="badge ${getStatusBadge(signal.is_valid, signal.is_executed)}">
                     ${getStatusText(signal.is_valid, signal.is_executed)}
                 </span>
             </td>
-            <td>${new Date(signal.created_at).toLocaleString()}</td>
+            <td>
+                <div class="btn-group" role="group">
+                    <button class="btn btn-sm btn-primary" onclick="viewSignal(${signal.id})" title="View Details">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    ${(testMode || (signal.is_valid && !signal.is_executed)) ? `
+                        <button class="btn btn-sm btn-success" onclick="executeSignal(${signal.id})" title="Execute Signal">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <button class="btn btn-sm btn-warning" onclick="editSignal(${signal.id})" title="Edit Signal">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    ` : ''}
+                    <button class="btn btn-sm btn-info" onclick="shareSignal(${signal.id})" title="Share Signal">
+                        <i class="fas fa-share"></i>
+                    </button>
+                </div>
+            </td>
         `;
         tbody.appendChild(row);
     });
@@ -221,10 +571,12 @@ function getSignalTypeBadge(type) {
     return badges[type] || 'bg-secondary';
 }
 
-// Get quality badge class
-function getQualityBadge(score) {
-    if (score >= 8) return 'bg-success';
-    if (score >= 6) return 'bg-warning';
+// Get confidence badge class
+function getConfidenceBadge(score) {
+    const percentage = score * 100;
+    if (percentage >= 90) return 'bg-success';
+    if (percentage >= 80) return 'bg-info';
+    if (percentage >= 70) return 'bg-warning';
     return 'bg-danger';
 }
 
@@ -240,6 +592,131 @@ function getStatusText(isValid, isExecuted) {
     if (isExecuted) return 'Executed';
     if (isValid) return 'Active';
     return 'Expired';
+}
+
+// View signal details
+function viewSignal(signalId) {
+    console.log('Viewing signal:', signalId); // Debug log
+    currentSignalId = signalId;
+    const signal = signalsData.find(s => s.id === signalId);
+    
+    if (!signal) {
+        console.log('Signal not found in data!'); // Debug log
+        showNotification('Signal not found', 'danger');
+        return;
+    }
+    
+    console.log('Signal data:', signal); // Debug log
+    
+    // Populate modal with signal data
+    document.getElementById('signalModalBody').innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Signal Information</h6>
+                <p><strong>Symbol:</strong> ${signal.symbol}</p>
+                <p><strong>Type:</strong> ${signal.signal_type}</p>
+                <p><strong>Confidence:</strong> ${(signal.confidence_score * 100).toFixed(0)}%</p>
+                <p><strong>Created:</strong> ${new Date(signal.created_at).toLocaleString()}</p>
+            </div>
+            <div class="col-md-6">
+                <h6>Trading Parameters</h6>
+                <p><strong>Price Target:</strong> $${signal.target_price ? signal.target_price.toFixed(2) : 'N/A'}</p>
+                <p><strong>Stop Loss:</strong> $${signal.stop_loss ? signal.stop_loss.toFixed(2) : 'N/A'}</p>
+                <p><strong>Risk/Reward:</strong> ${signal.risk_reward_ratio ? signal.risk_reward_ratio.toFixed(2) : 'N/A'}</p>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <h6>Analysis</h6>
+                <p>${signal.technical_score ? `Technical Score: ${signal.technical_score.toFixed(2)}` : 'No technical analysis available.'}</p>
+                <p>${signal.sentiment_score ? `Sentiment Score: ${signal.sentiment_score.toFixed(2)}` : 'No sentiment analysis available.'}</p>
+            </div>
+        </div>
+    `;
+    
+    // Show/hide execute button based on signal status
+    const executeBtn = document.getElementById('executeSignalBtn');
+    console.log('Signal status - isValid:', signal.is_valid, 'isExecuted:', signal.is_executed); // Debug log
+    
+    if (testMode || (signal.is_valid && !signal.is_executed)) {
+        executeBtn.style.display = 'block';
+        executeBtn.disabled = false;
+        executeBtn.textContent = 'Execute Signal';
+        console.log('Execute button should be visible'); // Debug log
+    } else {
+        executeBtn.style.display = 'none';
+        console.log('Execute button hidden'); // Debug log
+    }
+    
+    // Show modal using Bootstrap 5
+    console.log('Showing modal...'); // Debug log
+    const modal = new bootstrap.Modal(document.getElementById('signalModal'));
+    modal.show();
+    console.log('Modal shown!'); // Debug log
+}
+
+// Execute signal
+function executeSignal(signalId) {
+    console.log('Executing signal:', signalId); // Debug log
+    
+    if (confirm('Are you sure you want to execute this signal?')) {
+        showNotification('Executing signal...', 'info');
+        
+        const csrfToken = getCookie('csrftoken');
+        console.log('CSRF Token:', csrfToken); // Debug log
+        
+        if (!csrfToken) {
+            showNotification('CSRF token not found. Please refresh the page.', 'danger');
+            return;
+        }
+        
+        fetch(`/signals/api/signals/${signalId}/execute/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            console.log('Response status:', response.status); // Debug log
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Response data:', data); // Debug log
+            if (data.success) {
+                showNotification('Signal executed successfully!', 'success');
+                // Close modal using Bootstrap 5
+                const modal = bootstrap.Modal.getInstance(document.getElementById('signalModal'));
+                if (modal) {
+                    modal.hide();
+                }
+                // Reload signals after a short delay
+                setTimeout(() => {
+                    loadSignals();
+                    loadStatistics();
+                }, 1500);
+            } else {
+                showNotification('Error executing signal: ' + (data.error || 'Unknown error'), 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error executing signal:', error);
+            showNotification('Error executing signal: ' + error.message, 'danger');
+        });
+    }
+}
+
+// Edit signal (placeholder)
+function editSignal(signalId) {
+    showNotification('Edit functionality coming soon!', 'info');
+}
+
+// Share signal (placeholder)
+function shareSignal(signalId) {
+    showNotification('Share functionality coming soon!', 'info');
 }
 
 // Update signal count
@@ -260,27 +737,6 @@ function loadStatistics() {
         })
         .catch(error => {
             console.error('Error loading statistics:', error);
-        });
-}
-
-// Load market regime
-function loadMarketRegime() {
-    fetch('/signals/api/regimes/')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.regimes.length > 0) {
-                const latest = data.regimes[0];
-                document.getElementById('market-regime-info').innerHTML = `
-                    <h4>${latest.regime_type}</h4>
-                    <p><strong>Confidence:</strong> ${(latest.confidence_score * 100).toFixed(1)}%</p>
-                    <p><strong>Trend Strength:</strong> ${latest.trend_strength.toFixed(2)}</p>
-                    <p><strong>Volatility:</strong> ${latest.volatility_level}</p>
-                    <p><strong>Last Updated:</strong> ${new Date(latest.created_at).toLocaleString()}</p>
-                `;
-            }
-        })
-        .catch(error => {
-            console.error('Error loading market regime:', error);
         });
 }
 
@@ -305,33 +761,46 @@ function loadSymbols() {
 
 // Generate signals
 function generateSignals() {
-    fetch('/signals/api/generate/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({})
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Signal generation initiated successfully!');
-            setTimeout(loadSignals, 2000);
-        } else {
-            alert('Error generating signals: ' + data.error);
+    if (confirm('Generate new trading signals?')) {
+        showNotification('Generating signals...', 'info');
+        
+        // Get the selected symbol from the filter, or use a default
+        const symbolFilter = document.getElementById('symbol-filter');
+        let symbol = 'BTC'; // Default fallback
+        if (symbolFilter && symbolFilter.value) {
+            symbol = symbolFilter.value;
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error generating signals');
-    });
+        
+        fetch('/signals/api/generate/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                symbol: symbol
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(`Successfully generated ${data.signals_generated} signals for ${data.symbol}!`, 'success');
+                setTimeout(loadSignals, 2000);
+            } else {
+                showNotification('Error generating signals: ' + (data.error || 'Unknown error'), 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error generating signals. Please try again.', 'danger');
+        });
+    }
 }
 
 // Refresh signals
 function refreshSignals() {
     loadSignals();
     loadStatistics();
-    loadMarketRegime();
 }
 
 // Filter signals by symbol
@@ -348,5 +817,190 @@ document.getElementById('symbol-filter').addEventListener('change', function() {
         updateSignalCount(signalsData.length);
     }
 });
+
+// Show notification
+function showNotification(message, type = 'info') {
+    const container = document.getElementById('notifications-container');
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show`;
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    container.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+    
+    // Remove on close button click
+    notification.querySelector('.btn-close').addEventListener('click', () => {
+        notification.remove();
+    });
+}
+
+// Get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Helper functions for formatting
+function formatSignalType(type) {
+    if (!type) return 'N/A';
+    return type.replace('_', ' ').toUpperCase();
+}
+
+function formatConfidence(score) {
+    if (!score && score !== 0) return 'N/A';
+    return `${(score * 100).toFixed(0)}%`;
+}
+
+function formatPrice(price) {
+    if (!price && price !== 0) return 'N/A';
+    return parseFloat(price).toFixed(2);
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric'
+    });
+}
+
+// Test Modal Functionality
+function testModal() {
+    showNotification('Testing modal functionality...', 'info');
+    // Example: Populate modal with dummy data
+    document.getElementById('signalModalBody').innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Test Signal Information</h6>
+                <p><strong>Symbol:</strong> BTC</p>
+                <p><strong>Type:</strong> BUY</p>
+                <p><strong>Confidence:</strong> 95%</p>
+                <p><strong>Created:</strong> 2023-10-27 10:00 AM</p>
+            </div>
+            <div class="col-md-6">
+                <h6>Trading Parameters</h6>
+                <p><strong>Price Target:</strong> $50,000.00</p>
+                <p><strong>Stop Loss:</strong> $45,000.00</p>
+                <p><strong>Risk/Reward:</strong> 1.20</p>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <h6>Analysis</h6>
+                <p>Technical Score: 0.92</p>
+                <p>Sentiment Score: 0.88</p>
+            </div>
+        </div>
+    `;
+    const modal = new bootstrap.Modal(document.getElementById('signalModal'));
+    modal.show();
+}
+
+// Reset signals for testing (sets is_executed to false for all signals)
+function resetSignalsForTesting() {
+    if (confirm('Are you sure you want to reset all signals to "Active" status for testing?')) {
+        showNotification('Resetting signals...', 'warning');
+        const csrfToken = getCookie('csrftoken');
+        if (!csrfToken) {
+            showNotification('CSRF token not found. Please refresh the page.', 'danger');
+            return;
+        }
+
+        fetch('/signals/api/reset-testing/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showNotification('Signals reset successfully for testing!', 'success');
+                setTimeout(loadSignals, 2000); // Reload signals to reflect changes
+                loadStatistics(); // Reload statistics
+            } else {
+                showNotification('Error resetting signals: ' + (data.error || 'Unknown error'), 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error resetting signals:', error);
+            showNotification('Error resetting signals: ' + error.message, 'danger');
+        });
+    }
+}
+
+// Toggle test mode
+function toggleTestMode() {
+    testMode = !testMode;
+    const statusSpan = document.getElementById('test-mode-status');
+    statusSpan.textContent = testMode ? 'ON' : 'OFF';
+    statusSpan.className = testMode ? 'badge bg-success' : 'badge bg-danger';
+    showNotification(`Test mode is now ${testMode ? 'ON' : 'OFF'}`, 'info');
+    loadSignals(); // Reload signals to reflect test mode changes
+    loadStatistics(); // Reload statistics
+}
+
+// Auto-refresh live prices every 15 seconds for better real-time experience
+setInterval(refreshLivePrices, 15000);
+
+// Function to refresh live prices without reloading entire signals
+function refreshLivePrices() {
+    fetch('/data/api/live-prices/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.live_prices && signalsData.length > 0) {
+                updateSignalPrices(data.live_prices);
+            }
+        })
+        .catch(error => {
+            console.error('Error refreshing live prices:', error);
+        });
+}
+
+// Function to update current prices in the signals table
+function updateSignalPrices(livePrices) {
+    signalsData.forEach(signal => {
+        if (signal.symbol && livePrices[signal.symbol]) {
+            const priceData = livePrices[signal.symbol];
+            const currentPriceCell = document.querySelector(`tr[data-signal-id="${signal.id}"] .current-price`);
+            
+            if (currentPriceCell) {
+                currentPriceCell.innerHTML = `
+                    $${parseFloat(priceData.price).toFixed(2)}
+                    <br><small class="text-${priceData.change_24h >= 0 ? 'success' : 'danger'}">
+                        ${priceData.change_24h >= 0 ? '+': ''}${priceData.change_24h.toFixed(2)}%
+                    </small>
+                `;
+            }
+        }
+    });
+}
 </script>
 {% endblock %}

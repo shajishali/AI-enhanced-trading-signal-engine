@@ -34,6 +34,8 @@ class SignalFactor(models.Model):
         ('VOLUME', 'Volume Analysis'),
         ('PATTERN', 'Chart Pattern'),
         ('CORRELATION', 'Correlation Analysis'),
+        ('ECONOMIC', 'Economic/Fundamental Analysis'),
+        ('SECTOR', 'Sector Analysis'),
     ]
     
     name = models.CharField(max_length=100)
@@ -100,6 +102,8 @@ class TradingSignal(models.Model):
     news_score = models.FloatField(default=0.0)
     volume_score = models.FloatField(default=0.0)
     pattern_score = models.FloatField(default=0.0)
+    economic_score = models.FloatField(default=0.0)  # Economic/fundamental analysis score
+    sector_score = models.FloatField(default=0.0)  # Sector analysis score
     
     # Performance tracking
     is_executed = models.BooleanField(default=False)

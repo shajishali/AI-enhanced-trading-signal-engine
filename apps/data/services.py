@@ -17,7 +17,8 @@ import time
 
 from .models import (
     DataSource, MarketData, DataFeed, TechnicalIndicator, 
-    DataSyncLog
+    DataSyncLog, EconomicIndicator, MacroSentiment, EconomicEvent,
+    Sector, SectorPerformance, SectorRotation, SectorCorrelation
 )
 from apps.trading.models import Symbol
 
@@ -391,5 +392,1031 @@ class RiskManagementService:
             return 0.0
 
 
+class EconomicDataService:
+    """Service for managing economic data and fundamental analysis"""
+    
+    def __init__(self):
+        self.data_source, _ = DataSource.objects.get_or_create(
+            name='Economic Data API',
+            defaults={
+                'source_type': 'API',
+                'base_url': 'https://api.economicdata.com',
+                'is_active': True
+            }
+        )
+        
+        # Economic indicator weights for sentiment calculation
+        self.indicator_weights = {
+            'GDP': 0.25,
+            'INFLATION': 0.20,
+            'UNEMPLOYMENT': 0.20,
+            'INTEREST_RATE': 0.15,
+            'CPI': 0.10,
+            'CONSUMER_CONFIDENCE': 0.10
+        }
+    
+    def calculate_macro_sentiment(self, country: str = 'US') -> Optional[MacroSentiment]:
+        """Calculate macro economic sentiment for a country"""
+        try:
+            # Get latest economic indicators for the country
+            latest_indicators = self._get_latest_indicators(country)
+            
+            if not latest_indicators:
+                logger.warning(f"No economic indicators found for {country}")
+                return None
+            
+            # Calculate individual impact scores
+            gdp_impact = self._calculate_gdp_impact(latest_indicators.get('GDP'))
+            inflation_impact = self._calculate_inflation_impact(latest_indicators.get('INFLATION'))
+            employment_impact = self._calculate_employment_impact(latest_indicators.get('UNEMPLOYMENT'))
+            monetary_impact = self._calculate_monetary_impact(latest_indicators.get('INTEREST_RATE'))
+            
+            # Calculate weighted sentiment score
+            sentiment_score = (
+                gdp_impact * self.indicator_weights.get('GDP', 0) +
+                inflation_impact * self.indicator_weights.get('INFLATION', 0) +
+                employment_impact * self.indicator_weights.get('UNEMPLOYMENT', 0) +
+                monetary_impact * self.indicator_weights.get('INTEREST_RATE', 0)
+            )
+            
+            # Normalize to -1 to 1 range
+            sentiment_score = max(-1.0, min(1.0, sentiment_score))
+            
+            # Determine sentiment level
+            sentiment_level = self._get_sentiment_level(sentiment_score)
+            
+            # Calculate confidence based on data availability
+            confidence_score = self._calculate_confidence(latest_indicators)
+            
+            # Create or update macro sentiment
+            macro_sentiment = MacroSentiment.objects.create(
+                country=country,
+                sentiment_score=sentiment_score,
+                sentiment_level=sentiment_level,
+                confidence_score=confidence_score,
+                gdp_impact=gdp_impact,
+                inflation_impact=inflation_impact,
+                employment_impact=employment_impact,
+                monetary_policy_impact=monetary_impact,
+                calculation_timestamp=timezone.now(),
+                data_period_start=timezone.now() - timedelta(days=90),
+                data_period_end=timezone.now()
+            )
+            
+            logger.info(f"Calculated macro sentiment for {country}: {sentiment_level} ({sentiment_score:.2f})")
+            return macro_sentiment
+            
+        except Exception as e:
+            logger.error(f"Error calculating macro sentiment for {country}: {e}")
+            return None
+    
+    def get_market_impact_score(self, symbol_country: str = 'US') -> float:
+        """Get market impact score based on economic sentiment"""
+        try:
+            # Get latest macro sentiment
+            latest_sentiment = MacroSentiment.objects.filter(
+                country=symbol_country
+            ).order_by('-calculation_timestamp').first()
+            
+            if not latest_sentiment:
+                return 0.0
+            
+            # Weight the sentiment score by confidence
+            impact_score = latest_sentiment.sentiment_score * latest_sentiment.confidence_score
+            
+            return float(impact_score)
+            
+        except Exception as e:
+            logger.error(f"Error getting market impact score: {e}")
+            return 0.0
+    
+    def check_upcoming_events(self, days_ahead: int = 7) -> List[EconomicEvent]:
+        """Get upcoming economic events that might impact markets"""
+        try:
+            future_date = timezone.now() + timedelta(days=days_ahead)
+            
+            upcoming_events = EconomicEvent.objects.filter(
+                scheduled_date__gte=timezone.now(),
+                scheduled_date__lte=future_date,
+                is_completed=False
+            ).order_by('scheduled_date')
+            
+            return list(upcoming_events)
+            
+        except Exception as e:
+            logger.error(f"Error checking upcoming events: {e}")
+            return []
+    
+    def analyze_event_impact(self, event: EconomicEvent) -> Dict:
+        """Analyze the potential market impact of an economic event"""
+        try:
+            # Base impact score
+            impact_multipliers = {
+                'LOW': 0.25,
+                'MEDIUM': 0.5,
+                'HIGH': 0.75,
+                'CRITICAL': 1.0
+            }
+            
+            base_impact = impact_multipliers.get(event.impact_level, 0.5)
+            
+            # Adjust based on event type
+            type_multipliers = {
+                'POLICY_DECISION': 1.2,  # Fed decisions have higher impact
+                'ANNOUNCEMENT': 1.0,
+                'REPORT_RELEASE': 0.8,
+                'SPEECH': 0.6,
+                'MEETING': 0.4
+            }
+            
+            type_impact = type_multipliers.get(event.event_type, 1.0)
+            
+            # Calculate final impact scores
+            final_impact = base_impact * type_impact
+            volatility_boost = event.volatility_impact * final_impact
+            
+            return {
+                'market_impact': event.market_impact_score * final_impact,
+                'volatility_impact': volatility_boost,
+                'confidence': min(0.9, base_impact + 0.1),
+                'time_to_event': (event.scheduled_date - timezone.now()).total_seconds() / 3600,  # hours
+                'recommendation': self._get_event_recommendation(final_impact, event.market_impact_score)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error analyzing event impact: {e}")
+            return {}
+    
+    def _get_latest_indicators(self, country: str) -> Dict:
+        """Get latest economic indicators for a country"""
+        try:
+            indicators = {}
+            
+            for indicator_type, _ in EconomicIndicator.INDICATOR_TYPES:
+                latest = EconomicIndicator.objects.filter(
+                    country=country,
+                    indicator_type=indicator_type
+                ).order_by('-timestamp').first()
+                
+                if latest:
+                    indicators[indicator_type] = latest
+            
+            return indicators
+            
+        except Exception as e:
+            logger.error(f"Error getting latest indicators for {country}: {e}")
+            return {}
+    
+    def _calculate_gdp_impact(self, gdp_indicator: Optional[EconomicIndicator]) -> float:
+        """Calculate GDP impact on market sentiment"""
+        if not gdp_indicator:
+            return 0.0
+        
+        try:
+            # GDP growth above 2% is generally positive
+            gdp_value = float(gdp_indicator.value)
+            
+            if gdp_value > 3.0:
+                return 0.8  # Very positive
+            elif gdp_value > 2.0:
+                return 0.4  # Positive
+            elif gdp_value > 0.0:
+                return 0.0  # Neutral
+            elif gdp_value > -2.0:
+                return -0.4  # Negative
+            else:
+                return -0.8  # Very negative
+                
+        except Exception as e:
+            logger.error(f"Error calculating GDP impact: {e}")
+            return 0.0
+    
+    def _calculate_inflation_impact(self, inflation_indicator: Optional[EconomicIndicator]) -> float:
+        """Calculate inflation impact on market sentiment"""
+        if not inflation_indicator:
+            return 0.0
+        
+        try:
+            inflation_value = float(inflation_indicator.value)
+            
+            # Target inflation is usually around 2%
+            if 1.5 <= inflation_value <= 2.5:
+                return 0.3  # Ideal range
+            elif 2.5 < inflation_value <= 4.0:
+                return -0.2  # Slightly high
+            elif inflation_value > 4.0:
+                return -0.6  # Too high
+            elif inflation_value < 1.0:
+                return -0.3  # Too low (deflation risk)
+            else:
+                return 0.0
+                
+        except Exception as e:
+            logger.error(f"Error calculating inflation impact: {e}")
+            return 0.0
+    
+    def _calculate_employment_impact(self, unemployment_indicator: Optional[EconomicIndicator]) -> float:
+        """Calculate employment impact on market sentiment"""
+        if not unemployment_indicator:
+            return 0.0
+        
+        try:
+            unemployment_value = float(unemployment_indicator.value)
+            
+            # Lower unemployment is better
+            if unemployment_value < 4.0:
+                return 0.6  # Very good
+            elif unemployment_value < 5.0:
+                return 0.3  # Good
+            elif unemployment_value < 7.0:
+                return 0.0  # Neutral
+            elif unemployment_value < 10.0:
+                return -0.4  # High
+            else:
+                return -0.8  # Very high
+                
+        except Exception as e:
+            logger.error(f"Error calculating employment impact: {e}")
+            return 0.0
+    
+    def _calculate_monetary_impact(self, interest_rate_indicator: Optional[EconomicIndicator]) -> float:
+        """Calculate monetary policy impact on market sentiment"""
+        if not interest_rate_indicator:
+            return 0.0
+        
+        try:
+            rate_value = float(interest_rate_indicator.value)
+            
+            # Consider rate changes more than absolute values
+            change = interest_rate_indicator.change_from_previous
+            
+            if change is None:
+                # Base assessment on absolute rate
+                if rate_value < 2.0:
+                    return 0.2  # Accommodative
+                elif rate_value < 5.0:
+                    return 0.0  # Neutral
+                else:
+                    return -0.3  # Restrictive
+            else:
+                # Rate increase is generally negative for markets in short term
+                if change > 0.5:
+                    return -0.6  # Big increase
+                elif change > 0.25:
+                    return -0.3  # Moderate increase
+                elif change > 0:
+                    return -0.1  # Small increase
+                elif change < -0.25:
+                    return 0.4  # Rate cut
+                else:
+                    return 0.0  # No change
+                    
+        except Exception as e:
+            logger.error(f"Error calculating monetary impact: {e}")
+            return 0.0
+    
+    def _get_sentiment_level(self, sentiment_score: float) -> str:
+        """Convert sentiment score to level"""
+        if sentiment_score >= 0.6:
+            return 'VERY_BULLISH'
+        elif sentiment_score >= 0.2:
+            return 'BULLISH'
+        elif sentiment_score >= -0.2:
+            return 'NEUTRAL'
+        elif sentiment_score >= -0.6:
+            return 'BEARISH'
+        else:
+            return 'VERY_BEARISH'
+    
+    def _calculate_confidence(self, indicators: Dict) -> float:
+        """Calculate confidence score based on data availability"""
+        try:
+            total_indicators = len(self.indicator_weights)
+            available_indicators = len(indicators)
+            
+            base_confidence = available_indicators / total_indicators
+            
+            # Boost confidence if we have recent data
+            recent_data_bonus = 0.0
+            for indicator in indicators.values():
+                if indicator and indicator.timestamp > timezone.now() - timedelta(days=30):
+                    recent_data_bonus += 0.1
+            
+            return min(1.0, base_confidence + recent_data_bonus)
+            
+        except Exception as e:
+            logger.error(f"Error calculating confidence: {e}")
+            return 0.5
+    
+    def _get_event_recommendation(self, impact_score: float, market_impact: float) -> str:
+        """Get trading recommendation based on event analysis"""
+        try:
+            if impact_score >= 0.8:
+                if market_impact > 0.3:
+                    return "STRONG_BUY_OPPORTUNITY"
+                elif market_impact < -0.3:
+                    return "STRONG_SELL_SIGNAL"
+                else:
+                    return "HIGH_VOLATILITY_EXPECTED"
+            elif impact_score >= 0.5:
+                if market_impact > 0.2:
+                    return "MODERATE_BUY_SIGNAL"
+                elif market_impact < -0.2:
+                    return "MODERATE_SELL_SIGNAL"
+                else:
+                    return "MODERATE_VOLATILITY"
+            else:
+                return "LOW_IMPACT_EVENT"
+                
+        except Exception as e:
+            logger.error(f"Error getting event recommendation: {e}")
+            return "NEUTRAL"
+    
+    def create_sample_economic_data(self):
+        """Create sample economic data for testing"""
+        try:
+            # Sample US economic indicators
+            sample_data = [
+                {
+                    'indicator_type': 'GDP',
+                    'country': 'US',
+                    'value': 2.1,
+                    'previous_value': 2.0,
+                    'expected_value': 2.2,
+                    'unit': '%'
+                },
+                {
+                    'indicator_type': 'INFLATION',
+                    'country': 'US',
+                    'value': 3.2,
+                    'previous_value': 3.0,
+                    'expected_value': 3.1,
+                    'unit': '%'
+                },
+                {
+                    'indicator_type': 'UNEMPLOYMENT',
+                    'country': 'US',
+                    'value': 3.7,
+                    'previous_value': 3.8,
+                    'expected_value': 3.7,
+                    'unit': '%'
+                },
+                {
+                    'indicator_type': 'INTEREST_RATE',
+                    'country': 'US',
+                    'value': 5.25,
+                    'previous_value': 5.0,
+                    'expected_value': 5.25,
+                    'unit': '%'
+                }
+            ]
+            
+            current_time = timezone.now()
+            
+            for data in sample_data:
+                EconomicIndicator.objects.get_or_create(
+                    indicator_type=data['indicator_type'],
+                    country=data['country'],
+                    timestamp=current_time,
+                    defaults={
+                        'value': data['value'],
+                        'previous_value': data['previous_value'],
+                        'expected_value': data['expected_value'],
+                        'unit': data['unit'],
+                        'release_date': current_time,
+                        'source': self.data_source
+                    }
+                )
+            
+            # Sample economic events
+            EconomicEvent.objects.get_or_create(
+                name='Federal Reserve Meeting',
+                country='US',
+                scheduled_date=timezone.now() + timedelta(days=14),
+                defaults={
+                    'description': 'FOMC meeting to discuss monetary policy',
+                    'event_type': 'POLICY_DECISION',
+                    'impact_level': 'CRITICAL',
+                    'market_impact_score': 0.0,
+                    'volatility_impact': 0.8
+                }
+            )
+            
+            logger.info("Sample economic data created successfully")
+            
+        except Exception as e:
+            logger.error(f"Error creating sample economic data: {e}")
+
+
+class SectorAnalysisService:
+    """Service for sector analysis and rotation detection"""
+    
+    def __init__(self):
+        self.data_source, _ = DataSource.objects.get_or_create(
+            name='Sector Analysis',
+            defaults={
+                'source_type': 'CALCULATED',
+                'is_active': True
+            }
+        )
+        
+        # Sector categorization for analysis
+        self.growth_sectors = ['TECHNOLOGY', 'CONSUMER_DISCRETIONARY', 'COMMUNICATION']
+        self.value_sectors = ['FINANCIALS', 'ENERGY', 'MATERIALS']
+        self.defensive_sectors = ['UTILITIES', 'CONSUMER_STAPLES', 'HEALTHCARE']
+        self.cyclical_sectors = ['INDUSTRIALS', 'MATERIALS', 'ENERGY', 'FINANCIALS']
+        
+    def calculate_sector_performance(self, sector: Sector, timeframe_days: int = 30) -> Optional[SectorPerformance]:
+        """Calculate performance metrics for a sector"""
+        try:
+            # Get symbols in this sector
+            sector_symbols = Symbol.objects.filter(sector=sector, is_active=True)
+            
+            if not sector_symbols.exists():
+                logger.warning(f"No symbols found for sector {sector.display_name}")
+                return None
+            
+            # Calculate sector-wide performance
+            total_daily_return = 0.0
+            total_weekly_return = 0.0
+            total_monthly_return = 0.0
+            total_volatility = 0.0
+            valid_symbols = 0
+            
+            for symbol in sector_symbols:
+                perf_data = self._calculate_symbol_performance(symbol, timeframe_days)
+                if perf_data:
+                    total_daily_return += perf_data['daily_return']
+                    total_weekly_return += perf_data['weekly_return']
+                    total_monthly_return += perf_data['monthly_return']
+                    total_volatility += perf_data['volatility']
+                    valid_symbols += 1
+            
+            if valid_symbols == 0:
+                return None
+            
+            # Average the performance metrics
+            avg_daily_return = total_daily_return / valid_symbols
+            avg_weekly_return = total_weekly_return / valid_symbols
+            avg_monthly_return = total_monthly_return / valid_symbols
+            avg_volatility = total_volatility / valid_symbols
+            
+            # Calculate momentum and relative strength
+            momentum_score = self._calculate_sector_momentum(sector, timeframe_days)
+            relative_strength = self._calculate_relative_strength(sector, avg_monthly_return)
+            volume_trend = self._calculate_volume_trend(sector, timeframe_days)
+            
+            # Create sector performance record
+            sector_performance = SectorPerformance.objects.create(
+                sector=sector,
+                timestamp=timezone.now(),
+                daily_return=avg_daily_return,
+                weekly_return=avg_weekly_return,
+                monthly_return=avg_monthly_return,
+                volatility=avg_volatility,
+                momentum_score=momentum_score,
+                relative_strength=relative_strength,
+                volume_trend=volume_trend
+            )
+            
+            logger.info(f"Calculated performance for {sector.display_name}: "
+                       f"Monthly return: {avg_monthly_return:.2f}%, "
+                       f"Relative strength: {relative_strength:.2f}")
+            
+            return sector_performance
+            
+        except Exception as e:
+            logger.error(f"Error calculating sector performance for {sector.display_name}: {e}")
+            return None
+    
+    def detect_sector_rotation(self, lookback_days: int = 30) -> List[SectorRotation]:
+        """Detect sector rotation patterns"""
+        try:
+            rotations = []
+            
+            # Get recent sector performances
+            recent_performances = {}
+            for sector in Sector.objects.filter(is_active=True):
+                latest_perf = SectorPerformance.objects.filter(
+                    sector=sector,
+                    timestamp__gte=timezone.now() - timedelta(days=lookback_days)
+                ).order_by('-timestamp').first()
+                
+                if latest_perf:
+                    recent_performances[sector] = latest_perf
+            
+            if len(recent_performances) < 2:
+                return rotations
+            
+            # Sort sectors by relative strength
+            sorted_sectors = sorted(
+                recent_performances.items(),
+                key=lambda x: x[1].relative_strength,
+                reverse=True
+            )
+            
+            # Identify rotation patterns
+            strong_sectors = sorted_sectors[:3]  # Top 3 performers
+            weak_sectors = sorted_sectors[-3:]   # Bottom 3 performers
+            
+            # Detect specific rotation types
+            for weak_sector, weak_perf in weak_sectors:
+                for strong_sector, strong_perf in strong_sectors:
+                    rotation_type = self._classify_rotation_type(
+                        weak_sector, strong_sector, weak_perf, strong_perf
+                    )
+                    
+                    if rotation_type:
+                        strength = abs(strong_perf.relative_strength - weak_perf.relative_strength)
+                        confidence = min(0.9, strength * 2)  # Normalize confidence
+                        
+                        rotation = SectorRotation.objects.create(
+                            rotation_type=rotation_type,
+                            from_sector=weak_sector,
+                            to_sector=strong_sector,
+                            strength=min(1.0, strength),
+                            confidence=confidence,
+                            duration_days=lookback_days,
+                            market_regime=self._get_current_market_regime(),
+                            detected_at=timezone.now()
+                        )
+                        
+                        rotations.append(rotation)
+                        logger.info(f"Detected {rotation_type}: {weak_sector.display_name} → {strong_sector.display_name}")
+            
+            return rotations
+            
+        except Exception as e:
+            logger.error(f"Error detecting sector rotation: {e}")
+            return []
+    
+    def calculate_sector_correlations(self, timeframe: str = '1M') -> List[SectorCorrelation]:
+        """Calculate correlations between sectors"""
+        try:
+            correlations = []
+            sectors = list(Sector.objects.filter(is_active=True))
+            
+            for i, sector_a in enumerate(sectors):
+                for sector_b in sectors[i+1:]:
+                    correlation = self._calculate_pairwise_correlation(
+                        sector_a, sector_b, timeframe
+                    )
+                    
+                    if correlation is not None:
+                        correlation_obj = SectorCorrelation.objects.create(
+                            sector_a=sector_a,
+                            sector_b=sector_b,
+                            timeframe=timeframe,
+                            correlation_coefficient=correlation['coefficient'],
+                            p_value=correlation['p_value'],
+                            sample_size=correlation['sample_size'],
+                            calculated_at=timezone.now()
+                        )
+                        
+                        correlations.append(correlation_obj)
+            
+            logger.info(f"Calculated {len(correlations)} sector correlations")
+            return correlations
+            
+        except Exception as e:
+            logger.error(f"Error calculating sector correlations: {e}")
+            return []
+    
+    def get_sector_momentum_signals(self, sector: Sector) -> Dict:
+        """Generate momentum-based signals for a sector"""
+        try:
+            # Get latest performance data
+            latest_perf = SectorPerformance.objects.filter(
+                sector=sector
+            ).order_by('-timestamp').first()
+            
+            if not latest_perf:
+                return {}
+            
+            signals = {
+                'sector': sector.display_name,
+                'momentum_signal': 'NEUTRAL',
+                'strength': 0.0,
+                'confidence': 0.0,
+                'key_metrics': {}
+            }
+            
+            # Momentum signal based on relative strength and momentum score
+            if latest_perf.relative_strength > 0.3 and latest_perf.momentum_score > 0.2:
+                signals['momentum_signal'] = 'STRONG_BUY'
+                signals['strength'] = min(1.0, (latest_perf.relative_strength + latest_perf.momentum_score) / 2)
+            elif latest_perf.relative_strength > 0.1 and latest_perf.momentum_score > 0.1:
+                signals['momentum_signal'] = 'BUY'
+                signals['strength'] = min(1.0, (latest_perf.relative_strength + latest_perf.momentum_score) / 2)
+            elif latest_perf.relative_strength < -0.3 and latest_perf.momentum_score < -0.2:
+                signals['momentum_signal'] = 'STRONG_SELL'
+                signals['strength'] = min(1.0, abs((latest_perf.relative_strength + latest_perf.momentum_score) / 2))
+            elif latest_perf.relative_strength < -0.1 and latest_perf.momentum_score < -0.1:
+                signals['momentum_signal'] = 'SELL'
+                signals['strength'] = min(1.0, abs((latest_perf.relative_strength + latest_perf.momentum_score) / 2))
+            
+            # Calculate confidence based on volatility and volume trend
+            base_confidence = 0.5
+            if latest_perf.volatility < 0.3:  # Low volatility increases confidence
+                base_confidence += 0.2
+            if abs(latest_perf.volume_trend) > 0.2:  # Strong volume trend increases confidence
+                base_confidence += 0.2
+            
+            signals['confidence'] = min(1.0, base_confidence)
+            signals['key_metrics'] = {
+                'relative_strength': latest_perf.relative_strength,
+                'momentum_score': latest_perf.momentum_score,
+                'monthly_return': latest_perf.monthly_return,
+                'volatility': latest_perf.volatility,
+                'volume_trend': latest_perf.volume_trend
+            }
+            
+            return signals
+            
+        except Exception as e:
+            logger.error(f"Error generating sector momentum signals for {sector.display_name}: {e}")
+            return {}
+    
+    def get_sector_impact_score(self, symbol: Symbol) -> float:
+        """Get sector impact score for signal generation"""
+        try:
+            if not symbol.sector:
+                return 0.0
+            
+            # Get sector momentum signals
+            momentum_signals = self.get_sector_momentum_signals(symbol.sector)
+            
+            if not momentum_signals:
+                return 0.0
+            
+            # Convert momentum signal to impact score
+            signal_multipliers = {
+                'STRONG_BUY': 0.8,
+                'BUY': 0.4,
+                'NEUTRAL': 0.0,
+                'SELL': -0.4,
+                'STRONG_SELL': -0.8
+            }
+            
+            base_score = signal_multipliers.get(momentum_signals.get('momentum_signal', 'NEUTRAL'), 0.0)
+            confidence = momentum_signals.get('confidence', 0.5)
+            
+            # Weight by confidence
+            impact_score = base_score * confidence
+            
+            return float(impact_score)
+            
+        except Exception as e:
+            logger.error(f"Error getting sector impact score for {symbol.symbol}: {e}")
+            return 0.0
+    
+    def _calculate_symbol_performance(self, symbol: Symbol, timeframe_days: int) -> Optional[Dict]:
+        """Calculate performance metrics for a single symbol"""
+        try:
+            # Get market data for the symbol
+            end_date = timezone.now()
+            start_date = end_date - timedelta(days=timeframe_days)
+            
+            market_data = MarketData.objects.filter(
+                symbol=symbol,
+                timestamp__gte=start_date,
+                timestamp__lte=end_date
+            ).order_by('timestamp')
+            
+            if market_data.count() < 2:
+                return None
+            
+            prices = [float(md.close_price) for md in market_data]
+            
+            # Calculate returns
+            daily_returns = [(prices[i] - prices[i-1]) / prices[i-1] for i in range(1, len(prices))]
+            
+            if len(daily_returns) == 0:
+                return None
+            
+            # Performance metrics
+            latest_price = prices[-1]
+            initial_price = prices[0]
+            
+            # Calculate different timeframe returns
+            daily_return = daily_returns[-1] if daily_returns else 0.0
+            weekly_return = (latest_price - prices[-min(7, len(prices))]) / prices[-min(7, len(prices))] if len(prices) >= 7 else daily_return
+            monthly_return = (latest_price - initial_price) / initial_price
+            
+            # Volatility (annualized)
+            volatility = np.std(daily_returns) * np.sqrt(252) if len(daily_returns) > 1 else 0.0
+            
+            return {
+                'daily_return': daily_return * 100,  # Convert to percentage
+                'weekly_return': weekly_return * 100,
+                'monthly_return': monthly_return * 100,
+                'volatility': volatility
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating symbol performance for {symbol.symbol}: {e}")
+            return None
+    
+    def _calculate_sector_momentum(self, sector: Sector, timeframe_days: int) -> float:
+        """Calculate momentum score for a sector"""
+        try:
+            # Get historical sector performances
+            historical_perfs = SectorPerformance.objects.filter(
+                sector=sector,
+                timestamp__gte=timezone.now() - timedelta(days=timeframe_days)
+            ).order_by('-timestamp')[:10]
+            
+            if historical_perfs.count() < 3:
+                return 0.0
+            
+            # Calculate momentum based on trend in relative strength
+            recent_scores = [perf.relative_strength for perf in historical_perfs]
+            
+            if len(recent_scores) >= 3:
+                # Simple momentum: recent vs older performance
+                recent_avg = sum(recent_scores[:3]) / 3
+                older_avg = sum(recent_scores[-3:]) / 3
+                
+                momentum = (recent_avg - older_avg) * 2  # Scale factor
+                return max(-1.0, min(1.0, momentum))
+            
+            return 0.0
+            
+        except Exception as e:
+            logger.error(f"Error calculating sector momentum for {sector.display_name}: {e}")
+            return 0.0
+    
+    def _calculate_relative_strength(self, sector: Sector, sector_return: float) -> float:
+        """Calculate relative strength vs market"""
+        try:
+            # Calculate market average from all sectors
+            all_sectors = Sector.objects.filter(is_active=True)
+            market_returns = []
+            
+            for other_sector in all_sectors:
+                if other_sector != sector:
+                    symbols = Symbol.objects.filter(sector=other_sector, is_active=True)
+                    if symbols.exists():
+                        symbol = symbols.first()
+                        perf_data = self._calculate_symbol_performance(symbol, 30)
+                        if perf_data:
+                            market_returns.append(perf_data['monthly_return'])
+            
+            if not market_returns:
+                return 0.0
+            
+            market_avg = sum(market_returns) / len(market_returns)
+            
+            # Relative strength = (sector_return - market_return) / volatility
+            relative_strength = (sector_return - market_avg) / 10.0  # Normalize
+            
+            return max(-1.0, min(1.0, relative_strength))
+            
+        except Exception as e:
+            logger.error(f"Error calculating relative strength for {sector.display_name}: {e}")
+            return 0.0
+    
+    def _calculate_volume_trend(self, sector: Sector, timeframe_days: int) -> float:
+        """Calculate volume trend for a sector"""
+        try:
+            # Get symbols in sector
+            sector_symbols = Symbol.objects.filter(sector=sector, is_active=True)[:5]  # Limit for performance
+            
+            if not sector_symbols:
+                return 0.0
+            
+            total_volume_trend = 0.0
+            valid_symbols = 0
+            
+            for symbol in sector_symbols:
+                # Get recent volume data
+                recent_data = MarketData.objects.filter(
+                    symbol=symbol,
+                    timestamp__gte=timezone.now() - timedelta(days=timeframe_days)
+                ).order_by('-timestamp')[:10]
+                
+                if recent_data.count() >= 5:
+                    volumes = [float(md.volume) for md in recent_data]
+                    if len(volumes) >= 5:
+                        recent_avg = sum(volumes[:3]) / 3
+                        older_avg = sum(volumes[-3:]) / 3
+                        
+                        if older_avg > 0:
+                            volume_change = (recent_avg - older_avg) / older_avg
+                            total_volume_trend += volume_change
+                            valid_symbols += 1
+            
+            if valid_symbols == 0:
+                return 0.0
+            
+            avg_volume_trend = total_volume_trend / valid_symbols
+            return max(-1.0, min(1.0, avg_volume_trend))
+            
+        except Exception as e:
+            logger.error(f"Error calculating volume trend for {sector.display_name}: {e}")
+            return 0.0
+    
+    def _classify_rotation_type(self, from_sector: Sector, to_sector: Sector, 
+                               from_perf: SectorPerformance, to_perf: SectorPerformance) -> Optional[str]:
+        """Classify the type of sector rotation"""
+        try:
+            from_name = from_sector.name
+            to_name = to_sector.name
+            
+            # Growth to Value rotation
+            if from_name in self.growth_sectors and to_name in self.value_sectors:
+                return 'GROWTH_TO_VALUE'
+            
+            # Value to Growth rotation
+            if from_name in self.value_sectors and to_name in self.growth_sectors:
+                return 'VALUE_TO_GROWTH'
+            
+            # Defensive to Cyclical rotation
+            if from_name in self.defensive_sectors and to_name in self.cyclical_sectors:
+                return 'DEFENSIVE_TO_CYCLICAL'
+            
+            # Cyclical to Defensive rotation
+            if from_name in self.cyclical_sectors and to_name in self.defensive_sectors:
+                return 'CYCLICAL_TO_DEFENSIVE'
+            
+            # Risk On/Off based on relative strength difference
+            strength_diff = to_perf.relative_strength - from_perf.relative_strength
+            
+            if strength_diff > 0.4:
+                if to_name in self.growth_sectors or to_name in self.cyclical_sectors:
+                    return 'RISK_ON'
+                elif to_name in self.defensive_sectors:
+                    return 'RISK_OFF'
+            
+            return None  # No clear rotation pattern
+            
+        except Exception as e:
+            logger.error(f"Error classifying rotation type: {e}")
+            return None
+    
+    def _calculate_pairwise_correlation(self, sector_a: Sector, sector_b: Sector, timeframe: str) -> Optional[Dict]:
+        """Calculate correlation between two sectors"""
+        try:
+            # Map timeframe to days
+            timeframe_days = {
+                '1D': 1, '1W': 7, '1M': 30, '3M': 90, '6M': 180, '1Y': 365
+            }.get(timeframe, 30)
+            
+            # Get performance data for both sectors
+            perf_a = SectorPerformance.objects.filter(
+                sector=sector_a,
+                timestamp__gte=timezone.now() - timedelta(days=timeframe_days)
+            ).order_by('timestamp')
+            
+            perf_b = SectorPerformance.objects.filter(
+                sector=sector_b,
+                timestamp__gte=timezone.now() - timedelta(days=timeframe_days)
+            ).order_by('timestamp')
+            
+            if perf_a.count() < 5 or perf_b.count() < 5:
+                return None
+            
+            # Extract returns for correlation calculation
+            returns_a = [perf.daily_return for perf in perf_a]
+            returns_b = [perf.daily_return for perf in perf_b]
+            
+            # Ensure same length
+            min_len = min(len(returns_a), len(returns_b))
+            returns_a = returns_a[:min_len]
+            returns_b = returns_b[:min_len]
+            
+            if min_len < 5:
+                return None
+            
+            # Calculate Pearson correlation
+            correlation_matrix = np.corrcoef(returns_a, returns_b)
+            correlation_coeff = correlation_matrix[0, 1]
+            
+            # Simple p-value approximation (for demonstration)
+            # In production, you'd use scipy.stats for proper statistical tests
+            p_value = 0.05 if abs(correlation_coeff) > 0.5 else 0.1
+            
+            return {
+                'coefficient': float(correlation_coeff) if not np.isnan(correlation_coeff) else 0.0,
+                'p_value': p_value,
+                'sample_size': min_len
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating correlation between {sector_a.display_name} and {sector_b.display_name}: {e}")
+            return None
+    
+    def _get_current_market_regime(self) -> str:
+        """Determine current market regime for context"""
+        try:
+            # Simple market regime detection based on sector performance
+            growth_performance = 0.0
+            value_performance = 0.0
+            defensive_performance = 0.0
+            
+            for sector_name in self.growth_sectors:
+                try:
+                    sector = Sector.objects.get(name=sector_name, is_active=True)
+                    latest_perf = SectorPerformance.objects.filter(
+                        sector=sector
+                    ).order_by('-timestamp').first()
+                    
+                    if latest_perf:
+                        growth_performance += latest_perf.monthly_return
+                except Sector.DoesNotExist:
+                    continue
+            
+            for sector_name in self.value_sectors:
+                try:
+                    sector = Sector.objects.get(name=sector_name, is_active=True)
+                    latest_perf = SectorPerformance.objects.filter(
+                        sector=sector
+                    ).order_by('-timestamp').first()
+                    
+                    if latest_perf:
+                        value_performance += latest_perf.monthly_return
+                except Sector.DoesNotExist:
+                    continue
+            
+            for sector_name in self.defensive_sectors:
+                try:
+                    sector = Sector.objects.get(name=sector_name, is_active=True)
+                    latest_perf = SectorPerformance.objects.filter(
+                        sector=sector
+                    ).order_by('-timestamp').first()
+                    
+                    if latest_perf:
+                        defensive_performance += latest_perf.monthly_return
+                except Sector.DoesNotExist:
+                    continue
+            
+            # Determine regime
+            if growth_performance > value_performance and growth_performance > defensive_performance:
+                return "GROWTH_MOMENTUM"
+            elif value_performance > growth_performance and value_performance > defensive_performance:
+                return "VALUE_ROTATION"
+            elif defensive_performance > growth_performance and defensive_performance > value_performance:
+                return "DEFENSIVE_MODE"
+            else:
+                return "MIXED_SIGNALS"
+                
+        except Exception as e:
+            logger.error(f"Error determining market regime: {e}")
+            return "UNKNOWN"
+    
+    def create_sample_sectors(self):
+        """Create sample sector data for testing"""
+        try:
+            sample_sectors = [
+                {
+                    'name': 'TECHNOLOGY',
+                    'display_name': 'Technology',
+                    'description': 'Technology companies including software, hardware, and internet services',
+                    'market_cap_weight': 0.25
+                },
+                {
+                    'name': 'HEALTHCARE',
+                    'display_name': 'Healthcare',
+                    'description': 'Healthcare and pharmaceutical companies',
+                    'market_cap_weight': 0.15
+                },
+                {
+                    'name': 'FINANCIALS',
+                    'display_name': 'Financials',
+                    'description': 'Banks, insurance, and financial services',
+                    'market_cap_weight': 0.13
+                },
+                {
+                    'name': 'CRYPTO_LAYER1',
+                    'display_name': 'Layer 1 Cryptocurrencies',
+                    'description': 'Base layer blockchain protocols',
+                    'market_cap_weight': 0.08
+                },
+                {
+                    'name': 'CRYPTO_DEFI',
+                    'display_name': 'DeFi Tokens',
+                    'description': 'Decentralized finance protocols and tokens',
+                    'market_cap_weight': 0.05
+                }
+            ]
+            
+            for sector_data in sample_sectors:
+                sector, created = Sector.objects.get_or_create(
+                    name=sector_data['name'],
+                    defaults={
+                        'display_name': sector_data['display_name'],
+                        'description': sector_data['description'],
+                        'market_cap_weight': sector_data['market_cap_weight'],
+                        'is_active': True
+                    }
+                )
+                
+                if created:
+                    logger.info(f"Created sector: {sector.display_name}")
+            
+            logger.info("Sample sector data created successfully")
+            
+        except Exception as e:
+            logger.error(f"Error creating sample sectors: {e}")
 
 
