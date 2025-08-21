@@ -62,27 +62,22 @@ class SignalAPIView(View):
             queryset = queryset.filter(is_valid=is_valid)
             signals = queryset.order_by('-created_at')[:limit]
             
-            # Get live prices for symbols
-            live_prices = {}
-            try:
-                from apps.data.real_price_service import get_live_prices
-                live_prices = get_live_prices()
-            except Exception as e:
-                logger.warning(f"Could not fetch live prices: {e}")
-                live_prices = {}
+            # Get synchronized prices for all symbols
+            from apps.signals.price_sync_service import price_sync_service
             
-            # Serialize signals with optimized data access and live prices
+            # Serialize signals with optimized data access and synchronized prices
             signal_data = []
             for signal in signals:
                 symbol = signal.symbol.symbol
-                current_price = None
-                price_change_24h = None
                 
-                # Get current live price for this symbol
-                if symbol in live_prices:
-                    price_data = live_prices[symbol]
-                    current_price = price_data.get('price')
-                    price_change_24h = price_data.get('change_24h')
+                # Get synchronized price data for this symbol
+                sync_prices = price_sync_service.get_synchronized_prices(symbol)
+                
+                current_price = sync_prices.get('current_price')
+                price_change_24h = sync_prices.get('price_change_24h')
+                price_discrepancy = sync_prices.get('price_discrepancy_percent', 0)
+                price_status = sync_prices.get('price_status', 'unknown')
+                price_alert = sync_prices.get('price_alert')
                 
                 signal_data.append({
                     'id': signal.id,
@@ -94,8 +89,11 @@ class SignalAPIView(View):
                     'entry_price': float(signal.entry_price) if signal.entry_price else None,
                     'target_price': float(signal.target_price) if signal.target_price else None,
                     'stop_loss': float(signal.stop_loss) if signal.stop_loss else None,
-                    'current_price': current_price,  # Live current price
+                    'current_price': current_price,  # Synchronized current price
                     'price_change_24h': price_change_24h,  # 24h price change
+                    'price_discrepancy_percent': price_discrepancy,  # Price difference from entry
+                    'price_status': price_status,  # Price reliability status
+                    'price_alert': price_alert,  # Price discrepancy alerts
                     'risk_reward_ratio': signal.risk_reward_ratio,
                     'quality_score': signal.quality_score,
                     'is_valid': signal.is_valid,
@@ -108,7 +106,14 @@ class SignalAPIView(View):
                     'sentiment_score': signal.sentiment_score,
                     'news_score': signal.news_score,
                     'volume_score': signal.volume_score,
-                    'pattern_score': signal.pattern_score
+                    'pattern_score': signal.pattern_score,
+                    # New timeframe and entry point fields
+                    'timeframe': signal.timeframe,
+                    'entry_point_type': signal.entry_point_type,
+                    'entry_point_details': signal.entry_point_details,
+                    'entry_zone_low': float(signal.entry_zone_low) if signal.entry_zone_low else None,
+                    'entry_zone_high': float(signal.entry_zone_high) if signal.entry_zone_high else None,
+                    'entry_confidence': signal.entry_confidence
                 })
             
             response_data = {
@@ -799,6 +804,62 @@ def reset_signals_for_testing(request):
         
     except Exception as e:
         logger.error(f"Error resetting signals for testing: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def sync_signal_prices(request):
+    """Synchronize prices for all active signals"""
+    try:
+        from apps.signals.price_sync_service import price_sync_service
+        
+        # Get all active signals
+        active_signals = TradingSignal.objects.filter(
+            is_valid=True,
+            is_executed=False
+        )
+        
+        synced_count = 0
+        errors = []
+        
+        for signal in active_signals:
+            try:
+                # Update signal prices using the sync service
+                if price_sync_service.update_signal_prices(signal.id):
+                    synced_count += 1
+            except Exception as e:
+                errors.append(f"Error syncing {signal.symbol.symbol}: {str(e)}")
+                logger.warning(f"Error syncing signal {signal.id}: {e}")
+        
+        # Clear signal caches to force refresh
+        cache_keys_to_delete = [
+            "signal_statistics",
+            "signals_api_None_None_true_50"
+        ]
+        
+        for cache_key in cache_keys_to_delete:
+            cache.delete(cache_key)
+        
+        logger.info(f"Successfully synchronized prices for {synced_count} signals")
+        
+        response_data = {
+            'success': True,
+            'synced_count': synced_count,
+            'total_signals': len(active_signals),
+            'message': f'Successfully synchronized prices for {synced_count}/{len(active_signals)} signals'
+        }
+        
+        if errors:
+            response_data['warnings'] = errors
+        
+        return JsonResponse(response_data)
+        
+    except Exception as e:
+        logger.error(f"Error synchronizing signal prices: {e}")
         return JsonResponse({
             'success': False,
             'error': str(e)

@@ -14,6 +14,7 @@ urlpatterns = [
     path('api/statistics/', views.signal_statistics, name='signal_statistics'),
     path('api/generate/', views.generate_signals_manual, name='generate_signals'),
     path('api/reset-testing/', views.reset_signals_for_testing, name='reset_signals_testing'),
+    path('api/sync-prices/', views.sync_signal_prices, name='sync_signal_prices'),
     
     # Dashboard views
     path('', views.signal_dashboard, name='signal_dashboard'),  # Main signals page

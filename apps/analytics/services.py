@@ -6,6 +6,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 import math
 import logging
+import random
 
 class PortfolioAnalytics:
     """Advanced portfolio analytics and risk management"""
@@ -2000,3 +2001,701 @@ class MarketSentimentService:
         except Exception as e:
             self.logger.error(f"Error saving sentiment data: {e}")
             return False
+
+class DynamicStrategySelector:
+    """Dynamic strategy selection service that automatically selects the best strategies based on market conditions"""
+    
+    def __init__(self, backtesting_service=None):
+        self.backtesting_service = backtesting_service or BacktestingService()
+        self.strategy_registry = {}
+        self.market_regime_detector = MarketRegimeDetector()
+        self.performance_tracker = StrategyPerformanceTracker()
+        
+    def register_strategy(self, strategy_name, strategy_class, parameters=None):
+        """Register a strategy for dynamic selection"""
+        self.strategy_registry[strategy_name] = {
+            'class': strategy_class,
+            'parameters': parameters or {},
+            'performance_history': [],
+            'current_rank': 0,
+            'market_regime_performance': {}
+        }
+        
+    def detect_market_regime(self, market_data, lookback_period=30):
+        """Detect current market regime using multiple indicators"""
+        return self.market_regime_detector.detect_regime(market_data, lookback_period)
+        
+    def rank_strategies(self, symbol, market_regime, lookback_days=90):
+        """Rank strategies based on performance in current market regime"""
+        ranked_strategies = []
+        
+        for strategy_name, strategy_info in self.strategy_registry.items():
+            # Get recent performance for this strategy
+            performance = self.performance_tracker.get_strategy_performance(
+                strategy_name, symbol, lookback_days
+            )
+            
+            # Adjust performance based on market regime
+            regime_adjustment = self._calculate_regime_adjustment(
+                strategy_name, market_regime, performance
+            )
+            
+            # Calculate risk-adjusted score
+            risk_adjusted_score = self._calculate_risk_adjusted_score(performance)
+            
+            # Final ranking score
+            final_score = (performance.get('sharpe_ratio', 0) * 0.4 + 
+                          performance.get('total_return', 0) * 0.3 + 
+                          regime_adjustment * 0.2 + 
+                          risk_adjusted_score * 0.1)
+            
+            ranked_strategies.append({
+                'strategy_name': strategy_name,
+                'score': final_score,
+                'performance': performance,
+                'regime_adjustment': regime_adjustment,
+                'risk_score': risk_adjusted_score
+            })
+        
+        # Sort by score (highest first)
+        ranked_strategies.sort(key=lambda x: x['score'], reverse=True)
+        
+        # Update rankings in registry
+        for i, ranked in enumerate(ranked_strategies):
+            self.strategy_registry[ranked['strategy_name']]['current_rank'] = i + 1
+            
+        return ranked_strategies
+        
+    def select_best_strategies(self, symbol, market_regime, num_strategies=3, 
+                              risk_tolerance='medium', diversification=True):
+        """Select the best strategies based on current conditions"""
+        # Rank all strategies
+        ranked_strategies = self.rank_strategies(symbol, market_regime)
+        
+        # Apply risk tolerance filter
+        filtered_strategies = self._apply_risk_filter(
+            ranked_strategies, risk_tolerance
+        )
+        
+        # Apply diversification if requested
+        if diversification:
+            selected_strategies = self._apply_diversification(
+                filtered_strategies, num_strategies
+            )
+        else:
+            selected_strategies = filtered_strategies[:num_strategies]
+            
+        return selected_strategies
+        
+    def adaptive_strategy_switching(self, current_portfolio, market_regime, 
+                                  symbol, switching_threshold=0.1):
+        """Automatically switch strategies based on performance degradation"""
+        current_strategies = [pos['strategy'] for pos in current_portfolio]
+        recommended_strategies = self.select_best_strategies(
+            symbol, market_regime, num_strategies=len(current_strategies)
+        )
+        
+        switching_recommendations = []
+        
+        for current_strategy in current_strategies:
+            # Find current strategy in recommendations
+            current_rank = next(
+                (i for i, rec in enumerate(recommended_strategies) 
+                 if rec['strategy_name'] == current_strategy), 
+                len(recommended_strategies)
+            )
+            
+            # Check if switching is recommended
+            if current_rank >= len(recommended_strategies) * switching_threshold:
+                # Current strategy is underperforming
+                better_strategy = recommended_strategies[0]['strategy_name']
+                switching_recommendations.append({
+                    'from_strategy': current_strategy,
+                    'to_strategy': better_strategy,
+                    'reason': 'Performance degradation',
+                    'priority': 'high' if current_rank >= len(recommended_strategies) * 0.5 else 'medium'
+                })
+                
+        return switching_recommendations
+        
+    def _calculate_regime_adjustment(self, strategy_name, market_regime, performance):
+        """Calculate performance adjustment based on market regime"""
+        strategy_info = self.strategy_registry.get(strategy_name, {})
+        regime_performance = strategy_info.get('market_regime_performance', {})
+        
+        # Get historical performance in this regime
+        if market_regime in regime_performance:
+            regime_avg = regime_performance[market_regime].get('avg_sharpe', 0)
+            current_sharpe = performance.get('sharpe_ratio', 0)
+            return (current_sharpe - regime_avg) / max(abs(regime_avg), 0.1)
+        
+        return 0.0
+        
+    def _calculate_risk_adjusted_score(self, performance):
+        """Calculate risk-adjusted score based on multiple risk metrics"""
+        max_drawdown = abs(performance.get('max_drawdown', 0))
+        volatility = performance.get('volatility', 0)
+        win_rate = performance.get('win_rate', 50)
+        
+        # Normalize and combine risk metrics
+        drawdown_score = max(0, 1 - max_drawdown / 100)  # Lower drawdown = higher score
+        volatility_score = max(0, 1 - volatility / 50)   # Lower volatility = higher score
+        win_rate_score = win_rate / 100                   # Higher win rate = higher score
+        
+        # Weighted risk score
+        risk_score = (drawdown_score * 0.4 + 
+                     volatility_score * 0.3 + 
+                     win_rate_score * 0.3)
+        
+        return risk_score
+        
+    def _apply_risk_filter(self, strategies, risk_tolerance):
+        """Filter strategies based on risk tolerance"""
+        if risk_tolerance == 'low':
+            # Only low-risk strategies
+            return [s for s in strategies if s['risk_score'] >= 0.7]
+        elif risk_tolerance == 'high':
+            # Accept all strategies
+            return strategies
+        else:  # medium
+            # Filter out very high-risk strategies
+            return [s for s in strategies if s['risk_score'] >= 0.4]
+            
+    def _apply_diversification(self, strategies, num_strategies):
+        """Apply diversification to avoid over-concentration"""
+        selected = []
+        strategy_types = set()
+        
+        for strategy in strategies:
+            if len(selected) >= num_strategies:
+                break
+                
+            # Get strategy type (e.g., trend-following, mean-reversion)
+            strategy_type = self._get_strategy_type(strategy['strategy_name'])
+            
+            # Limit strategies of the same type
+            if strategy_type not in strategy_types or len(selected) < num_strategies // 2:
+                selected.append(strategy)
+                strategy_types.add(strategy_type)
+                
+        return selected
+        
+    def _get_strategy_type(self, strategy_name):
+        """Determine strategy type for diversification"""
+        strategy_name_lower = strategy_name.lower()
+        
+        if any(word in strategy_name_lower for word in ['moving_average', 'trend', 'momentum']):
+            return 'trend_following'
+        elif any(word in strategy_name_lower for word in ['rsi', 'bollinger', 'mean_reversion']):
+            return 'mean_reversion'
+        elif any(word in strategy_name_lower for word in ['breakout', 'volatility']):
+            return 'breakout'
+        else:
+            return 'other'
+            
+    def get_strategy_recommendations(self, symbol, market_regime, 
+                                   portfolio_size=10000, risk_tolerance='medium'):
+        """Get comprehensive strategy recommendations"""
+        # Get best strategies
+        best_strategies = self.select_best_strategies(
+            symbol, market_regime, num_strategies=5, 
+            risk_tolerance=risk_tolerance
+        )
+        
+        # Calculate position sizes
+        position_sizes = self._calculate_position_sizes(
+            best_strategies, portfolio_size, risk_tolerance
+        )
+        
+        recommendations = []
+        for i, strategy in enumerate(best_strategies):
+            recommendations.append({
+                'strategy_name': strategy['strategy_name'],
+                'rank': i + 1,
+                'score': strategy['score'],
+                'performance': strategy['performance'],
+                'position_size': position_sizes[i],
+                'allocation_percentage': (position_sizes[i] / portfolio_size) * 100,
+                'risk_level': self._get_risk_level(strategy['risk_score']),
+                'expected_return': strategy['performance'].get('annualized_return', 0),
+                'max_drawdown': strategy['performance'].get('max_drawdown', 0)
+            })
+            
+        return recommendations
+        
+    def _calculate_position_sizes(self, strategies, portfolio_size, risk_tolerance):
+        """Calculate optimal position sizes for each strategy"""
+        total_score = sum(s['score'] for s in strategies)
+        
+        if total_score <= 0:
+            # Equal allocation if no positive scores
+            equal_size = portfolio_size / len(strategies)
+            return [equal_size] * len(strategies)
+            
+        # Risk-adjusted position sizing
+        position_sizes = []
+        for strategy in strategies:
+            # Base allocation based on score
+            base_allocation = (strategy['score'] / total_score) * portfolio_size
+            
+            # Risk adjustment
+            risk_multiplier = self._get_risk_multiplier(risk_tolerance, strategy['risk_score'])
+            adjusted_size = base_allocation * risk_multiplier
+            
+            position_sizes.append(adjusted_size)
+            
+        return position_sizes
+        
+    def _get_risk_multiplier(self, risk_tolerance, risk_score):
+        """Get risk multiplier for position sizing"""
+        if risk_tolerance == 'low':
+            return min(1.0, risk_score * 1.5)  # Favor low-risk strategies
+        elif risk_tolerance == 'high':
+            return 1.0  # No adjustment
+        else:  # medium
+            return min(1.2, risk_score * 1.2)  # Moderate adjustment
+            
+    def _get_risk_level(self, risk_score):
+        """Convert risk score to risk level description"""
+        if risk_score >= 0.8:
+            return 'Low Risk'
+        elif risk_score >= 0.6:
+            return 'Low-Medium Risk'
+        elif risk_score >= 0.4:
+            return 'Medium Risk'
+        elif risk_score >= 0.2:
+            return 'Medium-High Risk'
+        else:
+            return 'High Risk'
+
+
+class MarketRegimeDetector:
+    """Detects market regimes using multiple technical indicators"""
+    
+    def __init__(self):
+        self.regime_thresholds = {
+            'trending_bull': {'min_trend': 0.1, 'min_volatility': 0.05},
+            'trending_bear': {'max_trend': -0.1, 'min_volatility': 0.05},
+            'sideways': {'max_trend': 0.05, 'min_volatility': 0.02},
+            'volatile': {'min_volatility': 0.08},
+            'calm': {'max_volatility': 0.03}
+        }
+        
+    def detect_regime(self, market_data, lookback_period=30):
+        """Detect current market regime"""
+        if len(market_data) < lookback_period:
+            return 'unknown'
+            
+        # Calculate trend
+        trend = self._calculate_trend(market_data, lookback_period)
+        
+        # Calculate volatility
+        volatility = self._calculate_volatility(market_data, lookback_period)
+        
+        # Determine regime
+        if trend > self.regime_thresholds['trending_bull']['min_trend'] and volatility > self.regime_thresholds['trending_bull']['min_volatility']:
+            return 'trending_bull'
+        elif trend < self.regime_thresholds['trending_bear']['max_trend'] and volatility > self.regime_thresholds['trending_bear']['min_volatility']:
+            return 'trending_bear'
+        elif abs(trend) < self.regime_thresholds['sideways']['max_trend'] and volatility > self.regime_thresholds['sideways']['min_volatility']:
+            return 'sideways'
+        elif volatility > self.regime_thresholds['volatile']['min_volatility']:
+            return 'volatile'
+        elif volatility < self.regime_thresholds['calm']['max_volatility']:
+            return 'calm'
+        else:
+            return 'mixed'
+            
+    def _calculate_trend(self, market_data, lookback_period):
+        """Calculate price trend over lookback period"""
+        if len(market_data) < lookback_period:
+            return 0.0
+            
+        start_price = market_data[-lookback_period]['close']
+        end_price = market_data[-1]['close']
+        
+        return (end_price - start_price) / start_price
+        
+    def _calculate_volatility(self, market_data, lookback_period):
+        """Calculate price volatility over lookback period"""
+        if len(market_data) < lookback_period:
+            return 0.0
+            
+        prices = [data['close'] for data in market_data[-lookback_period:]]
+        returns = [(prices[i] - prices[i-1]) / prices[i-1] for i in range(1, len(prices))]
+        
+        if not returns:
+            return 0.0
+            
+        mean_return = sum(returns) / len(returns)
+        variance = sum((r - mean_return) ** 2 for r in returns) / len(returns)
+        
+        return variance ** 0.5
+
+
+class StrategyPerformanceTracker:
+    """Tracks and analyzes strategy performance over time"""
+    
+    def __init__(self):
+        self.performance_cache = {}
+        self.cache_ttl = 3600  # 1 hour cache
+        
+    def get_strategy_performance(self, strategy_name, symbol, lookback_days=90):
+        """Get strategy performance metrics for the specified period"""
+        cache_key = f"{strategy_name}_{symbol}_{lookback_days}"
+        
+        # Check cache first
+        if cache_key in self.performance_cache:
+            cache_time, cached_data = self.performance_cache[cache_key]
+            if (datetime.now() - cache_time).seconds < self.cache_ttl:
+                return cached_data
+                
+        # Calculate performance (this would typically query the database)
+        performance = self._calculate_performance(strategy_name, symbol, lookback_days)
+        
+        # Cache the result
+        self.performance_cache[cache_key] = (datetime.now(), performance)
+        
+        return performance
+        
+    def _calculate_performance(self, strategy_name, symbol, lookback_days):
+        """Calculate performance metrics for a strategy"""
+        # This would typically query BacktestResult model
+        # For now, return simulated data
+        return {
+            'total_return': Decimal(str(random.uniform(-20, 50))),
+            'annualized_return': Decimal(str(random.uniform(-15, 40))),
+            'sharpe_ratio': Decimal(str(random.uniform(0.5, 2.5))),
+            'max_drawdown': Decimal(str(random.uniform(5, 25))),
+            'volatility': Decimal(str(random.uniform(10, 30))),
+            'win_rate': Decimal(str(random.uniform(45, 75))),
+            'profit_factor': Decimal(str(random.uniform(1.2, 3.0))),
+            'total_trades': random.randint(20, 100),
+            'winning_trades': random.randint(10, 80),
+            'losing_trades': random.randint(5, 40)
+        }
+        
+    def update_performance(self, strategy_name, symbol, performance_data):
+        """Update performance data for a strategy"""
+        cache_key = f"{strategy_name}_{symbol}_90"  # Default lookback
+        self.performance_cache[cache_key] = (datetime.now(), performance_data)
+        
+    def get_performance_summary(self, strategies, symbol, lookback_days=90):
+        """Get performance summary for multiple strategies"""
+        summary = {}
+        
+        for strategy_name in strategies:
+            performance = self.get_strategy_performance(strategy_name, symbol, lookback_days)
+            summary[strategy_name] = {
+                'sharpe_ratio': performance.get('sharpe_ratio', 0),
+                'total_return': performance.get('total_return', 0),
+                'max_drawdown': performance.get('max_drawdown', 0),
+                'win_rate': performance.get('win_rate', 0)
+            }
+            
+        return summary
+
+
+# ... existing code ...
+
+
+class PositionSizingService:
+    """
+    Risk-Adjusted Position Sizing Service
+    
+    Implements advanced position sizing algorithms including:
+    - Kelly Criterion calculation
+    - Volatility-adjusted sizing
+    - Portfolio heat management
+    - Maximum drawdown protection
+    """
+    
+    def __init__(self, risk_tolerance='medium', max_portfolio_heat=0.25, max_drawdown_threshold=0.15):
+        self.risk_tolerance = risk_tolerance
+        self.max_portfolio_heat = max_portfolio_heat  # Maximum % of portfolio in single position
+        self.max_drawdown_threshold = max_drawdown_threshold  # Maximum allowed drawdown
+        self.position_history = []
+        
+    def calculate_position_size(self, strategy_data, portfolio_value, current_positions=None):
+        """
+        Calculate optimal position size using multiple risk-adjusted methods
+        
+        Args:
+            strategy_data: Dict containing strategy performance metrics
+            portfolio_value: Total portfolio value
+            current_positions: List of current open positions
+            
+        Returns:
+            Dict with position size recommendations and risk metrics
+        """
+        if current_positions is None:
+            current_positions = []
+            
+        # Calculate base position size using Kelly Criterion
+        kelly_size = self._calculate_kelly_criterion(strategy_data)
+        
+        # Apply volatility adjustment
+        volatility_adjusted_size = self._apply_volatility_adjustment(kelly_size, strategy_data)
+        
+        # Apply portfolio heat management
+        heat_adjusted_size = self._apply_portfolio_heat_management(
+            volatility_adjusted_size, portfolio_value, current_positions
+        )
+        
+        # Apply drawdown protection
+        final_size = self._apply_drawdown_protection(heat_adjusted_size, strategy_data)
+        
+        # Calculate risk metrics
+        risk_metrics = self._calculate_risk_metrics(final_size, portfolio_value, strategy_data)
+        
+        return {
+            'position_size': final_size,
+            'position_value': final_size * portfolio_value,
+            'portfolio_allocation': final_size,
+            'risk_metrics': risk_metrics,
+            'sizing_methods': {
+                'kelly_criterion': kelly_size,
+                'volatility_adjusted': volatility_adjusted_size,
+                'heat_adjusted': heat_adjusted_size,
+                'final_size': final_size
+            }
+        }
+        
+    def _calculate_kelly_criterion(self, strategy_data):
+        """
+        Calculate position size using Kelly Criterion
+        
+        Kelly % = (W * R - L) / R
+        Where:
+        W = Win rate
+        R = Win/Loss ratio
+        L = Loss rate (1 - W)
+        """
+        win_rate = strategy_data.get('win_rate', 0.5)
+        profit_factor = strategy_data.get('profit_factor', 1.0)
+        
+        if profit_factor <= 1.0:
+            return 0.0  # No position if expected loss
+            
+        # Calculate win/loss ratio from profit factor
+        # Profit factor = (Win rate * Win/Loss ratio) / (Loss rate * 1)
+        # Win/Loss ratio = (Profit factor * Loss rate) / Win rate
+        loss_rate = 1 - win_rate
+        if win_rate == 0:
+            return 0.0
+            
+        win_loss_ratio = (profit_factor * loss_rate) / win_rate
+        
+        # Kelly formula
+        kelly_percentage = (win_rate * win_loss_ratio - loss_rate) / win_loss_ratio
+        
+        # Apply risk tolerance adjustments
+        if self.risk_tolerance == 'low':
+            kelly_percentage *= 0.5  # Conservative
+        elif self.risk_tolerance == 'medium':
+            kelly_percentage *= 0.75  # Moderate
+        # High risk tolerance uses full Kelly
+        
+        # Cap at reasonable maximum (25% of portfolio)
+        return max(0.0, min(0.25, kelly_percentage))
+        
+    def _apply_volatility_adjustment(self, base_size, strategy_data):
+        """
+        Adjust position size based on volatility
+        
+        Higher volatility = smaller position size
+        Lower volatility = larger position size
+        """
+        volatility = strategy_data.get('volatility', 0.15)  # Default 15%
+        
+        # Volatility adjustment factor
+        # Lower volatility allows larger positions
+        volatility_factor = 1.0 / (1.0 + volatility)
+        
+        # Apply volatility adjustment
+        adjusted_size = base_size * volatility_factor
+        
+        return adjusted_size
+        
+    def _apply_portfolio_heat_management(self, base_size, portfolio_value, current_positions):
+        """
+        Manage portfolio heat (total exposure across positions)
+        
+        Ensures portfolio doesn't become too concentrated
+        """
+        if not current_positions:
+            return base_size
+            
+        # Calculate current portfolio heat
+        current_heat = sum(pos.get('allocation', 0) for pos in current_positions)
+        
+        # Calculate remaining capacity
+        remaining_capacity = self.max_portfolio_heat - current_heat
+        
+        if remaining_capacity <= 0:
+            return 0.0  # No capacity for new positions
+            
+        # Limit position size to remaining capacity
+        heat_adjusted_size = min(base_size, remaining_capacity)
+        
+        return heat_adjusted_size
+        
+    def _apply_drawdown_protection(self, base_size, strategy_data):
+        """
+        Reduce position size if strategy is experiencing drawdown
+        
+        Larger drawdowns = smaller position sizes
+        """
+        max_drawdown = strategy_data.get('max_drawdown', 0.0)
+        
+        if max_drawdown >= self.max_drawdown_threshold:
+            # Reduce position size based on drawdown severity
+            drawdown_factor = 1.0 - (max_drawdown / self.max_drawdown_threshold)
+            drawdown_factor = max(0.1, drawdown_factor)  # Minimum 10% of base size
+            
+            protected_size = base_size * drawdown_factor
+            return protected_size
+            
+        return base_size
+        
+    def _calculate_risk_metrics(self, position_size, portfolio_value, strategy_data):
+        """
+        Calculate comprehensive risk metrics for the position
+        """
+        position_value = position_size * portfolio_value
+        
+        # Calculate Value at Risk (VaR)
+        volatility = strategy_data.get('volatility', 0.15)
+        var_95 = position_value * volatility * 1.645  # 95% confidence level
+        
+        # Calculate Expected Shortfall (Conditional VaR)
+        expected_shortfall = position_value * volatility * 2.06  # 95% confidence level
+        
+        # Calculate position correlation risk
+        correlation_risk = self._calculate_correlation_risk(strategy_data)
+        
+        # Calculate maximum loss potential
+        max_loss_potential = position_value * strategy_data.get('max_drawdown', 0.15)
+        
+        return {
+            'var_95': var_95,
+            'expected_shortfall': expected_shortfall,
+            'correlation_risk': correlation_risk,
+            'max_loss_potential': max_loss_potential,
+            'risk_score': self._calculate_risk_score(position_size, strategy_data)
+        }
+        
+    def _calculate_correlation_risk(self, strategy_data):
+        """
+        Calculate correlation risk with existing portfolio
+        """
+        # This would typically analyze correlation with existing positions
+        # For now, return a simplified metric
+        volatility = strategy_data.get('volatility', 0.15)
+        return min(1.0, volatility * 2)  # Higher volatility = higher correlation risk
+        
+    def _calculate_risk_score(self, position_size, strategy_data):
+        """
+        Calculate overall risk score for the position (0-1, higher = riskier)
+        """
+        volatility = strategy_data.get('volatility', 0.15)
+        max_drawdown = strategy_data.get('max_drawdown', 0.15)
+        
+        # Normalize metrics to 0-1 scale
+        vol_score = min(1.0, volatility / 0.3)  # 30% volatility = max score
+        drawdown_score = min(1.0, max_drawdown / 0.25)  # 25% drawdown = max score
+        
+        # Weighted average
+        risk_score = (vol_score * 0.6) + (drawdown_score * 0.4)
+        
+        return risk_score
+        
+    def get_portfolio_heat_summary(self, current_positions):
+        """
+        Get summary of current portfolio heat and concentration
+        """
+        if not current_positions:
+            return {
+                'total_heat': 0.0,
+                'position_count': 0,
+                'max_concentration': 0.0,
+                'heat_status': 'low'
+            }
+            
+        total_heat = sum(pos.get('allocation', 0) for pos in current_positions)
+        position_count = len(current_positions)
+        max_concentration = max(pos.get('allocation', 0) for pos in current_positions)
+        
+        # Determine heat status
+        if total_heat <= 0.15:
+            heat_status = 'low'
+        elif total_heat <= 0.25:
+            heat_status = 'medium'
+        else:
+            heat_status = 'high'
+            
+        return {
+            'total_heat': total_heat,
+            'position_count': position_count,
+            'max_concentration': max_concentration,
+            'heat_status': heat_status,
+            'remaining_capacity': self.max_portfolio_heat - total_heat
+        }
+        
+    def update_risk_parameters(self, risk_tolerance=None, max_portfolio_heat=None, max_drawdown_threshold=None):
+        """
+        Update risk management parameters
+        """
+        if risk_tolerance is not None:
+            self.risk_tolerance = risk_tolerance
+        if max_portfolio_heat is not None:
+            self.max_portfolio_heat = max_portfolio_heat
+        if max_drawdown_threshold is not None:
+            self.max_drawdown_threshold = max_drawdown_threshold
+            
+    def get_position_recommendations(self, strategies_data, portfolio_value, current_positions=None):
+        """
+        Get position size recommendations for multiple strategies
+        
+        Args:
+            strategies_data: List of strategy performance data
+            portfolio_value: Total portfolio value
+            current_positions: Current open positions
+            
+        Returns:
+            List of position recommendations with risk analysis
+        """
+        recommendations = []
+        
+        for strategy_data in strategies_data:
+            recommendation = self.calculate_position_size(
+                strategy_data, portfolio_value, current_positions
+            )
+            
+            recommendations.append({
+                'strategy_name': strategy_data.get('strategy_name', 'Unknown'),
+                'recommendation': recommendation,
+                'risk_level': self._get_risk_level(recommendation['risk_metrics']['risk_score'])
+            })
+            
+        # Sort by risk-adjusted return potential
+        recommendations.sort(
+            key=lambda x: x['recommendation']['risk_metrics']['risk_score'],
+            reverse=False  # Lower risk first
+        )
+        
+        return recommendations
+        
+    def _get_risk_level(self, risk_score):
+        """
+        Convert risk score to descriptive risk level
+        """
+        if risk_score <= 0.3:
+            return 'Low Risk'
+        elif risk_score <= 0.6:
+            return 'Medium Risk'
+        else:
+            return 'High Risk'
+
+
+# ... existing code ...

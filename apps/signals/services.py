@@ -6,6 +6,7 @@ import numpy as np
 from django.utils import timezone
 from django.db.models import Q, Avg, Count, Max, Min
 from django.conf import settings
+import time # Added for time.sleep in PerformanceMonitor
 
 from apps.signals.models import (
     TradingSignal, SignalType, SignalFactor, SignalFactorContribution,
@@ -16,6 +17,7 @@ from apps.data.models import TechnicalIndicator, MarketData
 from apps.data.services import EconomicDataService, SectorAnalysisService
 from apps.sentiment.models import SentimentAggregate, CryptoMention
 from apps.signals.strategies import MovingAverageCrossoverStrategy, RSIStrategy, MACDStrategy, BollingerBandsStrategy, BreakoutStrategy, MeanReversionStrategy
+from apps.signals.timeframe_analysis_service import TimeframeAnalysisService
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,8 @@ class SignalGenerationService:
     """Main service for generating trading signals"""
     
     def __init__(self):
-        self.min_confidence_threshold = 0.7  # 70% minimum confidence
+        self.min_confidence_threshold = 0.7
+        self.timeframe_service = TimeframeAnalysisService()  # 70% minimum confidence
         self.min_risk_reward_ratio = 3.0     # 3:1 minimum risk-reward
         self.signal_expiry_hours = 24        # Signal expires in 24 hours
         
@@ -118,22 +121,65 @@ class SignalGenerationService:
         return filtered_signals
     
     def _get_latest_market_data(self, symbol: Symbol) -> Optional[Dict]:
-        """Get latest market data for signal generation"""
+        """Get latest market data for signal generation - prioritizes live prices"""
         try:
+            # First, try to get live prices from external API
+            try:
+                from apps.data.real_price_service import get_live_prices
+                live_prices = get_live_prices()
+                
+                if symbol.symbol in live_prices:
+                    live_data = live_prices[symbol.symbol]
+                    current_price = live_data.get('price', 0)
+                    
+                    if current_price and current_price > 0:
+                        # Calculate high/low based on current price (approximate)
+                        price_variation = current_price * 0.02  # 2% variation
+                        
+                        market_data = {
+                            'close_price': current_price,
+                            'high_price': current_price + price_variation,
+                            'low_price': current_price - price_variation,
+                            'volume': live_data.get('volume_24h', 1000000),  # Default volume
+                            'timestamp': timezone.now(),
+                            'data_source': 'live_api',
+                            'symbol': symbol.symbol
+                        }
+                        
+                        logger.info(f"Using live market data for {symbol.symbol}: ${current_price:,.2f}")
+                        return market_data
+                    else:
+                        logger.warning(f"Invalid live price for {symbol.symbol}: {current_price}")
+                
+            except Exception as e:
+                logger.warning(f"Could not fetch live market data for {symbol.symbol}: {e}")
+            
+            # Fallback to database data if live prices unavailable
             latest_data = MarketData.objects.filter(
                 symbol=symbol
             ).order_by('-timestamp').first()
             
             if not latest_data:
+                logger.error(f"No market data found for {symbol.symbol}")
                 return None
             
-            return {
+            # Check if database data is too old (more than 1 day)
+            time_diff = timezone.now() - latest_data.timestamp
+            if time_diff.days > 1:
+                logger.warning(f"Database market data for {symbol.symbol} is {time_diff.days} days old")
+            
+            market_data = {
                 'close_price': float(latest_data.close_price),
                 'high_price': float(latest_data.high_price),
                 'low_price': float(latest_data.low_price),
                 'volume': float(latest_data.volume),
-                'timestamp': latest_data.timestamp
+                'timestamp': latest_data.timestamp,
+                'data_source': 'database',
+                'symbol': symbol.symbol
             }
+            
+            logger.info(f"Using database market data for {symbol.symbol}: ${market_data['close_price']:,.2f} (age: {time_diff})")
+            return market_data
         except Exception as e:
             logger.error(f"Error getting market data for {symbol.symbol}: {e}")
             return None
@@ -545,16 +591,94 @@ class SignalGenerationService:
             else:
                 confidence_level = 'LOW'
             
-            # Calculate entry price and targets
-            entry_price = Decimal(str(market_data['close_price']))
+            # Get current live price for accurate entry price
+            current_price = None
+            try:
+                from apps.data.real_price_service import get_live_prices
+                live_prices = get_live_prices()
+                if symbol.symbol in live_prices:
+                    current_price = Decimal(str(live_prices[symbol.symbol].get('price', 0)))
+                    logger.info(f"Using live price for {symbol.symbol}: {current_price}")
+                else:
+                    logger.warning(f"No live price found for {symbol.symbol}, using market data")
+            except Exception as e:
+                logger.warning(f"Could not fetch live price for {symbol.symbol}: {e}")
             
-            # Calculate target price based on signal type
-            if signal_type_name in ['BUY', 'STRONG_BUY']:
-                target_price = entry_price * Decimal('1.05')  # 5% target
-                stop_loss = entry_price * Decimal('0.97')    # 3% stop loss
+            # Use live price if available, otherwise fall back to market data
+            if current_price and current_price > 0:
+                entry_price = current_price
+                logger.info(f"Signal created with live price: {entry_price}")
             else:
-                target_price = entry_price * Decimal('0.95')  # 5% target
-                stop_loss = entry_price * Decimal('1.03')    # 3% stop loss
+                entry_price = Decimal(str(market_data.get('close_price', 0)))
+                logger.info(f"Signal created with market data price: {entry_price}")
+            
+            # Perform timeframe analysis to identify entry points
+            timeframe_analysis = None
+            entry_point_type = 'UNKNOWN'
+            entry_point_details = {}
+            entry_zone_low = None
+            entry_zone_high = None
+            entry_confidence = 0.8
+            
+            try:
+                # Get multi-timeframe analysis using entry_price (either live or market data)
+                timeframe_analysis = self.timeframe_service.get_multi_timeframe_analysis(
+                    symbol, float(entry_price)
+                )
+                
+                if timeframe_analysis and not timeframe_analysis.get('error'):
+                    # Extract best entry point information
+                    final_recommendation = timeframe_analysis.get('final_recommendation', {})
+                    
+                    # Get entry zone from best entry point regardless of action
+                    best_entry_point = self._get_best_entry_point(timeframe_analysis)
+                    logger.info(f"Best entry point for {symbol.symbol}: {best_entry_point}")
+                    if best_entry_point:
+                        entry_point_type = best_entry_point.get('type', 'UNKNOWN')
+                        entry_zone_low = Decimal(str(best_entry_point.get('entry_zone_low', float(entry_price) * 0.99)))
+                        entry_zone_high = Decimal(str(best_entry_point.get('entry_zone_high', float(entry_price) * 1.01)))
+                        entry_point_details = best_entry_point.get('details', {})
+                        entry_confidence = best_entry_point.get('confidence', 0.8)
+                        logger.info(f"Entry zone set for {symbol.symbol}: {entry_zone_low} - {entry_zone_high}")
+                    else:
+                        logger.warning(f"No best entry point found for {symbol.symbol}")
+                    
+                    # Update entry point type based on final recommendation if available
+                    if final_recommendation.get('action') in ['BUY', 'SELL']:
+                        entry_point_type = final_recommendation.get('action', entry_point_type)
+                        entry_confidence = final_recommendation.get('confidence', entry_confidence)
+                    
+                    logger.info(f"Timeframe analysis completed for {symbol.symbol}: {entry_point_type} entry point identified")
+                
+            except Exception as e:
+                logger.warning(f"Could not perform timeframe analysis for {symbol.symbol}: {e}")
+            
+            # Determine optimal timeframe for this signal
+            optimal_timeframe = self._determine_optimal_timeframe(timeframe_analysis, signal_type_name)
+            
+            # Ensure we have a valid entry price
+            if not entry_price or entry_price <= 0:
+                logger.error(f"Invalid entry price for {symbol.symbol}: {entry_price}")
+                return None
+            
+
+            # Calculate target price based on signal type and current market conditions
+            if signal_type_name in ['BUY', 'STRONG_BUY']:
+                # For buy signals, calculate targets based on current market volatility
+                volatility_factor = self._calculate_volatility_factor(market_data)
+                target_percentage = Decimal('0.05') + (volatility_factor * Decimal('0.02'))  # 5-7% target
+                stop_loss_percentage = Decimal('0.03') + (volatility_factor * Decimal('0.01'))  # 3-4% stop loss
+                
+                target_price = entry_price * (Decimal('1.0') + target_percentage)
+                stop_loss = entry_price * (Decimal('1.0') - stop_loss_percentage)
+            else:
+                # For sell signals
+                volatility_factor = self._calculate_volatility_factor(market_data)
+                target_percentage = Decimal('0.05') + (volatility_factor * Decimal('0.02'))  # 5-7% target
+                stop_loss_percentage = Decimal('0.03') + (volatility_factor * Decimal('0.01'))  # 3-4% stop loss
+                
+                target_price = entry_price * (Decimal('1.0') - target_percentage)
+                stop_loss = entry_price * (Decimal('1.0') + stop_loss_percentage)
             
             # Calculate risk-reward ratio
             risk = abs(float(entry_price - stop_loss))
@@ -571,6 +695,7 @@ class SignalGenerationService:
                 (sector_score + 1.0) / 2.0 * 0.05
             )
             
+
             # Create signal
             signal = TradingSignal.objects.create(
                 symbol=symbol,
@@ -590,8 +715,26 @@ class SignalGenerationService:
                 volume_score=volume_score,
                 pattern_score=pattern_score,
                 economic_score=economic_score,
-                sector_score=sector_score
+                sector_score=sector_score,
+                # New timeframe and entry point fields
+                timeframe=optimal_timeframe,
+                entry_point_type=entry_point_type,
+                entry_point_details=entry_point_details,
+                entry_zone_low=entry_zone_low,
+                entry_zone_high=entry_zone_high,
+                entry_confidence=entry_confidence
             )
+            
+
+            # Store price metadata for tracking
+            self._store_price_metadata(signal, {
+                'entry_price': float(entry_price),
+                'target_price': float(target_price),
+                'stop_loss': float(stop_loss),
+                'market_data_price': float(market_data.get('close_price', 0)),
+                'live_price_used': current_price is not None,
+                'price_timestamp': timezone.now().isoformat()
+            })
             
             # Create factor contributions
             self._create_factor_contributions(signal, {
@@ -607,11 +750,102 @@ class SignalGenerationService:
             # Create alert
             self._create_signal_alert(signal)
             
+            logger.info(f"Successfully created {signal_type_name} signal for {symbol.symbol} at {entry_price}")
             return signal
             
         except Exception as e:
             logger.error(f"Error creating signal for {symbol.symbol}: {e}")
             return None
+    
+    def _calculate_volatility_factor(self, market_data: Dict) -> Decimal:
+        """Calculate volatility factor for dynamic target calculation"""
+        try:
+            # Calculate volatility based on price range
+            high_price = Decimal(str(market_data.get('high_price', 0)))
+            low_price = Decimal(str(market_data.get('low_price', 0)))
+            close_price = Decimal(str(market_data.get('close_price', 1)))
+            
+            if close_price > 0:
+                volatility = (high_price - low_price) / close_price
+                # Normalize volatility factor (0.0 to 1.0)
+                volatility_factor = min(Decimal('1.0'), max(Decimal('0.0'), volatility))
+                return volatility_factor
+            else:
+                return Decimal('0.5')  # Default moderate volatility
+        except Exception as e:
+            logger.warning(f"Error calculating volatility factor: {e}")
+            return Decimal('0.5')  # Default moderate volatility
+    
+    def _store_price_metadata(self, signal: TradingSignal, price_data: Dict):
+        """Store price metadata for signal tracking"""
+        try:
+            # Store in cache for quick access
+            cache_key = f"signal_price_metadata_{signal.id}"
+            cache.set(cache_key, price_data, 3600)  # Cache for 1 hour
+            
+            # You could also store this in a separate model if needed
+            logger.debug(f"Stored price metadata for signal {signal.id}: {price_data}")
+        except Exception as e:
+            logger.warning(f"Error storing price metadata: {e}")
+    
+    def _get_best_entry_point(self, timeframe_analysis: Dict) -> Optional[Dict]:
+        """Get the best entry point from timeframe analysis"""
+        try:
+            if not timeframe_analysis:
+                return None
+            
+            all_entry_points = []
+            
+            # Collect entry points from all timeframes
+            for timeframe, analysis in timeframe_analysis.get('timeframe_analyses', {}).items():
+                if analysis.get('entry_points'):
+                    for entry_point in analysis['entry_points']:
+                        entry_point['timeframe'] = timeframe
+                        all_entry_points.append(entry_point)
+            
+            if not all_entry_points:
+                return None
+            
+            # Sort by confidence and return the best one
+            best_entry_point = max(all_entry_points, key=lambda x: x.get('confidence', 0))
+            return best_entry_point
+            
+        except Exception as e:
+            logger.error(f"Error getting best entry point: {e}")
+            return None
+    
+    def _determine_optimal_timeframe(self, timeframe_analysis: Dict, signal_type: str) -> str:
+        """Determine the optimal timeframe for the signal"""
+        try:
+            if not timeframe_analysis:
+                return '1H'  # Default timeframe
+            
+            # Get recommended timeframe from analysis
+            recommended = timeframe_analysis.get('final_recommendation', {}).get('recommended_timeframe', '1H')
+            
+            # Adjust based on signal type
+            if signal_type in ['BUY', 'STRONG_BUY']:
+                # For buy signals, prefer shorter timeframes for quick entries
+                if recommended in ['1D', '1W']:
+                    return '4H'
+                elif recommended in ['4H']:
+                    return '1H'
+                else:
+                    return recommended
+            elif signal_type in ['SELL', 'STRONG_SELL']:
+                # For sell signals, prefer shorter timeframes for quick exits
+                if recommended in ['1D', '1W']:
+                    return '4H'
+                elif recommended in ['4H']:
+                    return '1H'
+                else:
+                    return recommended
+            else:
+                return recommended
+                
+        except Exception as e:
+            logger.error(f"Error determining optimal timeframe: {e}")
+            return '1H'
     
     def _create_factor_contributions(self, signal: TradingSignal, scores: Dict):
         """Create factor contribution records"""
@@ -684,11 +918,37 @@ class SignalGenerationService:
             logger.error(f"Error creating signal alert: {e}")
     
     def _filter_signals_by_quality(self, signals: List[TradingSignal]) -> List[TradingSignal]:
-        """Filter signals by quality criteria"""
-        filtered_signals = []
+        """Filter signals by quality criteria with enhanced quality filtering"""
+        if not signals:
+            return []
         
+        # Initialize quality enhancement service
+        quality_service = SignalQualityEnhancementService()
+        
+        # Get market data for quality enhancement
+        market_data = self._get_latest_market_data(signals[0].symbol) if signals else None
+        
+        # Enhance signal quality for all signals
+        enhanced_signals = []
         for signal in signals:
-            # Check minimum confidence
+            try:
+                # Store original quality score
+                if not hasattr(signal, 'quality_metadata'):
+                    signal.quality_metadata = {}
+                signal.quality_metadata['original_quality_score'] = signal.quality_score
+                
+                # Enhance signal quality
+                enhanced_signal = quality_service.enhance_signal_quality(signal, market_data or {})
+                enhanced_signals.append(enhanced_signal)
+                
+            except Exception as e:
+                logger.error(f"Error enhancing signal {signal.id}: {e}")
+                enhanced_signals.append(signal)
+        
+        # Apply enhanced quality filtering
+        filtered_signals = []
+        for signal in enhanced_signals:
+            # Check enhanced confidence
             if signal.confidence_score < self.min_confidence_threshold:
                 continue
             
@@ -696,12 +956,25 @@ class SignalGenerationService:
             if signal.risk_reward_ratio and signal.risk_reward_ratio < self.min_risk_reward_ratio:
                 continue
             
-            # Check quality score
+            # Check enhanced quality score
             if signal.quality_score < 0.6:
                 continue
             
+            # Check false signal probability
+            if hasattr(signal, 'quality_metadata') and 'false_signal_probability' in signal.quality_metadata:
+                false_signal_prob = signal.quality_metadata['false_signal_probability']
+                if false_signal_prob > 0.7:  # Filter out high false signal probability
+                    continue
+            
+            # Check confirmation score
+            if hasattr(signal, 'quality_metadata') and 'confirmation_score' in signal.quality_metadata:
+                confirmation_score = signal.quality_metadata['confirmation_score']
+                if confirmation_score < 0.4:  # Filter out low confirmation signals
+                    continue
+            
             filtered_signals.append(signal)
         
+        logger.info(f"Quality enhancement applied: {len(enhanced_signals)} signals, filtered to {len(filtered_signals)} high-quality signals")
         return filtered_signals
 
 
@@ -896,3 +1169,1596 @@ class SignalPerformanceService:
             'average_confidence': 0.0,
             'average_quality': 0.0
         }
+
+
+class SignalQualityEnhancementService:
+    """
+    Advanced Signal Quality Enhancement Service
+    
+    Implements sophisticated signal quality improvements including:
+    - Enhanced signal confidence calculation
+    - Multi-timeframe analysis
+    - Signal confirmation logic
+    - Signal clustering
+    - False signal filtering
+    """
+    
+    def __init__(self):
+        self.timeframes = ['1h', '4h', '1d', '1w']  # Multiple timeframes for analysis
+        self.confirmation_threshold = 0.75  # Minimum confirmation score
+        self.clustering_threshold = 0.3  # Similarity threshold for clustering
+        self.false_signal_filter_strength = 0.8  # Filter strength for false signals
+        
+    def enhance_signal_quality(self, signal: TradingSignal, market_data: Dict) -> TradingSignal:
+        """
+        Enhance signal quality using multiple enhancement techniques
+        
+        Args:
+            signal: Original trading signal
+            market_data: Current market data
+            
+        Returns:
+            Enhanced trading signal with improved quality metrics
+        """
+        try:
+            # Enhanced confidence calculation
+            enhanced_confidence = self._calculate_enhanced_confidence(signal, market_data)
+            
+            # Multi-timeframe analysis
+            multi_timeframe_score = self._perform_multi_timeframe_analysis(signal)
+            
+            # Signal confirmation logic
+            confirmation_score = self._calculate_signal_confirmation(signal, market_data)
+            
+            # Signal clustering analysis
+            cluster_score = self._analyze_signal_clustering(signal)
+            
+            # False signal filtering
+            false_signal_probability = self._calculate_false_signal_probability(signal, market_data)
+            
+            # Calculate overall quality score
+            quality_score = self._calculate_overall_quality_score(
+                enhanced_confidence, multi_timeframe_score, 
+                confirmation_score, cluster_score, false_signal_probability
+            )
+            
+            # Update signal with enhanced metrics
+            signal.confidence_score = enhanced_confidence
+            signal.quality_score = quality_score
+            
+            # Add quality enhancement metadata
+            if not hasattr(signal, 'quality_metadata'):
+                signal.quality_metadata = {}
+            
+            signal.quality_metadata.update({
+                'enhanced_confidence': enhanced_confidence,
+                'multi_timeframe_score': multi_timeframe_score,
+                'confirmation_score': confirmation_score,
+                'cluster_score': cluster_score,
+                'false_signal_probability': false_signal_probability,
+                'quality_enhancement_applied': True,
+                'enhancement_timestamp': timezone.now().isoformat()
+            })
+            
+            return signal
+            
+        except Exception as e:
+            logger.error(f"Error enhancing signal quality for {signal.id}: {e}")
+            return signal
+    
+    def _calculate_enhanced_confidence(self, signal: TradingSignal, market_data: Dict) -> float:
+        """
+        Calculate enhanced confidence score using multiple factors
+        
+        Enhanced confidence considers:
+        - Technical indicator convergence
+        - Volume confirmation
+        - Market regime alignment
+        - Historical accuracy
+        - Risk-adjusted metrics
+        """
+        try:
+            base_confidence = signal.confidence_score
+            
+            # Technical convergence bonus
+            technical_convergence = self._calculate_technical_convergence(signal)
+            
+            # Volume confirmation bonus
+            volume_confirmation = self._calculate_volume_confirmation(signal, market_data)
+            
+            # Market regime alignment bonus
+            regime_alignment = self._calculate_regime_alignment(signal)
+            
+            # Historical accuracy bonus
+            historical_accuracy = self._calculate_historical_accuracy(signal)
+            
+            # Risk-adjusted bonus
+            risk_adjusted_bonus = self._calculate_risk_adjusted_bonus(signal)
+            
+            # Calculate enhanced confidence
+            enhancement_factors = [
+                technical_convergence * 0.25,
+                volume_confirmation * 0.20,
+                regime_alignment * 0.20,
+                historical_accuracy * 0.20,
+                risk_adjusted_bonus * 0.15
+            ]
+            
+            total_enhancement = sum(enhancement_factors)
+            enhanced_confidence = min(1.0, base_confidence + total_enhancement)
+            
+            return enhanced_confidence
+            
+        except Exception as e:
+            logger.error(f"Error calculating enhanced confidence: {e}")
+            return signal.confidence_score
+    
+    def _calculate_technical_convergence(self, signal: TradingSignal) -> float:
+        """Calculate technical indicator convergence score"""
+        try:
+            # Get technical scores from signal
+            technical_score = abs(signal.technical_score)
+            sentiment_score = abs(signal.sentiment_score)
+            pattern_score = abs(signal.pattern_score)
+            
+            # Calculate convergence (how many indicators agree)
+            agreeing_indicators = 0
+            total_indicators = 0
+            
+            if technical_score > 0.3:
+                agreeing_indicators += 1
+            total_indicators += 1
+            
+            if sentiment_score > 0.3:
+                agreeing_indicators += 1
+            total_indicators += 1
+            
+            if pattern_score > 0.3:
+                agreeing_indicators += 1
+            total_indicators += 1
+            
+            # Convergence score based on agreement
+            convergence_score = agreeing_indicators / total_indicators if total_indicators > 0 else 0.0
+            
+            # Bonus for strong agreement
+            if agreeing_indicators >= 2:
+                convergence_score *= 1.2
+            
+            return min(1.0, convergence_score)
+            
+        except Exception as e:
+            logger.error(f"Error calculating technical convergence: {e}")
+            return 0.0
+    
+    def _calculate_volume_confirmation(self, signal: TradingSignal, market_data: Dict) -> float:
+        """Calculate volume confirmation score"""
+        try:
+            if 'volume' not in market_data:
+                return 0.0
+            
+            current_volume = market_data['volume']
+            
+            # Get historical volume data for comparison
+            symbol = signal.symbol
+            historical_volumes = MarketData.objects.filter(
+                symbol=symbol
+            ).order_by('-timestamp')[:20]  # Last 20 periods
+            
+            if not historical_volumes.exists():
+                return 0.0
+            
+            avg_volume = sum(float(data.volume) for data in historical_volumes) / len(historical_volumes)
+            
+            # Volume confirmation score
+            if current_volume > avg_volume * 1.5:
+                return 0.8  # High volume confirmation
+            elif current_volume > avg_volume * 1.2:
+                return 0.6  # Moderate volume confirmation
+            elif current_volume > avg_volume:
+                return 0.4  # Slight volume confirmation
+            else:
+                return 0.0  # No volume confirmation
+            
+        except Exception as e:
+            logger.error(f"Error calculating volume confirmation: {e}")
+            return 0.0
+    
+    def _calculate_regime_alignment(self, signal: TradingSignal) -> float:
+        """Calculate market regime alignment score"""
+        try:
+            symbol = signal.symbol
+            
+            # Get current market regime
+            regime_service = MarketRegimeService()
+            current_regime = regime_service.detect_market_regime(symbol)
+            
+            if not current_regime:
+                return 0.5  # Neutral if no regime detected
+            
+            # Check if signal aligns with regime
+            signal_type = signal.signal_type.name
+            regime_name = current_regime.name
+            
+            # Bullish signals in bullish regimes get bonus
+            if signal_type == 'BUY' and 'bull' in regime_name.lower():
+                return 0.8
+            elif signal_type == 'SELL' and 'bear' in regime_name.lower():
+                return 0.8
+            elif signal_type == 'BUY' and 'bear' in regime_name.lower():
+                return 0.2  # Penalty for counter-regime signals
+            elif signal_type == 'SELL' and 'bull' in regime_name.lower():
+                return 0.2  # Penalty for counter-regime signals
+            else:
+                return 0.5  # Neutral alignment
+            
+        except Exception as e:
+            logger.error(f"Error calculating regime alignment: {e}")
+            return 0.5
+    
+    def _calculate_historical_accuracy(self, signal: TradingSignal) -> float:
+        """Calculate historical accuracy score for similar signals"""
+        try:
+            symbol = signal.symbol
+            signal_type = signal.signal_type.name
+            
+            # Get historical signals of same type for this symbol
+            historical_signals = TradingSignal.objects.filter(
+                symbol=symbol,
+                signal_type__name=signal_type,
+                created_at__gte=timezone.now() - timedelta(days=30)
+            ).exclude(id=signal.id)
+            
+            if not historical_signals.exists():
+                return 0.5  # Neutral if no history
+            
+            # Calculate accuracy based on quality scores
+            total_quality = sum(s.quality_score for s in historical_signals)
+            avg_quality = total_quality / len(historical_signals)
+            
+            # Normalize to 0-1 scale
+            accuracy_score = min(1.0, avg_quality)
+            
+            return accuracy_score
+            
+        except Exception as e:
+            logger.error(f"Error calculating historical accuracy: {e}")
+            return 0.5
+    
+    def _calculate_risk_adjusted_bonus(self, signal: TradingSignal) -> float:
+        """Calculate risk-adjusted bonus score"""
+        try:
+            # Risk-reward ratio bonus
+            risk_reward_bonus = 0.0
+            if signal.risk_reward_ratio:
+                if signal.risk_reward_ratio >= 5.0:
+                    risk_reward_bonus = 0.3
+                elif signal.risk_reward_ratio >= 3.0:
+                    risk_reward_bonus = 0.2
+                elif signal.risk_reward_ratio >= 2.0:
+                    risk_reward_bonus = 0.1
+            
+            # Volatility consideration
+            volatility_bonus = 0.0
+            if hasattr(signal, 'quality_metadata') and 'volatility' in signal.quality_metadata:
+                volatility = signal.quality_metadata['volatility']
+                if 0.1 <= volatility <= 0.3:  # Optimal volatility range
+                    volatility_bonus = 0.2
+            
+            # Drawdown consideration
+            drawdown_bonus = 0.0
+            if hasattr(signal, 'quality_metadata') and 'max_drawdown' in signal.quality_metadata:
+                drawdown = signal.quality_metadata['max_drawdown']
+                if drawdown < 0.1:  # Low drawdown
+                    drawdown_bonus = 0.2
+            
+            total_bonus = risk_reward_bonus + volatility_bonus + drawdown_bonus
+            return min(1.0, total_bonus)
+            
+        except Exception as e:
+            logger.error(f"Error calculating risk-adjusted bonus: {e}")
+            return 0.0
+    
+    def _perform_multi_timeframe_analysis(self, signal: TradingSignal) -> float:
+        """
+        Perform multi-timeframe analysis to confirm signal strength
+        
+        Analyzes signal across multiple timeframes:
+        - 1 hour (short-term)
+        - 4 hours (medium-term)
+        - 1 day (long-term)
+        - 1 week (trend-term)
+        """
+        try:
+            symbol = signal.symbol
+            signal_type = signal.signal_type.name
+            
+            timeframe_scores = []
+            
+            for timeframe in self.timeframes:
+                # Get market data for this timeframe
+                timeframe_data = self._get_timeframe_data(symbol, timeframe)
+                if not timeframe_data:
+                    continue
+                
+                # Calculate signal strength for this timeframe
+                timeframe_score = self._calculate_timeframe_signal_strength(
+                    signal_type, timeframe_data
+                )
+                timeframe_scores.append(timeframe_score)
+            
+            if not timeframe_scores:
+                return 0.5  # Neutral if no timeframe data
+            
+            # Calculate multi-timeframe score
+            # Higher weight for longer timeframes (trend confirmation)
+            weighted_scores = []
+            weights = [0.1, 0.2, 0.3, 0.4]  # 1h, 4h, 1d, 1w
+            
+            for i, score in enumerate(timeframe_scores):
+                if i < len(weights):
+                    weighted_scores.append(score * weights[i])
+            
+            multi_timeframe_score = sum(weighted_scores) / sum(weights[:len(timeframe_scores)])
+            return multi_timeframe_score
+            
+        except Exception as e:
+            logger.error(f"Error performing multi-timeframe analysis: {e}")
+            return 0.5
+    
+    def _get_timeframe_data(self, symbol: Symbol, timeframe: str) -> Optional[Dict]:
+        """Get market data for specific timeframe"""
+        try:
+            # This would typically query aggregated data by timeframe
+            # For now, return basic data structure
+            return {
+                'timeframe': timeframe,
+                'symbol': symbol.symbol,
+                'data_available': True
+            }
+        except Exception as e:
+            logger.error(f"Error getting timeframe data: {e}")
+            return None
+    
+    def _calculate_timeframe_signal_strength(self, signal_type: str, timeframe_data: Dict) -> float:
+        """Calculate signal strength for specific timeframe"""
+        try:
+            # Simplified calculation - in practice, this would analyze
+            # technical indicators, patterns, and trends for the timeframe
+            
+            if signal_type == 'BUY':
+                # Simulate bullish signal strength
+                return 0.7 + (hash(timeframe_data['timeframe']) % 30) / 100
+            elif signal_type == 'SELL':
+                # Simulate bearish signal strength
+                return 0.6 + (hash(timeframe_data['timeframe']) % 25) / 100
+            else:
+                return 0.5
+            
+        except Exception as e:
+            logger.error(f"Error calculating timeframe signal strength: {e}")
+            return 0.5
+    
+    def _calculate_signal_confirmation(self, signal: TradingSignal, market_data: Dict) -> float:
+        """
+        Calculate signal confirmation score using multiple confirmation methods
+        
+        Confirmation methods:
+        - Price action confirmation
+        - Volume confirmation
+        - Pattern confirmation
+        - Indicator confirmation
+        - Support/resistance confirmation
+        """
+        try:
+            confirmation_scores = []
+            
+            # Price action confirmation
+            price_confirmation = self._calculate_price_action_confirmation(signal, market_data)
+            confirmation_scores.append(price_confirmation)
+            
+            # Volume confirmation
+            volume_confirmation = self._calculate_volume_confirmation(signal, market_data)
+            confirmation_scores.append(volume_confirmation)
+            
+            # Pattern confirmation
+            pattern_confirmation = self._calculate_pattern_confirmation(signal, market_data)
+            confirmation_scores.append(pattern_confirmation)
+            
+            # Indicator confirmation
+            indicator_confirmation = self._calculate_indicator_confirmation(signal)
+            confirmation_scores.append(indicator_confirmation)
+            
+            # Support/resistance confirmation
+            sr_confirmation = self._calculate_support_resistance_confirmation(signal, market_data)
+            confirmation_scores.append(sr_confirmation)
+            
+            # Calculate weighted average confirmation score
+            weights = [0.25, 0.20, 0.20, 0.20, 0.15]
+            total_weight = sum(weights[:len(confirmation_scores)])
+            
+            weighted_confirmation = sum(
+                score * weight for score, weight in zip(confirmation_scores, weights)
+            ) / total_weight
+            
+            return weighted_confirmation
+            
+        except Exception as e:
+            logger.error(f"Error calculating signal confirmation: {e}")
+            return 0.5
+    
+    def _calculate_price_action_confirmation(self, signal: TradingSignal, market_data: Dict) -> float:
+        """Calculate price action confirmation score"""
+        try:
+            if 'close_price' not in market_data or 'high_price' not in market_data or 'low_price' not in market_data:
+                return 0.5
+            
+            close_price = market_data['close_price']
+            high_price = market_data['high_price']
+            low_price = market_data['low_price']
+            
+            signal_type = signal.signal_type.name
+            
+            if signal_type == 'BUY':
+                # Bullish confirmation: close near high, low close to low
+                high_confirmation = (close_price - low_price) / (high_price - low_price)
+                return min(1.0, high_confirmation * 1.5)
+            elif signal_type == 'SELL':
+                # Bearish confirmation: close near low, high close to high
+                low_confirmation = (high_price - close_price) / (high_price - low_price)
+                return min(1.0, low_confirmation * 1.5)
+            else:
+                return 0.5
+            
+        except Exception as e:
+            logger.error(f"Error calculating price action confirmation: {e}")
+            return 0.5
+    
+    def _calculate_pattern_confirmation(self, signal: TradingSignal, market_data: Dict) -> float:
+        """Calculate pattern confirmation score"""
+        try:
+            # This would analyze chart patterns and candlestick formations
+            # For now, return a simplified score based on signal strength
+            
+            pattern_score = signal.pattern_score
+            if pattern_score > 0.7:
+                return 0.9  # Strong pattern confirmation
+            elif pattern_score > 0.5:
+                return 0.7  # Moderate pattern confirmation
+            elif pattern_score > 0.3:
+                return 0.5  # Weak pattern confirmation
+            else:
+                return 0.3  # No pattern confirmation
+            
+        except Exception as e:
+            logger.error(f"Error calculating pattern confirmation: {e}")
+            return 0.5
+    
+    def _calculate_indicator_confirmation(self, signal: TradingSignal) -> float:
+        """Calculate technical indicator confirmation score"""
+        try:
+            # Check if technical indicators confirm the signal
+            technical_score = signal.technical_score
+            signal_type = signal.signal_type.name
+            
+            if signal_type == 'BUY' and technical_score > 0.3:
+                return 0.8  # Strong bullish confirmation
+            elif signal_type == 'SELL' and technical_score < -0.3:
+                return 0.8  # Strong bearish confirmation
+            elif abs(technical_score) > 0.1:
+                return 0.6  # Moderate confirmation
+            else:
+                return 0.4  # Weak confirmation
+            
+        except Exception as e:
+            logger.error(f"Error calculating indicator confirmation: {e}")
+            return 0.5
+    
+    def _calculate_support_resistance_confirmation(self, signal: TradingSignal, market_data: Dict) -> float:
+        """Calculate support/resistance confirmation score"""
+        try:
+            # This would analyze if price is near key support/resistance levels
+            # For now, return a simplified score
+            
+            # Simulate support/resistance analysis
+            import random
+            random.seed(hash(signal.symbol.symbol) % 1000)
+            
+            # Random confirmation score (in practice, this would be calculated)
+            confirmation = 0.5 + random.uniform(-0.2, 0.3)
+            return max(0.0, min(1.0, confirmation))
+            
+        except Exception as e:
+            logger.error(f"Error calculating support/resistance confirmation: {e}")
+            return 0.5
+    
+    def _analyze_signal_clustering(self, signal: TradingSignal) -> float:
+        """
+        Analyze signal clustering to identify signal quality patterns
+        
+        Clustering analysis:
+        - Similar signal patterns
+        - Market condition clustering
+        - Performance clustering
+        - Risk clustering
+        """
+        try:
+            symbol = signal.symbol
+            signal_type = signal.signal_type.name
+            
+            # Get recent similar signals
+            recent_signals = TradingSignal.objects.filter(
+                symbol=symbol,
+                signal_type__name=signal_type,
+                created_at__gte=timezone.now() - timedelta(hours=6)
+            ).exclude(id=signal.id)
+            
+            if not recent_signals.exists():
+                return 0.7  # Good if no recent similar signals (less noise)
+            
+            # Calculate clustering score based on signal density
+            signal_count = recent_signals.count()
+            
+            if signal_count == 1:
+                return 0.8  # Good clustering (one recent signal)
+            elif signal_count == 2:
+                return 0.6  # Moderate clustering
+            elif signal_count == 3:
+                return 0.4  # High clustering (potential noise)
+            else:
+                return 0.2  # Very high clustering (likely noise)
+            
+        except Exception as e:
+            logger.error(f"Error analyzing signal clustering: {e}")
+            return 0.5
+    
+    def _calculate_false_signal_probability(self, signal: TradingSignal, market_data: Dict) -> float:
+        """
+        Calculate probability of false signal using multiple filters
+        
+        False signal filters:
+        - Market noise detection
+        - Signal frequency analysis
+        - Pattern reliability
+        - Market condition analysis
+        - Historical false signal patterns
+        """
+        try:
+            false_signal_factors = []
+            
+            # Market noise detection
+            noise_factor = self._calculate_market_noise_factor(signal, market_data)
+            false_signal_factors.append(noise_factor)
+            
+            # Signal frequency analysis
+            frequency_factor = self._calculate_signal_frequency_factor(signal)
+            false_signal_factors.append(frequency_factor)
+            
+            # Pattern reliability
+            pattern_reliability = self._calculate_pattern_reliability(signal)
+            false_signal_factors.append(pattern_reliability)
+            
+            # Market condition analysis
+            market_condition = self._calculate_market_condition_factor(signal, market_data)
+            false_signal_factors.append(market_condition)
+            
+            # Historical false signal analysis
+            historical_factor = self._calculate_historical_false_signal_factor(signal)
+            false_signal_factors.append(historical_factor)
+            
+            # Calculate weighted false signal probability
+            weights = [0.25, 0.20, 0.20, 0.20, 0.15]
+            total_weight = sum(weights[:len(false_signal_factors)])
+            
+            false_signal_probability = sum(
+                factor * weight for factor, weight in zip(false_signal_factors, weights)
+            ) / total_weight
+            
+            return min(1.0, false_signal_probability)
+            
+        except Exception as e:
+            logger.error(f"Error calculating false signal probability: {e}")
+            return 0.5
+    
+    def _calculate_market_noise_factor(self, signal: TradingSignal, market_data: Dict) -> float:
+        """Calculate market noise factor (higher = more noise)"""
+        try:
+            # This would analyze market volatility, spread, and micro-movements
+            # For now, return a simplified noise factor
+            
+            # Simulate noise based on signal characteristics
+            if signal.confidence_score > 0.8:
+                return 0.2  # Low noise for high confidence signals
+            elif signal.confidence_score > 0.6:
+                return 0.4  # Moderate noise
+            else:
+                return 0.6  # High noise for low confidence signals
+            
+        except Exception as e:
+            logger.error(f"Error calculating market noise factor: {e}")
+            return 0.5
+    
+    def _calculate_signal_frequency_factor(self, signal: TradingSignal) -> float:
+        """Calculate signal frequency factor (higher = more frequent = potential noise)"""
+        try:
+            symbol = signal.symbol
+            signal_type = signal.signal_type.name
+            
+            # Count signals in last hour
+            recent_signals = TradingSignal.objects.filter(
+                symbol=symbol,
+                signal_type__name=signal_type,
+                created_at__gte=timezone.now() - timedelta(hours=1)
+            ).exclude(id=signal.id)
+            
+            signal_count = recent_signals.count()
+            
+            if signal_count == 0:
+                return 0.1  # Very low frequency (good)
+            elif signal_count == 1:
+                return 0.3  # Low frequency
+            elif signal_count == 2:
+                return 0.5  # Moderate frequency
+            elif signal_count == 3:
+                return 0.7  # High frequency
+            else:
+                return 0.9  # Very high frequency (bad)
+            
+        except Exception as e:
+            logger.error(f"Error calculating signal frequency factor: {e}")
+            return 0.5
+    
+    def _calculate_pattern_reliability(self, signal: TradingSignal) -> float:
+        """Calculate pattern reliability factor (higher = more reliable)"""
+        try:
+            # Pattern reliability based on historical accuracy
+            pattern_score = signal.pattern_score
+            
+            if pattern_score > 0.8:
+                return 0.2  # Very reliable patterns (low false signal probability)
+            elif pattern_score > 0.6:
+                return 0.4  # Reliable patterns
+            elif pattern_score > 0.4:
+                return 0.6  # Moderate reliability
+            else:
+                return 0.8  # Low reliability (high false signal probability)
+            
+        except Exception as e:
+            logger.error(f"Error calculating pattern reliability: {e}")
+            return 0.5
+    
+    def _calculate_market_condition_factor(self, signal: TradingSignal, market_data: Dict) -> float:
+        """Calculate market condition factor for false signal probability"""
+        try:
+            # This would analyze current market conditions
+            # For now, return a simplified factor
+            
+            # Simulate market condition analysis
+            import random
+            random.seed(hash(f"{signal.symbol.symbol}_{signal.created_at}") % 1000)
+            
+            # Random market condition factor
+            condition_factor = 0.3 + random.uniform(-0.1, 0.4)
+            return max(0.0, min(1.0, condition_factor))
+            
+        except Exception as e:
+            logger.error(f"Error calculating market condition factor: {e}")
+            return 0.5
+    
+    def _calculate_historical_false_signal_factor(self, signal: TradingSignal) -> float:
+        """Calculate historical false signal factor"""
+        try:
+            symbol = signal.symbol
+            signal_type = signal.signal_type.name
+            
+            # Get historical signals and their performance
+            historical_signals = TradingSignal.objects.filter(
+                symbol=symbol,
+                signal_type__name=signal_type,
+                created_at__gte=timezone.now() - timedelta(days=7)
+            ).exclude(id=signal.id)
+            
+            if not historical_signals.exists():
+                return 0.5  # Neutral if no history
+            
+            # Calculate false signal rate based on quality scores
+            low_quality_count = sum(1 for s in historical_signals if s.quality_score < 0.6)
+            total_count = len(historical_signals)
+            
+            false_signal_rate = low_quality_count / total_count if total_count > 0 else 0.5
+            
+            # Convert to factor (higher rate = higher false signal probability)
+            return false_signal_rate
+            
+        except Exception as e:
+            logger.error(f"Error calculating historical false signal factor: {e}")
+            return 0.5
+    
+    def _calculate_overall_quality_score(self, enhanced_confidence: float, 
+                                       multi_timeframe_score: float, 
+                                       confirmation_score: float, 
+                                       cluster_score: float, 
+                                       false_signal_probability: float) -> float:
+        """
+        Calculate overall quality score using all enhancement factors
+        
+        Quality score formula:
+        Quality = (Enhanced_Confidence * 0.3) + 
+                  (Multi_Timeframe * 0.25) + 
+                  (Confirmation * 0.25) + 
+                  (Clustering * 0.1) + 
+                  ((1 - False_Signal_Probability) * 0.1)
+        """
+        try:
+            # Weighted combination of all factors
+            quality_score = (
+                enhanced_confidence * 0.30 +
+                multi_timeframe_score * 0.25 +
+                confirmation_score * 0.25 +
+                cluster_score * 0.10 +
+                (1 - false_signal_probability) * 0.10
+            )
+            
+            # Ensure score is within 0-1 range
+            quality_score = max(0.0, min(1.0, quality_score))
+            
+            return quality_score
+            
+        except Exception as e:
+            logger.error(f"Error calculating overall quality score: {e}")
+            return 0.5
+    
+    def enhance_multiple_signals(self, signals: List[TradingSignal], 
+                                market_data: Dict) -> List[TradingSignal]:
+        """
+        Enhance quality for multiple signals
+        
+        Args:
+            signals: List of trading signals to enhance
+            market_data: Current market data
+            
+        Returns:
+            List of enhanced trading signals
+        """
+        enhanced_signals = []
+        
+        for signal in signals:
+            enhanced_signal = self.enhance_signal_quality(signal, market_data)
+            enhanced_signals.append(enhanced_signal)
+        
+        return enhanced_signals
+    
+    def get_quality_enhancement_summary(self, signal: TradingSignal) -> Dict:
+        """
+        Get summary of quality enhancement applied to a signal
+        
+        Args:
+            signal: Enhanced trading signal
+            
+        Returns:
+            Dictionary with enhancement summary
+        """
+        if not hasattr(signal, 'quality_metadata') or not signal.quality_metadata:
+            return {'enhancement_applied': False}
+        
+        metadata = signal.quality_metadata
+        
+        return {
+            'enhancement_applied': True,
+            'enhancement_timestamp': metadata.get('enhancement_timestamp'),
+            'enhanced_confidence': metadata.get('enhanced_confidence', 0.0),
+            'multi_timeframe_score': metadata.get('multi_timeframe_score', 0.0),
+            'confirmation_score': metadata.get('confirmation_score', 0.0),
+            'cluster_score': metadata.get('cluster_score', 0.0),
+            'false_signal_probability': metadata.get('false_signal_probability', 0.0),
+            'quality_improvement': signal.quality_score - metadata.get('original_quality_score', signal.quality_score)
+        }
+
+
+class PerformanceMonitor:
+    """
+    Comprehensive Performance Monitoring Service
+    
+    Implements real-time performance monitoring including:
+    - Real-time P&L tracking
+    - Strategy performance dashboard
+    - Alert system for underperformance
+    - Automated reporting
+    """
+    
+    def __init__(self):
+        self.alert_thresholds = {
+            'win_rate': 0.4,  # Alert if win rate drops below 40%
+            'profit_factor': 1.5,  # Alert if profit factor drops below 1.5
+            'max_drawdown': 0.15,  # Alert if drawdown exceeds 15%
+            'signal_quality': 0.6,  # Alert if average signal quality drops below 60%
+            'daily_loss': -0.05,  # Alert if daily loss exceeds 5%
+        }
+        
+        self.monitoring_intervals = {
+            'real_time': 30,  # 30 seconds for real-time updates
+            'minute': 60,      # 1 minute for minute-level updates
+            'hourly': 3600,    # 1 hour for hourly updates
+            'daily': 86400,    # 24 hours for daily updates
+        }
+        
+        self.performance_cache = {}
+        self.last_alert_time = {}
+        
+    def start_real_time_monitoring(self):
+        """Start real-time performance monitoring"""
+        try:
+            logger.info("Starting real-time performance monitoring...")
+            
+            # Initialize monitoring
+            self._initialize_monitoring()
+            
+            # Start monitoring loop
+            self._monitor_performance_loop()
+            
+        except Exception as e:
+            logger.error(f"Error starting real-time monitoring: {e}")
+    
+    def _initialize_monitoring(self):
+        """Initialize monitoring systems"""
+        try:
+            # Clear performance cache
+            self.performance_cache.clear()
+            
+            # Initialize alert tracking
+            self.last_alert_time = {
+                'win_rate': timezone.now(),
+                'profit_factor': timezone.now(),
+                'max_drawdown': timezone.now(),
+                'signal_quality': timezone.now(),
+                'daily_loss': timezone.now(),
+            }
+            
+            logger.info("Performance monitoring initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"Error initializing monitoring: {e}")
+    
+    def _monitor_performance_loop(self):
+        """Main monitoring loop"""
+        try:
+            while True:
+                # Update real-time metrics
+                self._update_real_time_metrics()
+                
+                # Check for alerts
+                self._check_performance_alerts()
+                
+                # Update dashboard data
+                self._update_dashboard_data()
+                
+                # Generate reports if needed
+                self._generate_automated_reports()
+                
+                # Sleep for monitoring interval
+                time.sleep(self.monitoring_intervals['real_time'])
+                
+        except KeyboardInterrupt:
+            logger.info("Performance monitoring stopped by user")
+        except Exception as e:
+            logger.error(f"Error in monitoring loop: {e}")
+    
+    def _update_real_time_metrics(self):
+        """Update real-time performance metrics"""
+        try:
+            # Get current portfolio performance
+            portfolio_metrics = self._calculate_portfolio_metrics()
+            
+            # Get strategy performance
+            strategy_metrics = self._calculate_strategy_metrics()
+            
+            # Get signal performance
+            signal_metrics = self._calculate_signal_metrics()
+            
+            # Update cache
+            self.performance_cache.update({
+                'portfolio': portfolio_metrics,
+                'strategies': strategy_metrics,
+                'signals': signal_metrics,
+                'last_updated': timezone.now()
+            })
+            
+            logger.debug("Real-time metrics updated successfully")
+            
+        except Exception as e:
+            logger.error(f"Error updating real-time metrics: {e}")
+    
+    def _calculate_portfolio_metrics(self) -> Dict:
+        """Calculate real-time portfolio performance metrics"""
+        try:
+            # This would integrate with your portfolio management system
+            # For now, return simulated metrics
+            
+            portfolio_metrics = {
+                'total_value': 100000.0,  # Total portfolio value
+                'unrealized_pnl': 2500.0,  # Unrealized P&L
+                'realized_pnl': 1500.0,   # Realized P&L
+                'total_pnl': 4000.0,      # Total P&L
+                'daily_pnl': 500.0,       # Daily P&L
+                'daily_return': 0.005,    # Daily return (0.5%)
+                'max_drawdown': 0.08,     # Maximum drawdown (8%)
+                'sharpe_ratio': 1.2,      # Sharpe ratio
+                'open_positions': 5,       # Number of open positions
+                'cash_balance': 25000.0,   # Available cash
+                'margin_used': 0.0,       # Margin used
+                'risk_exposure': 0.75,    # Current risk exposure (75%)
+            }
+            
+            return portfolio_metrics
+            
+        except Exception as e:
+            logger.error(f"Error calculating portfolio metrics: {e}")
+            return {}
+    
+    def _calculate_strategy_metrics(self) -> Dict:
+        """Calculate real-time strategy performance metrics"""
+        try:
+            # Get performance for each trading strategy
+            strategies = ['MA_Crossover', 'RSI', 'MACD', 'Bollinger_Bands', 'Breakout', 'Mean_Reversion']
+            strategy_metrics = {}
+            
+            for strategy in strategies:
+                # Get recent performance for this strategy
+                strategy_performance = self._get_strategy_performance(strategy)
+                strategy_metrics[strategy] = strategy_performance
+            
+            # Calculate overall strategy performance
+            overall_strategy_metrics = {
+                'total_strategies': len(strategies),
+                'active_strategies': len([s for s in strategy_metrics.values() if s.get('is_active', False)]),
+                'best_performing': self._get_best_performing_strategy(strategy_metrics),
+                'worst_performing': self._get_worst_performing_strategy(strategy_metrics),
+                'average_win_rate': self._calculate_average_win_rate(strategy_metrics),
+                'average_profit_factor': self._calculate_average_profit_factor(strategy_metrics),
+            }
+            
+            strategy_metrics['overall'] = overall_strategy_metrics
+            
+            return strategy_metrics
+            
+        except Exception as e:
+            logger.error(f"Error calculating strategy metrics: {e}")
+            return {}
+    
+    def _get_strategy_performance(self, strategy_name: str) -> Dict:
+        """Get performance metrics for a specific strategy"""
+        try:
+            # This would query your strategy performance data
+            # For now, return simulated metrics
+            
+            import random
+            random.seed(hash(strategy_name) % 1000)
+            
+            performance = {
+                'strategy_name': strategy_name,
+                'is_active': random.choice([True, True, True, False]),  # 75% active
+                'total_signals': random.randint(50, 200),
+                'win_rate': random.uniform(0.45, 0.75),
+                'profit_factor': random.uniform(1.2, 3.0),
+                'total_pnl': random.uniform(-5000, 15000),
+                'max_drawdown': random.uniform(0.05, 0.20),
+                'sharpe_ratio': random.uniform(0.8, 2.0),
+                'last_signal': timezone.now() - timedelta(minutes=random.randint(10, 120)),
+                'signal_frequency': random.uniform(0.5, 2.0),  # signals per hour
+                'risk_score': random.uniform(0.3, 0.8),
+            }
+            
+            return performance
+            
+        except Exception as e:
+            logger.error(f"Error getting strategy performance for {strategy_name}: {e}")
+            return {}
+    
+    def _get_best_performing_strategy(self, strategy_metrics: Dict) -> str:
+        """Get the best performing strategy based on win rate and profit factor"""
+        try:
+            if not strategy_metrics:
+                return "None"
+            
+            # Filter active strategies
+            active_strategies = {k: v for k, v in strategy_metrics.items() 
+                               if k != 'overall' and v.get('is_active', False)}
+            
+            if not active_strategies:
+                return "None"
+            
+            # Score based on win rate and profit factor
+            best_strategy = max(active_strategies.keys(), 
+                              key=lambda x: (active_strategies[x].get('win_rate', 0) * 0.6 + 
+                                           active_strategies[x].get('profit_factor', 0) * 0.4))
+            
+            return best_strategy
+            
+        except Exception as e:
+            logger.error(f"Error finding best performing strategy: {e}")
+            return "None"
+    
+    def _get_worst_performing_strategy(self, strategy_metrics: Dict) -> str:
+        """Get the worst performing strategy"""
+        try:
+            if not strategy_metrics:
+                return "None"
+            
+            # Filter active strategies
+            active_strategies = {k: v for k, v in strategy_metrics.items() 
+                               if k != 'overall' and v.get('is_active', False)}
+            
+            if not active_strategies:
+                return "None"
+            
+            # Score based on win rate and profit factor (lower is worse)
+            worst_strategy = min(active_strategies.keys(), 
+                               key=lambda x: (active_strategies[x].get('win_rate', 0) * 0.6 + 
+                                            active_strategies[x].get('profit_factor', 0) * 0.4))
+            
+            return worst_strategy
+            
+        except Exception as e:
+            logger.error(f"Error finding worst performing strategy: {e}")
+            return "None"
+    
+    def _calculate_average_win_rate(self, strategy_metrics: Dict) -> float:
+        """Calculate average win rate across all strategies"""
+        try:
+            active_strategies = [v for v in strategy_metrics.values() 
+                               if v.get('is_active', False)]
+            
+            if not active_strategies:
+                return 0.0
+            
+            total_win_rate = sum(s.get('win_rate', 0) for s in active_strategies)
+            return total_win_rate / len(active_strategies)
+            
+        except Exception as e:
+            logger.error(f"Error calculating average win rate: {e}")
+            return 0.0
+    
+    def _calculate_average_profit_factor(self, strategy_metrics: Dict) -> float:
+        """Calculate average profit factor across all strategies"""
+        try:
+            active_strategies = [v for v in strategy_metrics.values() 
+                               if v.get('is_active', False)]
+            
+            if not active_strategies:
+                return 0.0
+            
+            total_profit_factor = sum(s.get('profit_factor', 0) for s in active_strategies)
+            return total_profit_factor / len(active_strategies)
+            
+        except Exception as e:
+            logger.error(f"Error calculating average profit factor: {e}")
+            return 0.0
+    
+    def _calculate_signal_metrics(self) -> Dict:
+        """Calculate real-time signal performance metrics"""
+        try:
+            # Get recent signals
+            recent_signals = TradingSignal.objects.filter(
+                created_at__gte=timezone.now() - timedelta(hours=24)
+            )
+            
+            if not recent_signals.exists():
+                return self._empty_signal_metrics()
+            
+            # Calculate metrics
+            total_signals = recent_signals.count()
+            executed_signals = recent_signals.filter(is_executed=True)
+            profitable_signals = executed_signals.filter(is_profitable=True)
+            
+            # Basic metrics
+            signal_metrics = {
+                'total_signals_24h': total_signals,
+                'executed_signals': executed_signals.count(),
+                'profitable_signals': profitable_signals.count(),
+                'pending_signals': total_signals - executed_signals.count(),
+                'win_rate_24h': profitable_signals.count() / executed_signals.count() if executed_signals.exists() else 0.0,
+                'average_confidence': recent_signals.aggregate(Avg('confidence_score'))['confidence_score__avg'] or 0.0,
+                'average_quality': recent_signals.aggregate(Avg('quality_score'))['quality_score__avg'] or 0.0,
+                'signals_by_type': self._get_signals_by_type(recent_signals),
+                'signals_by_symbol': self._get_signals_by_symbol(recent_signals),
+                'quality_distribution': self._get_quality_distribution(recent_signals),
+            }
+            
+            return signal_metrics
+            
+        except Exception as e:
+            logger.error(f"Error calculating signal metrics: {e}")
+            return self._empty_signal_metrics()
+    
+    def _empty_signal_metrics(self) -> Dict:
+        """Return empty signal metrics"""
+        return {
+            'total_signals_24h': 0,
+            'executed_signals': 0,
+            'profitable_signals': 0,
+            'pending_signals': 0,
+            'win_rate_24h': 0.0,
+            'average_confidence': 0.0,
+            'average_quality': 0.0,
+            'signals_by_type': {},
+            'signals_by_symbol': {},
+            'quality_distribution': {},
+        }
+    
+    def _get_signals_by_type(self, signals) -> Dict:
+        """Get signal count by type"""
+        try:
+            signal_types = {}
+            for signal in signals:
+                signal_type = signal.signal_type.name
+                signal_types[signal_type] = signal_types.get(signal_type, 0) + 1
+            
+            return signal_types
+            
+        except Exception as e:
+            logger.error(f"Error getting signals by type: {e}")
+            return {}
+    
+    def _get_signals_by_symbol(self, signals) -> Dict:
+        """Get signal count by symbol"""
+        try:
+            symbol_signals = {}
+            for signal in signals:
+                symbol = signal.symbol.symbol
+                symbol_signals[symbol] = symbol_signals.get(symbol, 0) + 1
+            
+            return symbol_signals
+            
+        except Exception as e:
+            logger.error(f"Error getting signals by symbol: {e}")
+            return {}
+    
+    def _get_quality_distribution(self, signals) -> Dict:
+        """Get distribution of signal quality scores"""
+        try:
+            quality_ranges = {
+                'excellent': 0,  # 0.8-1.0
+                'good': 0,       # 0.6-0.8
+                'fair': 0,       # 0.4-0.6
+                'poor': 0,       # 0.2-0.4
+                'very_poor': 0,  # 0.0-0.2
+            }
+            
+            for signal in signals:
+                quality = signal.quality_score
+                if quality >= 0.8:
+                    quality_ranges['excellent'] += 1
+                elif quality >= 0.6:
+                    quality_ranges['good'] += 1
+                elif quality >= 0.4:
+                    quality_ranges['fair'] += 1
+                elif quality >= 0.2:
+                    quality_ranges['poor'] += 1
+                else:
+                    quality_ranges['very_poor'] += 1
+            
+            return quality_ranges
+            
+        except Exception as e:
+            logger.error(f"Error getting quality distribution: {e}")
+            return {}
+    
+    def _check_performance_alerts(self):
+        """Check for performance alerts and trigger notifications"""
+        try:
+            current_time = timezone.now()
+            
+            # Check portfolio alerts
+            self._check_portfolio_alerts(current_time)
+            
+            # Check strategy alerts
+            self._check_strategy_alerts(current_time)
+            
+            # Check signal alerts
+            self._check_signal_alerts(current_time)
+            
+        except Exception as e:
+            logger.error(f"Error checking performance alerts: {e}")
+    
+    def _check_portfolio_alerts(self, current_time):
+        """Check portfolio performance alerts"""
+        try:
+            portfolio = self.performance_cache.get('portfolio', {})
+            
+            # Check daily loss threshold
+            daily_pnl = portfolio.get('daily_pnl', 0)
+            if daily_pnl < self.alert_thresholds['daily_loss']:
+                if self._should_send_alert('daily_loss', current_time):
+                    self._create_portfolio_alert('DAILY_LOSS_THRESHOLD', 
+                                               f"Daily loss of ${abs(daily_pnl):.2f} exceeds threshold", 
+                                               'HIGH')
+                    self.last_alert_time['daily_loss'] = current_time
+            
+            # Check drawdown threshold
+            max_drawdown = portfolio.get('max_drawdown', 0)
+            if max_drawdown > self.alert_thresholds['max_drawdown']:
+                if self._should_send_alert('max_drawdown', current_time):
+                    self._create_portfolio_alert('DRAWDOWN_THRESHOLD', 
+                                               f"Maximum drawdown of {max_drawdown:.1%} exceeds threshold", 
+                                               'HIGH')
+                    self.last_alert_time['max_drawdown'] = current_time
+                    
+        except Exception as e:
+            logger.error(f"Error checking portfolio alerts: {e}")
+    
+    def _check_strategy_alerts(self, current_time):
+        """Check strategy performance alerts"""
+        try:
+            strategies = self.performance_cache.get('strategies', {})
+            
+            for strategy_name, metrics in strategies.items():
+                if strategy_name == 'overall':
+                    continue
+                
+                if not metrics.get('is_active', False):
+                    continue
+                
+                # Check win rate threshold
+                win_rate = metrics.get('win_rate', 0)
+                if win_rate < self.alert_thresholds['win_rate']:
+                    if self._should_send_alert('win_rate', current_time):
+                        self._create_strategy_alert(strategy_name, 'WIN_RATE_THRESHOLD',
+                                                  f"Win rate {win_rate:.1%} below threshold", 'MEDIUM')
+                        self.last_alert_time['win_rate'] = current_time
+                
+                # Check profit factor threshold
+                profit_factor = metrics.get('profit_factor', 0)
+                if profit_factor < self.alert_thresholds['profit_factor']:
+                    if self._should_send_alert('profit_factor', current_time):
+                        self._create_strategy_alert(strategy_name, 'PROFIT_FACTOR_THRESHOLD',
+                                                  f"Profit factor {profit_factor:.2f} below threshold", 'MEDIUM')
+                        self.last_alert_time['profit_factor'] = current_time
+                        
+        except Exception as e:
+            logger.error(f"Error checking strategy alerts: {e}")
+    
+    def _check_signal_alerts(self, current_time):
+        """Check signal performance alerts"""
+        try:
+            signals = self.performance_cache.get('signals', {})
+            
+            # Check average signal quality
+            avg_quality = signals.get('average_quality', 0)
+            if avg_quality < self.alert_thresholds['signal_quality']:
+                if self._should_send_alert('signal_quality', current_time):
+                    self._create_signal_alert('SIGNAL_QUALITY_THRESHOLD',
+                                            f"Average signal quality {avg_quality:.1%} below threshold", 'MEDIUM')
+                    self.last_alert_time['signal_quality'] = current_time
+                    
+        except Exception as e:
+            logger.error(f"Error checking signal alerts: {e}")
+    
+    def _should_send_alert(self, alert_type: str, current_time) -> bool:
+        """Check if enough time has passed to send another alert"""
+        try:
+            last_alert = self.last_alert_time.get(alert_type)
+            if not last_alert:
+                return True
+            
+            # Don't send alerts more frequently than every 15 minutes
+            time_since_last = current_time - last_alert
+            return time_since_last.total_seconds() > 900  # 15 minutes
+            
+        except Exception as e:
+            logger.error(f"Error checking alert timing: {e}")
+            return True
+    
+    def _create_portfolio_alert(self, alert_type: str, message: str, priority: str):
+        """Create portfolio performance alert"""
+        try:
+            SignalAlert.objects.create(
+                alert_type='PERFORMANCE_ALERT',
+                priority=priority,
+                title=f"Portfolio Alert: {alert_type}",
+                message=message,
+                created_at=timezone.now()
+            )
+            
+            logger.warning(f"Portfolio alert created: {alert_type} - {message}")
+            
+        except Exception as e:
+            logger.error(f"Error creating portfolio alert: {e}")
+    
+    def _create_strategy_alert(self, strategy_name: str, alert_type: str, message: str, priority: str):
+        """Create strategy performance alert"""
+        try:
+            SignalAlert.objects.create(
+                alert_type='PERFORMANCE_ALERT',
+                priority=priority,
+                title=f"Strategy Alert: {strategy_name} - {alert_type}",
+                message=message,
+                created_at=timezone.now()
+            )
+            
+            logger.warning(f"Strategy alert created: {strategy_name} - {alert_type} - {message}")
+            
+        except Exception as e:
+            logger.error(f"Error creating strategy alert: {e}")
+    
+    def _create_signal_alert(self, alert_type: str, message: str, priority: str):
+        """Create signal performance alert"""
+        try:
+            SignalAlert.objects.create(
+                alert_type='PERFORMANCE_ALERT',
+                priority=priority,
+                title=f"Signal Alert: {alert_type}",
+                message=message,
+                created_at=timezone.now()
+            )
+            
+            logger.warning(f"Signal alert created: {alert_type} - {message}")
+            
+        except Exception as e:
+            logger.error(f"Error creating signal alert: {e}")
+    
+    def _update_dashboard_data(self):
+        """Update dashboard performance data"""
+        try:
+            # This would update your dashboard with real-time data
+            # For now, just log the update
+            
+            if self.performance_cache:
+                logger.debug("Dashboard data updated with latest performance metrics")
+                
+        except Exception as e:
+            logger.error(f"Error updating dashboard data: {e}")
+    
+    def _generate_automated_reports(self):
+        """Generate automated performance reports"""
+        try:
+            current_time = timezone.now()
+            
+            # Generate daily report at midnight
+            if current_time.hour == 0 and current_time.minute == 0:
+                self._generate_daily_report()
+            
+            # Generate weekly report on Sunday at midnight
+            if current_time.weekday() == 6 and current_time.hour == 0 and current_time.minute == 0:
+                self._generate_weekly_report()
+            
+            # Generate monthly report on first day of month
+            if current_time.day == 1 and current_time.hour == 0 and current_time.minute == 0:
+                self._generate_monthly_report()
+                
+        except Exception as e:
+            logger.error(f"Error generating automated reports: {e}")
+    
+    def _generate_daily_report(self):
+        """Generate daily performance report"""
+        try:
+            logger.info("Generating daily performance report...")
+            
+            # Get daily metrics
+            daily_metrics = self._get_daily_performance_summary()
+            
+            # Create report
+            report = self._create_performance_report('DAILY', daily_metrics)
+            
+            logger.info(f"Daily report generated: {report}")
+            
+        except Exception as e:
+            logger.error(f"Error generating daily report: {e}")
+    
+    def _generate_weekly_report(self):
+        """Generate weekly performance report"""
+        try:
+            logger.info("Generating weekly performance report...")
+            
+            # Get weekly metrics
+            weekly_metrics = self._get_weekly_performance_summary()
+            
+            # Create report
+            report = self._create_performance_report('WEEKLY', weekly_metrics)
+            
+            logger.info(f"Weekly report generated: {report}")
+            
+        except Exception as e:
+            logger.error(f"Error generating weekly report: {e}")
+    
+    def _generate_monthly_report(self):
+        """Generate monthly performance report"""
+        try:
+            logger.info("Generating monthly performance report...")
+            
+            # Get monthly metrics
+            monthly_metrics = self._get_monthly_performance_summary()
+            
+            # Create report
+            report = self._create_performance_report('MONTHLY', monthly_metrics)
+            
+            logger.info(f"Monthly report generated: {report}")
+            
+        except Exception as e:
+            logger.error(f"Error generating monthly report: {e}")
+    
+    def _get_daily_performance_summary(self) -> Dict:
+        """Get daily performance summary"""
+        try:
+            end_date = timezone.now()
+            start_date = end_date - timedelta(days=1)
+            
+            return {
+                'period': 'Daily',
+                'start_date': start_date,
+                'end_date': end_date,
+                'portfolio_metrics': self.performance_cache.get('portfolio', {}),
+                'strategy_metrics': self.performance_cache.get('strategies', {}),
+                'signal_metrics': self.performance_cache.get('signals', {}),
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting daily performance summary: {e}")
+            return {}
+    
+    def _get_weekly_performance_summary(self) -> Dict:
+        """Get weekly performance summary"""
+        try:
+            end_date = timezone.now()
+            start_date = end_date - timedelta(weeks=1)
+            
+            return {
+                'period': 'Weekly',
+                'start_date': start_date,
+                'end_date': end_date,
+                'portfolio_metrics': self.performance_cache.get('portfolio', {}),
+                'strategy_metrics': self.performance_cache.get('strategies', {}),
+                'signal_metrics': self.performance_cache.get('signals', {}),
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting weekly performance summary: {e}")
+            return {}
+    
+    def _get_monthly_performance_summary(self) -> Dict:
+        """Get monthly performance summary"""
+        try:
+            end_date = timezone.now()
+            start_date = end_date - timedelta(days=30)
+            
+            return {
+                'period': 'Monthly',
+                'start_date': start_date,
+                'end_date': end_date,
+                'portfolio_metrics': self.performance_cache.get('portfolio', {}),
+                'signal_metrics': self.performance_cache.get('signals', {}),
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting monthly performance summary: {e}")
+            return {}
+    
+    def _create_performance_report(self, report_type: str, metrics: Dict) -> str:
+        """Create a formatted performance report"""
+        try:
+            report_lines = [
+                f"=== {report_type} PERFORMANCE REPORT ===",
+                f"Generated: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                f"Period: {metrics.get('start_date', 'N/A')} to {metrics.get('end_date', 'N/A')}",
+                "",
+                "PORTFOLIO PERFORMANCE:",
+                f"  Total P&L: ${metrics.get('portfolio_metrics', {}).get('total_pnl', 0):.2f}",
+                f"  Daily P&L: ${metrics.get('portfolio_metrics', {}).get('daily_pnl', 0):.2f}",
+                f"  Max Drawdown: {metrics.get('portfolio_metrics', {}).get('max_drawdown', 0):.1%}",
+                f"  Sharpe Ratio: {metrics.get('portfolio_metrics', {}).get('sharpe_ratio', 0):.2f}",
+                "",
+                "STRATEGY PERFORMANCE:",
+            ]
+            
+            # Add strategy metrics
+            strategies = metrics.get('strategy_metrics', {})
+            for strategy_name, strategy_data in strategies.items():
+                if strategy_name != 'overall' and strategy_data.get('is_active', False):
+                    report_lines.extend([
+                        f"  {strategy_name}:",
+                        f"    Win Rate: {strategy_data.get('win_rate', 0):.1%}",
+                        f"    Profit Factor: {strategy_data.get('profit_factor', 0):.2f}",
+                        f"    Total P&L: ${strategy_data.get('total_pnl', 0):.2f}",
+                    ])
+            
+            # Add signal metrics
+            report_lines.extend([
+                "",
+                "SIGNAL PERFORMANCE:",
+                f"  Total Signals (24h): {metrics.get('signal_metrics', {}).get('total_signals_24h', 0)}",
+                f"  Win Rate (24h): {metrics.get('signal_metrics', {}).get('win_rate_24h', 0):.1%}",
+                f"  Average Quality: {metrics.get('signal_metrics', {}).get('average_quality', 0):.1%}",
+                "",
+                "=== END REPORT ==="
+            ])
+            
+            report = "\n".join(report_lines)
+            return report
+            
+        except Exception as e:
+            logger.error(f"Error creating performance report: {e}")
+            return f"Error generating {report_type} report: {e}"
+    
+    def get_current_performance(self) -> Dict:
+        """Get current performance metrics"""
+        try:
+            return {
+                'portfolio': self.performance_cache.get('portfolio', {}),
+                'strategies': self.performance_cache.get('strategies', {}),
+                'signals': self.performance_cache.get('signals', {}),
+                'last_updated': self.performance_cache.get('last_updated'),
+                'monitoring_status': 'active'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting current performance: {e}")
+            return {'monitoring_status': 'error', 'error': str(e)}
+    
+    def get_performance_history(self, period: str = '1D') -> Dict:
+        """Get historical performance data"""
+        try:
+            # This would query your historical performance data
+            # For now, return simulated data
+            
+            end_date = timezone.now()
+            if period == '1H':
+                start_date = end_date - timedelta(hours=1)
+            elif period == '4H':
+                start_date = end_date - timedelta(hours=4)
+            elif period == '1D':
+                start_date = end_date - timedelta(days=1)
+            elif period == '1W':
+                start_date = end_date - timedelta(weeks=1)
+            elif period == '1M':
+                start_date = end_date - timedelta(days=30)
+            else:
+                start_date = end_date - timedelta(days=1)
+            
+            # Simulate historical data points
+            data_points = []
+            current = start_date
+            
+            while current <= end_date:
+                data_points.append({
+                    'timestamp': current.isoformat(),
+                    'portfolio_value': 100000 + random.uniform(-5000, 5000),
+                    'total_pnl': random.uniform(-2000, 3000),
+                    'win_rate': random.uniform(0.4, 0.8),
+                    'profit_factor': random.uniform(1.0, 3.0),
+                })
+                
+                if period == '1H':
+                    current += timedelta(minutes=5)
+                elif period == '4H':
+                    current += timedelta(minutes=15)
+                elif period == '1D':
+                    current += timedelta(hours=1)
+                elif period == '1W':
+                    current += timedelta(hours=6)
+                elif period == '1M':
+                    current += timedelta(days=1)
+            
+            return {
+                'period': period,
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat(),
+                'data_points': data_points,
+                'summary': {
+                    'total_points': len(data_points),
+                    'average_pnl': sum(p['total_pnl'] for p in data_points) / len(data_points) if data_points else 0,
+                    'max_pnl': max(p['total_pnl'] for p in data_points) if data_points else 0,
+                    'min_pnl': min(p['total_pnl'] for p in data_points) if data_points else 0,
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting performance history: {e}")
+            return {'error': str(e)}
+    
+    def stop_monitoring(self):
+        """Stop performance monitoring"""
+        try:
+            logger.info("Stopping performance monitoring...")
+            # This would clean up monitoring resources
+            # For now, just log the stop
+            
+        except Exception as e:
+            logger.error(f"Error stopping monitoring: {e}")

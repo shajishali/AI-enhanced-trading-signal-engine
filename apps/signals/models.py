@@ -88,6 +88,80 @@ class TradingSignal(models.Model):
     stop_loss = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
     risk_reward_ratio = models.FloatField(null=True, blank=True)
     
+    # Timeframe and Entry Point Analysis
+    TIMEFRAME_CHOICES = [
+        ('1M', '1 Minute'),
+        ('5M', '5 Minutes'),
+        ('15M', '15 Minutes'),
+        ('30M', '30 Minutes'),
+        ('1H', '1 Hour'),
+        ('4H', '4 Hours'),
+        ('1D', '1 Day'),
+        ('1W', '1 Week'),
+        ('1M', '1 Month'),
+    ]
+    
+    timeframe = models.CharField(
+        max_length=10, 
+        choices=TIMEFRAME_CHOICES, 
+        null=True,
+        blank=True,
+        default='1H',
+        help_text="Timeframe used for signal analysis"
+    )
+    
+    entry_point_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('SUPPORT_BREAK', 'Support Break'),
+            ('RESISTANCE_BREAK', 'Resistance Break'),
+            ('SUPPORT_BOUNCE', 'Support Bounce'),
+            ('RESISTANCE_REJECTION', 'Resistance Rejection'),
+            ('BREAKOUT', 'Breakout'),
+            ('BREAKDOWN', 'Breakdown'),
+            ('MEAN_REVERSION', 'Mean Reversion'),
+            ('TREND_FOLLOWING', 'Trend Following'),
+            ('CONSOLIDATION_BREAK', 'Consolidation Break'),
+            ('VOLUME_SPIKE', 'Volume Spike'),
+            ('PATTERN_COMPLETION', 'Pattern Completion'),
+            ('INDICATOR_CROSSOVER', 'Indicator Crossover'),
+        ],
+        null=True,
+        blank=True,
+        default='TREND_FOLLOWING',
+        help_text="Type of entry point identified"
+    )
+    
+    entry_point_details = models.JSONField(
+        default=dict, 
+        blank=True,
+        help_text="Detailed entry point analysis (levels, patterns, indicators)"
+    )
+    
+    entry_zone_low = models.DecimalField(
+        max_digits=15, 
+        decimal_places=6, 
+        null=True, 
+        blank=True,
+        help_text="Lower bound of entry zone"
+    )
+    
+    entry_zone_high = models.DecimalField(
+        max_digits=15, 
+        decimal_places=6, 
+        null=True, 
+        blank=True,
+        help_text="Upper bound of entry zone"
+    )
+    
+    entry_confidence = models.FloatField(
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        null=True,
+        blank=True,
+        default=0.8,
+        help_text="Confidence in entry point accuracy (0-1)"
+    )
+    
     # Quality metrics
     quality_score = models.FloatField(
         validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],

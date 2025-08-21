@@ -218,6 +218,50 @@
         color: #2c3e50;
     }
     
+    .entry-price {
+        font-family: 'Courier New', monospace;
+        font-weight: 600;
+        color: #2c3e50;
+        background-color: #f8f9fa;
+        padding: 8px;
+        border-radius: 4px;
+        border-left: 3px solid #007bff;
+    }
+    
+    .current-price {
+        font-family: 'Courier New', monospace;
+        font-weight: 600;
+        color: #2c3e50;
+        padding: 8px;
+        border-radius: 4px;
+    }
+    
+    /* Price warning indicators */
+    .price-warning {
+        background-color: #fff3cd !important;
+        border-left: 4px solid #ffc107;
+    }
+    
+    .price-volatile {
+        background-color: #f8d7da !important;
+        border-left: 4px solid #dc3545;
+    }
+    
+    .price-stable {
+        background-color: #d1ecf1 !important;
+        border-left: 4px solid #17a2b8;
+    }
+    
+    .price-moderate {
+        background-color: #fff3cd !important;
+        border-left: 4px solid #ffc107;
+    }
+    
+    .price-unreliable {
+        background-color: #f8d7da !important;
+        border-left: 4px solid #6c757d;
+    }
+    
     /* Responsive table */
     @media (max-width: 768px) {
         .table-responsive {
@@ -348,6 +392,9 @@
                             <button class="btn btn-info" onclick="refreshSignals()">
                                 <i class="fas fa-sync"></i> Refresh
                             </button>
+                            <button class="btn btn-success" onclick="syncPrices()">
+                                <i class="fas fa-link"></i> Sync Prices
+                            </button>
                             <button class="btn btn-warning" onclick="testModal()">
                                 <i class="fas fa-test"></i> Test Modal
                             </button>
@@ -384,12 +431,15 @@
                         <table class="table table-hover" id="signals-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 10%;">Symbol</th>
-                                    <th style="width: 12%;">Signal Type</th>
-                                    <th style="width: 10%;">Confidence</th>
+                                    <th style="width: 8%;">Symbol</th>
+                                    <th style="width: 10%;">Signal Type</th>
+                                    <th style="width: 8%;">Confidence</th>
+                                    <th style="width: 12%;">Entry Price</th>
                                     <th style="width: 12%;">Current Price</th>
-                                    <th style="width: 12%;">Target</th>
-                                    <th style="width: 12%;">Stop Loss</th>
+                                    <th style="width: 10%;">Target</th>
+                                    <th style="width: 10%;">Stop Loss</th>
+                                    <th style="width: 8%;">Timeframe</th>
+                                    <th style="width: 10%;">Entry Point</th>
                                     <th style="width: 10%;">Created</th>
                                     <th style="width: 8%;">Status</th>
                                     <th style="width: 6%;">Actions</th>
@@ -397,7 +447,7 @@
                             </thead>
                             <tbody id="signals-tbody">
                                 <tr>
-                                    <td colspan="9" class="loading-state">
+                                    <td colspan="11" class="loading-state">
                                         <div class="spinner-border text-primary" role="status">
                                             <span class="visually-hidden">Loading...</span>
                                         </div>
@@ -492,7 +542,7 @@ function displaySignals(signals) {
     if (!signals || signals.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="empty-state">
+                <td colspan="11" class="empty-state">
                     <i class="fas fa-chart-line"></i>
                     <h5>No Trading Signals Available</h5>
                     <p>Generate new signals to get started with your trading strategy.</p>
@@ -508,6 +558,17 @@ function displaySignals(signals) {
         
         const row = document.createElement('tr');
         row.setAttribute('data-signal-id', signal.id);
+        
+        // Add price warning class if there's a significant discrepancy
+        if (signal.price_discrepancy_percent && signal.price_discrepancy_percent > 5) {
+            row.classList.add('price-warning');
+        }
+        
+        // Add price status class
+        if (signal.price_status) {
+            row.classList.add(`price-${signal.price_status}`);
+        }
+        
         row.innerHTML = `
             <td><strong>${signal.symbol || 'N/A'}</strong></td>
             <td>
@@ -520,6 +581,10 @@ function displaySignals(signals) {
                     ${formatConfidence(signal.confidence_score)}
                 </span>
             </td>
+            <td class="entry-price">
+                <strong>$${formatPrice(signal.entry_price)}</strong>
+                <br><small class="text-muted">Entry</small>
+            </td>
             <td class="current-price">
                 ${signal.current_price ? `$${formatPrice(signal.current_price)}` : '<span class="text-muted">--</span>'}
                 ${signal.price_change_24h ? `
@@ -527,14 +592,37 @@ function displaySignals(signals) {
                         ${signal.price_change_24h >= 0 ? '+' : ''}${signal.price_change_24h.toFixed(2)}%
                     </small>
                 ` : ''}
+                ${signal.price_discrepancy_percent ? `
+                    <br><small class="text-${signal.price_discrepancy_percent > 10 ? 'danger' : 'warning'}">
+                        ${signal.price_discrepancy_percent > 0 ? '+' : ''}${signal.price_discrepancy_percent.toFixed(1)}% from entry
+                    </small>
+                ` : ''}
             </td>
             <td class="price-value">$${formatPrice(signal.target_price)}</td>
             <td class="price-value">$${formatPrice(signal.stop_loss)}</td>
+            <td>
+                <span class="badge bg-info">
+                    ${signal.timeframe || '1H'}
+                </span>
+            </td>
+            <td>
+                <div class="entry-point-info">
+                    <span class="badge ${getEntryPointBadge(signal.entry_point_type)}">
+                        ${formatEntryPointType(signal.entry_point_type)}
+                    </span>
+                    ${signal.entry_confidence ? `
+                        <br><small class="text-muted">${(signal.entry_confidence * 100).toFixed(0)}% confidence</small>
+                    ` : ''}
+                </div>
+            </td>
             <td>${formatDate(signal.created_at)}</td>
             <td>
                 <span class="badge ${getStatusBadge(signal.is_valid, signal.is_executed)}">
                     ${getStatusText(signal.is_valid, signal.is_executed)}
                 </span>
+                ${signal.price_status ? `
+                    <br><small class="badge bg-secondary">${signal.price_status}</small>
+                ` : ''}
             </td>
             <td>
                 <div class="btn-group" role="group">
@@ -547,7 +635,6 @@ function displaySignals(signals) {
                         </button>
                         <button class="btn btn-sm btn-warning" onclick="editSignal(${signal.id})" title="Edit Signal">
                             <i class="fas fa-edit"></i>
-                        </button>
                     ` : ''}
                     <button class="btn btn-sm btn-info" onclick="shareSignal(${signal.id})" title="Share Signal">
                         <i class="fas fa-share"></i>
@@ -592,6 +679,36 @@ function getStatusText(isValid, isExecuted) {
     if (isExecuted) return 'Executed';
     if (isValid) return 'Active';
     return 'Expired';
+}
+
+// Get entry point badge class
+function getEntryPointBadge(type) {
+    const badges = {
+        'SUPPORT_BREAK': 'bg-danger',
+        'RESISTANCE_BREAK': 'bg-success',
+        'SUPPORT_BOUNCE': 'bg-success',
+        'RESISTANCE_REJECTION': 'bg-danger',
+        'BREAKOUT': 'bg-success',
+        'BREAKDOWN': 'bg-danger',
+        'MEAN_REVERSION': 'bg-warning',
+        'TREND_FOLLOWING': 'bg-info',
+        'CONSOLIDATION_BREAK': 'bg-primary',
+        'VOLUME_SPIKE': 'bg-warning',
+        'PATTERN_COMPLETION': 'bg-info',
+        'INDICATOR_CROSSOVER': 'bg-secondary',
+        'BUY': 'bg-success',
+        'SELL': 'bg-danger',
+        'UNKNOWN': 'bg-secondary'
+    };
+    return badges[type] || 'bg-secondary';
+}
+
+// Format entry point type for display
+function formatEntryPointType(type) {
+    if (!type || type === 'UNKNOWN') return 'Unknown';
+    
+    const formatted = type.replace(/_/g, ' ').toLowerCase();
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
 // View signal details
@@ -801,6 +918,32 @@ function generateSignals() {
 function refreshSignals() {
     loadSignals();
     loadStatistics();
+}
+
+// Sync prices for all signals
+function syncPrices() {
+    showNotification('Synchronizing prices...', 'info');
+    
+    fetch('/signals/api/sync-prices/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`Successfully synchronized prices for ${data.synced_count} signals!`, 'success');
+            setTimeout(loadSignals, 1000); // Reload signals to show updated prices
+        } else {
+            showNotification('Error synchronizing prices: ' + (data.error || 'Unknown error'), 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error synchronizing prices. Please try again.', 'danger');
+    });
 }
 
 // Filter signals by symbol

@@ -24,3 +24,12 @@ yfinance>=0.2.18
 plotly>=5.15.0
 matplotlib>=3.7.2
 seaborn>=0.12.2
+
+# Production Server Dependencies
+gunicorn>=21.2.0
+uvicorn>=0.24.0
+uvicorn[standard]>=0.24.0
+supervisor>=4.2.5
+nginx>=1.24.0
+certbot>=2.7.0
+python-certbot-nginx>=2.7.0

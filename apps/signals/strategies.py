@@ -37,15 +37,39 @@ class BaseStrategy:
             return []
     
     def _get_latest_price(self, symbol: Symbol) -> Optional[float]:
-        """Get latest price for a symbol"""
+        """Get latest price for a symbol - prioritizes live prices"""
         try:
+            # First, try to get live prices from external API
+            try:
+                from apps.data.real_price_service import get_live_prices
+                live_prices = get_live_prices()
+                
+                if symbol.symbol in live_prices:
+                    live_data = live_prices[symbol.symbol]
+                    current_price = live_data.get('price', 0)
+                    
+                    if current_price and current_price > 0:
+                        logger.info(f"Using live price for {symbol.symbol}: ${current_price:,.2f}")
+                        return float(current_price)
+                    else:
+                        logger.warning(f"Invalid live price for {symbol.symbol}: {current_price}")
+                
+            except Exception as e:
+                logger.warning(f"Could not fetch live price for {symbol.symbol}: {e}")
+            
+            # Fallback to database data if live prices unavailable
             latest_data = MarketData.objects.filter(
                 symbol=symbol
             ).order_by('-timestamp').first()
             
             if latest_data:
-                return float(latest_data.close_price)
+                database_price = float(latest_data.close_price)
+                logger.warning(f"Using database price for {symbol.symbol}: ${database_price:,.2f} (age: {timezone.now() - latest_data.timestamp})")
+                return database_price
+            
+            logger.error(f"No price data found for {symbol.symbol}")
             return None
+            
         except Exception as e:
             logger.error(f"Error getting latest price for {symbol.symbol}: {e}")
             return None
@@ -410,6 +434,13 @@ class MovingAverageCrossoverStrategy(BaseStrategy):
                 news_score=0.0,
                 volume_score=0.0,
                 pattern_score=0.0,
+                # New timeframe and entry point fields
+                timeframe='1H',  # Default timeframe for strategies
+                entry_point_type='TREND_FOLLOWING',  # Default entry point type
+                entry_point_details={},
+                entry_zone_low=Decimal(str(entry_price * 0.99)),  # 1% below entry
+                entry_zone_high=Decimal(str(entry_price * 1.01)),  # 1% above entry
+                entry_confidence=confidence_score,  # Use confidence score as entry confidence
                 notes=notes
             )
             
@@ -807,6 +838,13 @@ class RSIStrategy(BaseStrategy):
                 news_score=0.0,
                 volume_score=0.0,
                 pattern_score=0.0,
+                # New timeframe and entry point fields
+                timeframe='1H',  # Default timeframe for strategies
+                entry_point_type='TREND_FOLLOWING',  # Default entry point type
+                entry_point_details={},
+                entry_zone_low=Decimal(str(entry_price * 0.99)),  # 1% below entry
+                entry_zone_high=Decimal(str(entry_price * 1.01)),  # 1% above entry
+                entry_confidence=confidence_score,  # Use confidence score as entry confidence
                 notes=notes
             )
             
@@ -2245,6 +2283,13 @@ class BreakoutStrategy(BaseStrategy):
                 news_score=0.0,
                 volume_score=0.0,
                 pattern_score=0.0,
+                # New timeframe and entry point fields
+                timeframe='1H',  # Default timeframe for strategies
+                entry_point_type='BREAKOUT',  # Specific to breakout strategy
+                entry_point_details={},
+                entry_zone_low=Decimal(str(entry_price * 0.99)),  # 1% below entry
+                entry_zone_high=Decimal(str(entry_price * 1.01)),  # 1% above entry
+                entry_confidence=confidence_score,  # Use confidence score as entry confidence
                 notes=notes
             )
             
