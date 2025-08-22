@@ -7,6 +7,7 @@ from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Avg, Count, Prefetch
 from django.utils import timezone
 from django.core.cache import cache
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(login_required, name='dispatch')
 class SignalAPIView(View):
     """API view for signal operations"""
     
@@ -187,6 +189,7 @@ class SignalAPIView(View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(login_required, name='dispatch')
 class SignalDetailView(View):
     """API view for individual signal operations"""
     
@@ -518,6 +521,7 @@ class SignalAlertView(View):
             }, status=500)
 
 
+@login_required
 def signal_dashboard(request):
     """Signal dashboard view"""
     try:
@@ -640,7 +644,7 @@ def signal_statistics(request):
 
 
 @require_http_methods(["POST"])
-@csrf_exempt
+@login_required
 def execute_signal(request, signal_id):
     """Execute a trading signal"""
     try:
@@ -715,7 +719,7 @@ def execute_signal(request, signal_id):
 
 
 @require_http_methods(["POST"])
-@csrf_exempt
+@login_required
 def generate_signals_manual(request):
     """Manually trigger signal generation"""
     try:
@@ -768,6 +772,7 @@ def generate_signals_manual(request):
 
 
 @csrf_exempt
+@login_required
 def reset_signals_for_testing(request):
     """Reset all signals to 'Active' status for testing purposes"""
     try:
@@ -810,8 +815,8 @@ def reset_signals_for_testing(request):
         }, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
+@login_required
 def sync_signal_prices(request):
     """Synchronize prices for all active signals"""
     try:

@@ -34,9 +34,9 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/auth/', include('rest_framework.urls')),
     path('accounts/', include('allauth.urls')),
+    path('signals/', include('apps.signals.urls')),  # Move signals before dashboard
     path('', include('apps.dashboard.urls')),
     path('trading/', include('apps.trading.urls')),
-    path('signals/', include('apps.signals.urls')),
     path('data/', include('apps.data.urls')),
     path('sentiment/', include('apps.sentiment.urls')),
     path('analytics/', include('apps.analytics.urls')),
