@@ -729,7 +729,14 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">Trading Signals</h2>
+        <div class="d-flex gap-2">
+            <a href="{% url 'signals:signal_history' %}" class="btn btn-outline-primary btn-sm">Signal History</a>
+        </div>
+    </div>
+    
     <!-- Login Required Notice -->
     <div class="row mb-3">
         <div class="col-12">
@@ -806,6 +813,9 @@
                                 </button>
                                 <button class="btn btn-info" onclick="refreshSignals()">
                                     <i class="fas fa-sync"></i> Refresh
+                                </button>
+                                <button class="btn btn-success" onclick="window.location.href='/signals/spot/'">
+                                    <i class="fas fa-coins"></i> Spot Signals
                                 </button>
                                 <button class="btn btn-success" onclick="syncPrices()">
                                     <i class="fas fa-link"></i> Sync Prices
@@ -1397,7 +1407,10 @@ function displaySignals(signals) {
                     ` : ''}
                 </div>
             </td>
-            <td>${formatDate(signal.created_at)}</td>
+            <td>
+                <div>Created: ${formatDate(signal.created_at)}</div>
+                <div><small class="text-muted">Analyzed: ${new Date(signal.analyzed_at || signal.created_at).toLocaleString('en-US', {timeZone: 'Asia/Colombo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'})} (SL)</small></div>
+            </td>
             <td>
                 <span class="badge ${getStatusBadge(signal.is_valid, signal.is_executed)}">
                     ${getStatusText(signal.is_valid, signal.is_executed)}
@@ -1500,23 +1513,25 @@ function formatEntryPointType(type) {
 function viewSignal(signalId) {
     console.log('Viewing signal:', signalId); // Debug log
     currentSignalId = signalId;
-    const signal = signalsData.find(s => s.id === signalId);
     
-    if (!signal) {
-        console.log('Signal not found in data!'); // Debug log
-        showNotification('Signal not found', 'danger');
-        return;
-    }
+    // Load signal details via AJAX to get complete information including detailed_explanation
+    fetch(`/signals/api/signals/${signalId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success || !data.signal) {
+                console.log('Signal not found in API!'); // Debug log
+                showNotification('Signal not found', 'danger');
+                return;
+            }
+            
+            const signal = data.signal;
+            console.log('Signal data from API:', signal); // Debug log
+            console.log('Signal detailed_explanation:', signal.detailed_explanation); // Debug log
     
-    console.log('Signal data:', signal); // Debug log
-    console.log('Signal timeframe:', signal.timeframe); // Debug log
-    console.log('Signal entry_point_type:', signal.entry_point_type); // Debug log
-    console.log('Signal entry_confidence:', signal.entry_confidence); // Debug log
-    
-    // Ensure we have default values for missing data
-    const timeframe = signal.timeframe || '1H';
-    const entryPointType = signal.entry_point_type || 'TREND_FOLLOWING';
-    const entryConfidence = signal.entry_confidence || 0.8;
+            // Ensure we have default values for missing data
+            const timeframe = signal.timeframe || '1H';
+            const entryPointType = signal.entry_point_type || 'TREND_FOLLOWING';
+            const entryConfidence = signal.entry_confidence || 0.8;
     
     // Populate modal with signal data
     document.getElementById('signalModalBody').innerHTML = `
@@ -1585,12 +1600,23 @@ function viewSignal(signalId) {
                 <p><strong>Type:</strong> ${signal.signal_type}</p>
                 <p><strong>Confidence:</strong> ${(signal.confidence_score * 100).toFixed(0)}%</p>
                 <p><strong>Created:</strong> ${new Date(signal.created_at).toLocaleString()}</p>
+                <p><strong>Analyzed:</strong> ${new Date(signal.analyzed_at || signal.created_at).toLocaleString('en-US', {timeZone: 'Asia/Colombo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'})} (SL Time)</p>
             </div>
             <div class="col-md-6">
                 <h6>Trading Parameters</h6>
                 <p><strong>Price Target:</strong> $${signal.target_price ? signal.target_price.toFixed(2) : 'N/A'}</p>
                 <p><strong>Stop Loss:</strong> $${signal.stop_loss ? signal.stop_loss.toFixed(2) : 'N/A'}</p>
                 <p><strong>Risk/Reward:</strong> ${signal.risk_reward_ratio ? signal.risk_reward_ratio.toFixed(2) : 'N/A'}</p>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <h6>Detailed Signal Explanation</h6>
+                <div class="card bg-light">
+                    <div class="card-body">
+                        ${signal.detailed_explanation ? signal.detailed_explanation : 'No detailed explanation available.'}
+                    </div>
+                </div>
             </div>
         </div>
         <div class="row mt-3">
@@ -1642,11 +1668,16 @@ function viewSignal(signalId) {
         console.log('Execute button hidden'); // Debug log
     }
     
-    // Show modal using Bootstrap 5
-    console.log('Showing modal...'); // Debug log
-    const modal = new bootstrap.Modal(document.getElementById('signalModal'));
-    modal.show();
-    console.log('Modal shown!'); // Debug log
+            // Show modal using Bootstrap 5
+            console.log('Showing modal...'); // Debug log
+            const modal = new bootstrap.Modal(document.getElementById('signalModal'));
+            modal.show();
+            console.log('Modal shown!'); // Debug log
+        })
+        .catch(error => {
+            console.error('Error loading signal details:', error);
+            showNotification('Error loading signal details', 'danger');
+        });
 }
 
 // Execute signal
@@ -1725,8 +1756,8 @@ function loadStatistics() {
         .then(data => {
             if (data.success) {
                 document.getElementById('win-rate').textContent = `${(data.win_rate * 100).toFixed(1)}%`;
-                document.getElementById('profit-factor').textContent = data.profit_factor.toFixed(2);
-                document.getElementById('avg-rr-ratio').textContent = data.avg_risk_reward_ratio.toFixed(2);
+                document.getElementById('profit-factor').textContent = data.profit_factor ? data.profit_factor.toFixed(2) : 'N/A';
+                document.getElementById('avg-rr-ratio').textContent = data.avg_risk_reward_ratio ? data.avg_risk_reward_ratio.toFixed(2) : 'N/A';
             }
         })
         .catch(error => {
@@ -1892,7 +1923,10 @@ function formatConfidence(score) {
 
 function formatPrice(price) {
     if (!price && price !== 0) return 'N/A';
-    return parseFloat(price).toFixed(2);
+    if (typeof price !== 'number' && typeof price !== 'string') return 'N/A';
+    const numPrice = parseFloat(price);
+    if (isNaN(numPrice)) return 'N/A';
+    return numPrice.toFixed(2);
 }
 
 function formatDate(dateString) {
