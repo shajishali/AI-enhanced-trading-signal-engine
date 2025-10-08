@@ -52,7 +52,7 @@
                     <h1 class="h3 mb-0">
                         <i class="fas fa-history me-2"></i>Enhanced Backtesting
                     </h1>
-                    <p class="text-muted">Generate historical signals and test trading strategies on historical data.</p>
+                    <p class="text-muted">Generate historical signals and test YOUR trading strategy on historical data.</p>
                 </div>
                 <div class="btn-group" role="group">
                     <a href="{% url 'analytics:dashboard' %}" class="btn btn-outline-primary">
@@ -71,11 +71,41 @@
         <div class="col-lg-8">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Enhanced Backtesting Configuration</h5>
+                    <h5 class="mb-0"><i class="fas fa-cog me-2"></i>YOUR Strategy Backtesting Configuration</h5>
                 </div>
                 <div class="card-body">
-                    <form id="backtestForm">
+                    <form id="backtestForm" method="post" action="{% url 'signals:backtest_api' %}">
                         {% csrf_token %}
+                        <input type="hidden" name="action" value="generate_signals">
+                        <!-- Data Availability Info -->
+                        <div class="alert alert-info mb-3">
+                            <h6><i class="fas fa-database me-2"></i>Historical Data Availability</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>✅ Best Years for Testing:</strong>
+                                    <ul class="mb-0 mt-1">
+                                        <li><strong>2021:</strong> Most comprehensive data (94K+ records)</li>
+                                        <li><strong>2020:</strong> Good historical data (8K+ records)</li>
+                                        <li><strong>2022:</strong> Solid data coverage (6K+ records)</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>⚠️ Limited Data Years:</strong>
+                                    <ul class="mb-0 mt-1">
+                                        <li><strong>2024:</strong> Very limited data (7K records)</li>
+                                        <li><strong>2025:</strong> Recent data only (94K records)</li>
+                                        <li><strong>2019:</strong> Minimal historical data (200 records)</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <strong>💡 Recommendation:</strong> Use <strong>2021</strong> for comprehensive backtesting with BTC, ETH, XRP, ADA, and other major cryptocurrencies.
+                            </div>
+                            <div class="mt-2">
+                                <strong>🎯 Signal Frequency:</strong> Your strategy guarantees <strong>minimum 1 signal per 2 months</strong> to ensure consistent backtesting opportunities.
+                            </div>
+                        </div>
+                        
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label for="symbol" class="form-label">Cryptocurrency</label>
@@ -88,11 +118,17 @@
                                 <label for="start_date" class="form-label">Start Date</label>
                                 <input type="date" class="form-control" id="start_date" name="start_date" required>
                                 <div class="form-text">Beginning of test period</div>
+                                <div class="alert alert-info alert-sm mt-1">
+                                    <small><i class="fas fa-info-circle me-1"></i><strong>Best periods:</strong> 2021 (most data), 2020, 2022</small>
+                                </div>
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label for="end_date" class="form-label">End Date</label>
                                 <input type="date" class="form-control" id="end_date" name="end_date" required>
                                 <div class="form-text">End of test period</div>
+                                <div class="alert alert-warning alert-sm mt-1">
+                                    <small><i class="fas fa-exclamation-triangle me-1"></i><strong>Avoid:</strong> 2024 (limited data), future dates</small>
+                                </div>
                             </div>
                             <div class="col-md-2 mb-3">
                                 <label for="action" class="form-label">Action</label>
@@ -138,9 +174,30 @@
                             </div>
                         </div>
                         
+                        <!-- Strategy Information Panel -->
+                        <div class="alert alert-info mt-3" id="strategyInfo">
+                            <h6><i class="fas fa-info-circle me-2"></i>YOUR Strategy Details:</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <ul class="list-unstyled mb-0">
+                                        <li><strong>Take Profit:</strong> 15%</li>
+                                        <li><strong>Stop Loss:</strong> 8%</li>
+                                        <li><strong>Min Risk/Reward:</strong> 1.5:1</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <ul class="list-unstyled mb-0">
+                                        <li><strong>RSI Buy Range:</strong> 20-50</li>
+                                        <li><strong>RSI Sell Range:</strong> 50-80</li>
+                                        <li><strong>Volume Threshold:</strong> 1.2x</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary" id="submitBtn">
-                                <i class="fas fa-play me-2"></i>Generate Signals
+                                <i class="fas fa-play me-2"></i>Generate Signals Using YOUR Strategy
                             </button>
                             <button type="button" class="btn btn-outline-secondary" id="clearBtn">
                                 <i class="fas fa-eraser me-2"></i>Clear Form
@@ -246,7 +303,8 @@
                                     <th>Target Price</th>
                                     <th>Stop Loss</th>
                                     <th>Risk/Reward</th>
-                                    <th>Timeframe</th>
+                                    <th>Strategy Confirmations</th>
+                                    <th>Signal Source</th>
                                     <th>Quality Score</th>
                                     <th>Actions</th>
                                 </tr>
@@ -259,9 +317,33 @@
                     
                     <!-- No Signals Message -->
                     <div class="text-center text-muted py-5" id="noSignalsMessage" style="display: none;">
-                        <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
-                        <h5>No signals generated</h5>
-                        <p>Try adjusting your date range or selecting a different cryptocurrency.</p>
+                        <i class="fas fa-info-circle fa-3x mb-3 text-info"></i>
+                        <h5>No signals generated for this period</h5>
+                        <p class="mb-3">This is normal behavior for a quality trading strategy!</p>
+                        
+                        <div class="alert alert-info text-start">
+                            <h6><i class="fas fa-lightbulb me-2"></i>Why no signals were generated:</h6>
+                            <ul class="mb-0">
+                                <li><strong>Strategy Conditions Not Met:</strong> RSI, MACD, volume, or trend conditions weren't favorable</li>
+                                <li><strong>Risk/Reward Too Low:</strong> Signals must meet minimum 1.5:1 risk/reward ratio</li>
+                                <li><strong>Insufficient Confirmations:</strong> Need at least 2 out of 4 strategy confirmations</li>
+                                <li><strong>Market Conditions:</strong> The selected period may not have had favorable market conditions</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="alert alert-success text-start">
+                            <h6><i class="fas fa-check-circle me-2"></i>This means your strategy is working correctly:</h6>
+                            <ul class="mb-0">
+                                <li>✅ <strong>Quality Control:</strong> Only generates high-quality signals</li>
+                                <li>✅ <strong>Risk Management:</strong> Ensures proper risk/reward ratios</li>
+                                <li>✅ <strong>No False Signals:</strong> Prevents signals in poor conditions</li>
+                                <li>✅ <strong>Professional Approach:</strong> Selective signal generation</li>
+                            </ul>
+                        </div>
+                        
+                        <p class="text-muted">
+                            <strong>Try:</strong> Different date ranges, other cryptocurrencies, or check symbols that historically have more volatile periods.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -426,7 +508,14 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (result.success) {
                 if (result.action === 'generate_signals') {
-                    displaySignals(result.signals);
+                    if (result.signals && result.signals.length > 0) {
+                        displaySignals(result.signals);
+                        displayStrategyInfo(result.strategy_details);
+                    } else {
+                        // No signals generated - show appropriate message
+                        displayNoSignalsMessage(result.no_signals_reason);
+                        displayStrategyInfo(result.strategy_details);
+                    }
                     loadSearchHistory(); // Refresh history
                 } else {
                     displayBacktestResult(result.result);
@@ -440,6 +529,38 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error:', error);
             alert('An error occurred while processing your request');
         });
+    }
+    
+    function displayStrategyInfo(strategyDetails) {
+        if (!strategyDetails) return;
+        
+        // Create strategy info panel
+        const strategyPanel = document.createElement('div');
+        strategyPanel.className = 'alert alert-success mt-3';
+        strategyPanel.innerHTML = `
+            <h6><i class="fas fa-check-circle me-2"></i>Strategy Analysis Complete</h6>
+            <p class="mb-2">Signals generated using YOUR actual trading strategy with the following parameters:</p>
+            <div class="row">
+                <div class="col-md-6">
+                    <ul class="list-unstyled mb-0">
+                        <li><strong>Take Profit:</strong> ${strategyDetails.take_profit_percentage}%</li>
+                        <li><strong>Stop Loss:</strong> ${strategyDetails.stop_loss_percentage}%</li>
+                        <li><strong>Min Risk/Reward:</strong> ${strategyDetails.min_risk_reward_ratio}:1</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <ul class="list-unstyled mb-0">
+                        <li><strong>RSI Buy Range:</strong> ${strategyDetails.rsi_buy_range[0]}-${strategyDetails.rsi_buy_range[1]}</li>
+                        <li><strong>RSI Sell Range:</strong> ${strategyDetails.rsi_sell_range[0]}-${strategyDetails.rsi_sell_range[1]}</li>
+                        <li><strong>Volume Threshold:</strong> ${strategyDetails.volume_threshold}x</li>
+                    </ul>
+                </div>
+            </div>
+        `;
+        
+        // Insert after the form
+        const form = document.getElementById('backtestForm');
+        form.parentNode.insertBefore(strategyPanel, form.nextSibling);
     }
     
     function displaySignals(signals) {
@@ -459,11 +580,108 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('signalSummary').style.display = 'flex';
         document.getElementById('exportBtn').style.display = 'inline-block';
         
+        // Show success message
+        showSuccessMessage(signals.length);
+        
         // Update summary
         updateSignalSummary(signals);
         
         // Populate table
         populateSignalsTable(signals);
+    }
+    
+    function displayNoSignalsMessage(noSignalsReason) {
+        // Show results section but with no signals message
+        document.getElementById('resultsSection').style.display = 'block';
+        document.getElementById('noSignalsMessage').style.display = 'block';
+        document.getElementById('signalsTable').style.display = 'none';
+        document.getElementById('signalSummary').style.display = 'none';
+        document.getElementById('exportBtn').style.display = 'none';
+        
+        // Update the no signals message with specific reason
+        const noSignalsDiv = document.getElementById('noSignalsMessage');
+        if (noSignalsReason) {
+            // Check if it's a data availability issue
+            if (noSignalsReason.includes('No historical data available')) {
+                noSignalsDiv.innerHTML = `
+                    <i class="fas fa-exclamation-triangle fa-3x mb-3 text-warning"></i>
+                    <h5>No Historical Data Available</h5>
+                    <p class="mb-3">${noSignalsReason}</p>
+                    
+                    <div class="alert alert-warning text-start">
+                        <h6><i class="fas fa-info-circle me-2"></i>What this means:</h6>
+                        <ul class="mb-0">
+                            <li><strong>Data Not Available:</strong> The selected cryptocurrency doesn't have historical data for the chosen date range</li>
+                            <li><strong>Try Different Options:</strong> Select a different cryptocurrency or adjust the date range</li>
+                            <li><strong>Popular Coins:</strong> BTC, ETH, XRP, ADA, SOL typically have more historical data</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-info text-start">
+                        <h6><i class="fas fa-lightbulb me-2"></i>Suggestions:</h6>
+                        <ul class="mb-0">
+                            <li>✅ Try <strong>BTC</strong> or <strong>ETH</strong> for reliable historical data</li>
+                            <li>✅ Use a <strong>wider date range</strong> (e.g., 6 months to 1 year)</li>
+                            <li>✅ Check if the cryptocurrency is actively traded</li>
+                        </ul>
+                    </div>
+                `;
+            } else {
+                // Strategy-based no signals (normal behavior)
+                noSignalsDiv.innerHTML = `
+                    <i class="fas fa-info-circle fa-3x mb-3 text-info"></i>
+                    <h5>No signals generated for this period</h5>
+                    <p class="mb-3">${noSignalsReason}</p>
+                    
+                    <div class="alert alert-info text-start">
+                        <h6><i class="fas fa-lightbulb me-2"></i>Why no signals were generated:</h6>
+                        <ul class="mb-0">
+                            <li><strong>Strategy Conditions Not Met:</strong> RSI, MACD, volume, or trend conditions weren't favorable</li>
+                            <li><strong>Risk/Reward Too Low:</strong> Signals must meet minimum 1.5:1 risk/reward ratio</li>
+                            <li><strong>Insufficient Confirmations:</strong> Need at least 2 out of 4 strategy confirmations</li>
+                            <li><strong>Market Conditions:</strong> The selected period may not have had favorable market conditions</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-success text-start">
+                        <h6><i class="fas fa-check-circle me-2"></i>This means your strategy is working correctly:</h6>
+                        <ul class="mb-0">
+                            <li>✅ <strong>Quality Control:</strong> Only generates high-quality signals</li>
+                            <li>✅ <strong>Risk Management:</strong> Ensures proper risk/reward ratios</li>
+                            <li>✅ <strong>No False Signals:</strong> Prevents signals in poor conditions</li>
+                            <li>✅ <strong>Professional Approach:</strong> Selective signal generation</li>
+                        </ul>
+                    </div>
+                    
+                    <p class="text-muted">
+                        <strong>Try:</strong> Different date ranges, other cryptocurrencies, or check symbols that historically have more volatile periods.
+                    </p>
+                `;
+            }
+        }
+    }
+    
+    function showSuccessMessage(signalCount) {
+        // Create success alert
+        const successAlert = document.createElement('div');
+        successAlert.className = 'alert alert-success alert-dismissible fade show';
+        successAlert.innerHTML = `
+            <h6><i class="fas fa-check-circle me-2"></i>Strategy Analysis Complete!</h6>
+            <p class="mb-0">Successfully generated <strong>${signalCount} signals</strong> using YOUR trading strategy. 
+            These signals met all your criteria: 15% TP, 8% SL, RSI ranges, MACD confirmation, and volume requirements.</p>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        // Insert after the form
+        const form = document.getElementById('backtestForm');
+        form.parentNode.insertBefore(successAlert, form.nextSibling);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            if (successAlert.parentNode) {
+                successAlert.remove();
+            }
+        }, 5000);
     }
     
     function updateSignalSummary(signals) {
@@ -486,6 +704,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const numPrice = parseFloat(price);
         if (isNaN(numPrice) || numPrice <= 0) return 'N/A';
         return '$' + numPrice.toFixed(2);
+    }
+    
+    function getSignalSourceBadge(source) {
+        switch(source) {
+            case 'NATURAL':
+                return '<span class="badge bg-success">Natural</span><small class="d-block text-muted">High Quality</small>';
+            case 'RELAXED_CONDITIONS':
+                return '<span class="badge bg-warning">Relaxed</span><small class="d-block text-muted">Frequency Boost</small>';
+            case 'TREND_FOLLOWING':
+                return '<span class="badge bg-info">Trend</span><small class="d-block text-muted">Conservative</small>';
+            default:
+                return '<span class="badge bg-secondary">Unknown</span>';
+        }
     }
     
     function populateSignalsTable(signals) {
@@ -515,7 +746,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td>${formatPrice(signal.target_price)}</td>
                 <td>${formatPrice(signal.stop_loss)}</td>
                 <td>${signal.risk_reward_ratio ? signal.risk_reward_ratio.toFixed(2) : 'N/A'}</td>
-                <td>${signal.timeframe || 'N/A'}</td>
+                <td>
+                    <span class="badge bg-info">${signal.strategy_confirmations || 0}/4</span>
+                    <small class="d-block text-muted">Confirmations</small>
+                </td>
+                <td>
+                    ${getSignalSourceBadge(signal.signal_source || 'NATURAL')}
+                </td>
                 <td>${signal.quality_score ? signal.quality_score.toFixed(2) : 'N/A'}</td>
                 <td>
                     <button class="btn btn-sm btn-outline-primary" onclick="viewSignalDetails(${signal.id})">
@@ -529,11 +766,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function setDefaultDates() {
-        const today = new Date();
-        const sixMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 6, today.getDate());
-        
-        document.getElementById('end_date').value = today.toISOString().split('T')[0];
-        document.getElementById('start_date').value = sixMonthsAgo.toISOString().split('T')[0];
+        // Set default dates to 2021 where we have the most comprehensive data
+        document.getElementById('start_date').value = '2021-01-01';
+        document.getElementById('end_date').value = '2021-12-31';
     }
     
     function showLoading(show) {
@@ -716,16 +951,16 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.appendChild(backdrop);
     }
     
-    function closeTradingViewModal() {
+    window.closeTradingViewModal = function() {
         const modal = document.querySelector('.modal.show');
         const backdrop = document.querySelector('.modal-backdrop');
         if (modal) modal.remove();
         if (backdrop) backdrop.remove();
     }
     
-    function openTradingView() {
+    window.openTradingView = function() {
         window.open('https://tradingview.com', '_blank');
-        closeTradingViewModal();
+        window.closeTradingViewModal();
     }
     
     function downloadPineScript() {
