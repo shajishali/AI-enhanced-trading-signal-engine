@@ -60,10 +60,17 @@ class PriceSyncService:
             from apps.data.real_price_service import get_live_prices
             live_prices = get_live_prices()
             
-            if symbol in live_prices:
+            # Handle USDT pairs (e.g., BTCUSDT -> BTC)
+            base_symbol = symbol
+            if symbol.endswith('USDT'):
+                base_symbol = symbol[:-4]  # Remove 'USDT'
+            
+            if base_symbol in live_prices:
+                return live_prices[base_symbol]
+            elif symbol in live_prices:
                 return live_prices[symbol]
             else:
-                logger.warning(f"No live price data found for {symbol}")
+                logger.warning(f"No live price data found for {symbol} (tried {base_symbol})")
                 return {}
                 
         except Exception as e:

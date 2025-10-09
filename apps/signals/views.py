@@ -50,9 +50,11 @@ class SignalAPIView(View):
                 logger.info(f"Returning cached data for key: {cache_key}")
                 return JsonResponse(cached_data)
             
-            # Build optimized query with select_related and prefetch_related
+            # Build optimized query with select_related and prefetch_related (exclude backtesting signals)
             queryset = TradingSignal.objects.select_related(
                 'symbol', 'signal_type'
+            ).exclude(
+                metadata__is_backtesting=True
             )
             
             if symbol:
@@ -567,6 +569,385 @@ def signal_dashboard(request):
     except Exception as e:
         logger.error(f"Error rendering signal dashboard: {e}")
         return render(request, 'signals/dashboard.html', {'error': str(e)})
+
+
+@login_required
+def signal_history(request):
+    """Signal history view"""
+    try:
+        # Get query parameters
+        symbol = request.GET.get('symbol', '')
+        signal_type = request.GET.get('signal_type', '')
+        archived_reason = request.GET.get('archived_reason', '')
+        days = int(request.GET.get('days', 365))
+        page = int(request.GET.get('page', 1))
+        per_page = int(request.GET.get('per_page', 50))
+        
+        # Calculate date range for filtering
+        from datetime import datetime, timedelta
+        from django.utils import timezone
+        end_date = timezone.now()
+        start_date = end_date - timedelta(days=days)
+        
+        # Build query - show archived signals (executed or expired)
+        query = Q()
+        
+        # Filter by date range (only if days is specified and reasonable)
+        # For now, let's show all signals regardless of date to fix the issue
+        # if days <= 365:  # Only apply date filter for reasonable ranges
+        #     query &= Q(created_at__gte=start_date, created_at__lte=end_date)
+        
+        # Filter by symbol
+        if symbol:
+            query &= Q(symbol__symbol__icontains=symbol)
+        
+        # Filter by signal type
+        if signal_type:
+            query &= Q(signal_type__name__icontains=signal_type)
+        
+        # Show archived signals (executed or expired)
+        query &= Q(Q(is_executed=True) | Q(is_valid=False))
+        
+        # Get signals with pagination (exclude backtesting signals)
+        signals = TradingSignal.objects.select_related(
+            'symbol', 'signal_type'
+        ).filter(query).exclude(
+            metadata__is_backtesting=True
+        ).order_by('-created_at')
+        
+        # Calculate pagination
+        total_signals = signals.count()
+        start_index = (page - 1) * per_page
+        end_index = start_index + per_page
+        signals_page = signals[start_index:end_index]
+        
+        # Transform signals to match template expectations
+        processed_signals = []
+        for signal in signals_page:
+            # Calculate performance metrics
+            performance_percentage = None
+            is_profitable = None
+            
+            if signal.is_executed and signal.executed_at:
+                if signal.entry_price and signal.execution_price:
+                    price_change = float(signal.execution_price) - float(signal.entry_price)
+                    performance_percentage = (price_change / float(signal.entry_price)) * 100
+                    is_profitable = price_change > 0
+            
+            # Create signal data matching template expectations
+            signal_data = {
+                'id': signal.id,
+                'symbol_name': signal.symbol.symbol if signal.symbol else 'N/A',
+                'signal_type_name': signal.signal_type.name if signal.signal_type else 'N/A',
+                'strength': signal.strength,
+                'confidence_score': signal.confidence_score,
+                'confidence_level': signal.confidence_level,
+                'entry_price': signal.entry_price,
+                'target_price': signal.target_price,
+                'stop_loss': signal.stop_loss,
+                'risk_reward_ratio': signal.risk_reward_ratio,
+                'timeframe': signal.timeframe or '1D',
+                'entry_point_type': signal.entry_point_type or 'UNKNOWN',
+                'entry_point_details': signal.entry_point_details,
+                'entry_zone_low': signal.entry_zone_low,
+                'entry_zone_high': signal.entry_zone_high,
+                'entry_confidence': signal.entry_confidence,
+                'quality_score': signal.quality_score,
+                'is_valid': signal.is_valid,
+                'expires_at': signal.expires_at,
+                'technical_score': signal.technical_score,
+                'sentiment_score': signal.sentiment_score,
+                'news_score': signal.news_score,
+                'volume_score': signal.volume_score,
+                'pattern_score': signal.pattern_score,
+                'economic_score': signal.economic_score,
+                'sector_score': signal.sector_score,
+                'is_executed': signal.is_executed,
+                'executed_at': signal.executed_at,
+                'execution_price': signal.execution_price,
+                'is_profitable': is_profitable,
+                'profit_loss': signal.profit_loss,
+                'performance_percentage': performance_percentage,
+                'analyzed_at': signal.analyzed_at,
+                'archived_at': signal.executed_at or signal.created_at,  # Use executed_at as archived_at
+                'archived_reason': 'EXECUTED' if signal.is_executed else 'EXPIRED',
+                'notes': signal.notes,
+                'created_at': signal.created_at,
+                'updated_at': signal.updated_at,
+            }
+            processed_signals.append(signal_data)
+        
+        # Get unique values for filters
+        unique_signal_types = list(TradingSignal.objects.filter(
+            created_at__gte=start_date, created_at__lte=end_date
+        ).values_list('signal_type__name', flat=True).distinct().exclude(signal_type__name__isnull=True))
+        
+        unique_reasons = ['EXECUTED', 'EXPIRED', 'MANUAL_ARCHIVE', 'SYSTEM_CLEANUP']
+        
+        # Calculate statistics
+        total_count = total_signals
+        recent_archived = TradingSignal.objects.filter(
+            created_at__gte=timezone.now() - timedelta(days=1),
+            created_at__lte=timezone.now()
+        ).count()
+        
+        # Pagination info
+        total_pages = (total_count + per_page - 1) // per_page
+        has_prev = page > 1
+        has_next = page < total_pages
+        
+        # Calculate page range for pagination
+        start_page = max(1, page - 2)
+        end_page = min(total_pages, page + 2)
+        page_range = range(start_page, end_page + 1)
+        
+        context = {
+            'signals': processed_signals,
+            'total_count': total_count,
+            'total_pages': total_pages,
+            'page': page,
+            'per_page': per_page,
+            'has_prev': has_prev,
+            'has_next': has_next,
+            'page_range': page_range,
+            'recent_archived': recent_archived,
+            'unique_signal_types': unique_signal_types,
+            'unique_reasons': unique_reasons,
+            'current_filters': {
+                'symbol': symbol,
+                'signal_type': signal_type,
+                'archived_reason': archived_reason,
+                'days': days,
+            }
+        }
+        
+        return render(request, 'signals/history.html', context)
+        
+    except Exception as e:
+        logger.error(f"Error rendering signal history: {e}")
+        return render(request, 'signals/history.html', {'error': str(e)})
+
+
+@login_required
+def spot_signals_dashboard(request):
+    """Spot trading signals dashboard view"""
+    try:
+        from apps.signals.models import SpotTradingSignal
+        
+        # Get query parameters
+        symbol = request.GET.get('symbol', '')
+        category = request.GET.get('category', '')
+        horizon = request.GET.get('horizon', '')
+        page = int(request.GET.get('page', 1))
+        per_page = int(request.GET.get('per_page', 20))
+        
+        # Build query
+        query = Q()
+        if symbol:
+            query &= Q(symbol__symbol__icontains=symbol)
+        if category:
+            query &= Q(signal_category__icontains=category)
+        if horizon:
+            query &= Q(investment_horizon__icontains=horizon)
+        
+        # Get spot signals with pagination
+        spot_signals = SpotTradingSignal.objects.select_related(
+            'symbol'
+        ).filter(query, is_active=True).order_by('-created_at')
+        
+        # Calculate pagination
+        total_spot_signals = spot_signals.count()
+        start_index = (page - 1) * per_page
+        end_index = start_index + per_page
+        spot_signals_page = spot_signals[start_index:end_index]
+        
+        # Get available symbols and categories for filters
+        available_symbols = Symbol.objects.filter(is_active=True, is_crypto_symbol=True).order_by('symbol')
+        
+        # Calculate statistics
+        total_accumulation = SpotTradingSignal.objects.filter(signal_category='ACCUMULATION', is_active=True).count()
+        total_dca = SpotTradingSignal.objects.filter(signal_category='DCA', is_active=True).count()
+        total_distribution = SpotTradingSignal.objects.filter(signal_category='DISTRIBUTION', is_active=True).count()
+        total_hold = SpotTradingSignal.objects.filter(signal_category='HOLD', is_active=True).count()
+        
+        # Calculate average scores
+        avg_fundamental = SpotTradingSignal.objects.filter(is_active=True).aggregate(
+            avg=Avg('fundamental_score')
+        )['avg'] or 0
+        
+        avg_technical = SpotTradingSignal.objects.filter(is_active=True).aggregate(
+            avg=Avg('technical_score')
+        )['avg'] or 0
+        
+        avg_sentiment = SpotTradingSignal.objects.filter(is_active=True).aggregate(
+            avg=Avg('sentiment_score')
+        )['avg'] or 0
+        
+        context = {
+            'spot_signals': spot_signals_page,
+            'total_spot_signals': total_spot_signals,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total_spot_signals + per_page - 1) // per_page,
+            'available_symbols': available_symbols,
+            'current_symbol': symbol,
+            'current_category': category,
+            'current_horizon': horizon,
+            'statistics': {
+                'total_accumulation': total_accumulation,
+                'total_dca': total_dca,
+                'total_distribution': total_distribution,
+                'total_hold': total_hold,
+                'avg_fundamental': round(avg_fundamental * 100, 1),
+                'avg_technical': round(avg_technical * 100, 1),
+                'avg_sentiment': round(avg_sentiment * 100, 1),
+            }
+        }
+        
+        return render(request, 'signals/spot_dashboard.html', context)
+        
+    except Exception as e:
+        logger.error(f"Error rendering spot signals dashboard: {e}")
+        return render(request, 'signals/spot_dashboard.html', {'error': str(e)})
+
+
+@login_required
+def backtesting_signals_history(request):
+    """Backtesting signals history view - shows only backtesting signals"""
+    try:
+        # Get query parameters
+        symbol = request.GET.get('symbol', '')
+        signal_type = request.GET.get('signal_type', '')
+        page = int(request.GET.get('page', 1))
+        per_page = int(request.GET.get('per_page', 50))
+        
+        # Build query - show only backtesting signals
+        query = Q()
+        
+        # Filter by symbol
+        if symbol:
+            query &= Q(symbol__symbol__icontains=symbol)
+        
+        # Filter by signal type
+        if signal_type:
+            query &= Q(signal_type__name__icontains=signal_type)
+        
+        # Show only backtesting signals
+        query &= Q(metadata__is_backtesting=True)
+        
+        # Get signals with pagination
+        signals = TradingSignal.objects.select_related(
+            'symbol', 'signal_type'
+        ).filter(query).order_by('-created_at')
+        
+        # Calculate pagination
+        total_signals = signals.count()
+        start_index = (page - 1) * per_page
+        end_index = start_index + per_page
+        signals_page = signals[start_index:end_index]
+        
+        # Transform signals to match template expectations
+        processed_signals = []
+        for signal in signals_page:
+            # Calculate performance if executed
+            is_profitable = None
+            performance_percentage = None
+            
+            if signal.is_executed and signal.execution_price and signal.target_price:
+                if signal.signal_type.name == 'BUY':
+                    performance = ((float(signal.target_price) - float(signal.execution_price)) / float(signal.execution_price)) * 100
+                else:  # SELL
+                    performance = ((float(signal.execution_price) - float(signal.target_price)) / float(signal.execution_price)) * 100
+                
+                is_profitable = performance > 0
+                performance_percentage = round(performance, 2)
+            
+            signal_data = {
+                'id': signal.id,
+                'symbol': signal.symbol.symbol,
+                'symbol_name': signal.symbol.name,
+                'signal_type': signal.signal_type.name,
+                'signal_type_color': signal.signal_type.color,
+                'strength': signal.strength,
+                'confidence_score': signal.confidence_score,
+                'confidence_level': signal.confidence_level,
+                'entry_price': signal.entry_price,
+                'target_price': signal.target_price,
+                'stop_loss': signal.stop_loss,
+                'risk_reward_ratio': signal.risk_reward_ratio,
+                'timeframe': signal.timeframe,
+                'entry_point_type': signal.entry_point_type,
+                'quality_score': signal.quality_score,
+                'is_valid': signal.is_valid,
+                'expires_at': signal.expires_at,
+                'technical_score': signal.technical_score,
+                'sentiment_score': signal.sentiment_score,
+                'news_score': signal.news_score,
+                'volume_score': signal.volume_score,
+                'pattern_score': signal.pattern_score,
+                'economic_score': signal.economic_score,
+                'sector_score': signal.sector_score,
+                'is_executed': signal.is_executed,
+                'executed_at': signal.executed_at,
+                'execution_price': signal.execution_price,
+                'is_profitable': is_profitable,
+                'profit_loss': signal.profit_loss,
+                'performance_percentage': performance_percentage,
+                'analyzed_at': signal.analyzed_at,
+                'notes': signal.notes,
+                'created_at': signal.created_at,
+                'updated_at': signal.updated_at,
+                'is_backtesting': True,  # Mark as backtesting signal
+            }
+            processed_signals.append(signal_data)
+        
+        # Get unique values for filters
+        unique_signal_types = list(TradingSignal.objects.filter(
+            metadata__is_backtesting=True
+        ).values_list('signal_type__name', flat=True).distinct().exclude(signal_type__name__isnull=True))
+        
+        # Pagination info
+        total_pages = (total_signals + per_page - 1) // per_page
+        has_prev = page > 1
+        has_next = page < total_pages
+        
+        # Calculate page range for pagination
+        start_page = max(1, page - 2)
+        end_page = min(total_pages, page + 2)
+        page_range = range(start_page, end_page + 1)
+        
+        context = {
+            'signals': processed_signals,
+            'total_count': total_signals,
+            'total_pages': total_pages,
+            'page': page,
+            'per_page': per_page,
+            'has_prev': has_prev,
+            'has_next': has_next,
+            'page_range': page_range,
+            'unique_signal_types': unique_signal_types,
+            'current_filters': {
+                'symbol': symbol,
+                'signal_type': signal_type,
+            },
+            'is_backtesting_view': True,
+        }
+        
+        return render(request, 'signals/backtesting_history.html', context)
+        
+    except Exception as e:
+        logger.error(f"Error rendering backtesting signals history: {e}")
+        return render(request, 'signals/backtesting_history.html', {'error': str(e)})
+
+
+@login_required
+def duplicate_signals_dashboard(request):
+    """Duplicate signals removal dashboard"""
+    try:
+        return render(request, 'signals/duplicate_signals.html')
+    except Exception as e:
+        logger.error(f"Error in duplicate_signals_dashboard: {e}")
+        return render(request, 'signals/duplicate_signals.html', {'error': str(e)})
 
 
 @require_http_methods(["GET"])

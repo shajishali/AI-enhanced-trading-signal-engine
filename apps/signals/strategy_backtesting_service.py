@@ -55,14 +55,7 @@ class StrategyBacktestingService:
         """
         Generate historical signals based on YOUR strategy for the given date range
         with minimum frequency requirement (1 signal per 2 months)
-        
-        Args:
-            symbol: Trading symbol
-            start_date: Start date for analysis
-            end_date: End date for analysis
-            
-        Returns:
-            List of signals generated based on your strategy with minimum frequency
+        Includes signal persistence to prevent regeneration
         """
         try:
             logger.info(f"Starting historical signal generation for {symbol.symbol} from {start_date} to {end_date}")
@@ -74,58 +67,71 @@ class StrategyBacktestingService:
             if end_date.tzinfo is None:
                 end_date = timezone.make_aware(end_date)
             
+            # Check if signals already exist for this period
+            existing_signals = self._get_existing_signals_in_period(symbol, start_date, end_date)
+            if existing_signals:
+                logger.info(f"Found {len(existing_signals)} existing signals for {symbol.symbol} in period, returning cached results")
+                return self._convert_db_signals_to_dict(existing_signals)
+            
             # Get historical data for the symbol
             historical_data = self._get_historical_data(symbol, start_date, end_date)
-            if historical_data.empty:
-                logger.warning(f"No historical data found for {symbol.symbol}")
-                return []
-            
-            logger.info(f"Loaded {len(historical_data)} data points for analysis")
-            
-            # Generate signals day by day
-            signals = []
-            current_date = start_date
-            
-            while current_date <= end_date:
-                try:
-                    # Get data up to current date (no look-ahead bias)
-                    data_up_to_date = historical_data[historical_data.index <= current_date]
-                    
-                    if len(data_up_to_date) < 50:  # Need minimum data for analysis
-                        current_date += timedelta(days=1)
-                        continue
-                    
-                    # Analyze current day for signals
-                    daily_signals = self._analyze_daily_signals(symbol, data_up_to_date, current_date)
-                    signals.extend(daily_signals)
-                    
-                except Exception as e:
-                    logger.error(f"Error analyzing signals for {current_date}: {e}")
-                
-                current_date += timedelta(days=1)
-            
-            logger.info(f"Generated {len(signals)} natural signals for {symbol.symbol}")
-            
-            # Calculate minimum signals required (1 signal per 2 months)
-            days_diff = (end_date - start_date).days
-            min_signals_required = max(1, days_diff // 60)  # 60 days = 2 months
-            
-            logger.info(f"Minimum signals required: {min_signals_required} (1 per 2 months)")
-            
-            # If we don't have enough signals, generate additional ones
-            if len(signals) < min_signals_required:
-                additional_signals_needed = min_signals_required - len(signals)
-                logger.info(f"Generating {additional_signals_needed} additional signals to meet minimum frequency")
-                
-                additional_signals = self._generate_additional_signals(
-                    symbol, historical_data, start_date, end_date, 
-                    additional_signals_needed, signals
-                )
-                signals.extend(additional_signals)
-                
-                logger.info(f"Total signals after frequency adjustment: {len(signals)}")
+            if historical_data.empty or not self._validate_historical_data(historical_data):
+                logger.warning(f"No valid historical data found for {symbol.symbol}")
+                # Don't generate fallback signals - return empty list
+                signals = []
+                logger.info(f"No valid data available for {symbol.symbol}, skipping signal generation")
             else:
-                logger.info(f"Natural signals ({len(signals)}) exceed minimum requirement ({min_signals_required})")
+                logger.info(f"Loaded {len(historical_data)} data points for analysis")
+                
+                # Generate signals day by day
+                signals = []
+                current_date = start_date
+                
+                while current_date <= end_date:
+                    try:
+                        # Get data up to current date (no look-ahead bias)
+                        data_up_to_date = historical_data[historical_data.index <= current_date]
+                        
+                        if len(data_up_to_date) < 50:  # Need minimum data for analysis
+                            current_date += timedelta(days=1)
+                            continue
+                        
+                        # Analyze current day for signals
+                        daily_signals = self._analyze_daily_signals(symbol, data_up_to_date, current_date)
+                        signals.extend(daily_signals)
+                        
+                    except Exception as e:
+                        logger.error(f"Error analyzing signals for {current_date}: {e}")
+                    
+                    current_date += timedelta(days=1)
+                
+                logger.info(f"Generated {len(signals)} natural signals for {symbol.symbol}")
+                
+                # Calculate minimum signals required (1 signal per 2 months)
+                days_diff = (end_date - start_date).days
+                min_signals_required = max(1, days_diff // 60)  # 60 days = 2 months
+                
+                logger.info(f"Minimum signals required: {min_signals_required} (1 per 2 months)")
+                
+                # If we don't have enough signals, generate additional ones
+                if len(signals) < min_signals_required:
+                    additional_signals_needed = min_signals_required - len(signals)
+                    logger.info(f"Generating {additional_signals_needed} additional signals to meet minimum frequency")
+                    
+                    additional_signals = self._generate_additional_signals(
+                        symbol, historical_data, start_date, end_date, 
+                        additional_signals_needed, signals
+                    )
+                    signals.extend(additional_signals)
+                    
+                    logger.info(f"Total signals after frequency adjustment: {len(signals)}")
+                else:
+                    logger.info(f"Natural signals ({len(signals)}) exceed minimum requirement ({min_signals_required})")
+            
+            # Save signals to database to prevent regeneration
+            if signals:
+                self._save_signals_to_database(signals, symbol)
+                logger.info(f"Saved {len(signals)} signals to database for {symbol.symbol}")
             
             # Log summary if no signals generated
             if len(signals) == 0 and self.enable_debug_logging:
@@ -142,6 +148,31 @@ class StrategyBacktestingService:
             logger.error(f"Error in historical signal generation: {e}")
             return []
     
+    
+    def _validate_historical_data(self, df: pd.DataFrame) -> bool:
+        """Validate that historical data has realistic prices"""
+        if df.empty:
+            return False
+        
+        # Check if prices are realistic (not fallback prices)
+        close_prices = df['close'].values
+        if len(close_prices) == 0:
+            return False
+        
+        # Check if prices are too low (likely fallback data)
+        min_price = close_prices.min()
+        if min_price < 1.0:  # Most crypto prices should be > $1
+            logger.warning(f"Prices too low ({min_price}), likely fallback data")
+            return False
+        
+        # Check if prices are reasonable
+        max_price = close_prices.max()
+        if max_price > 1000000:  # Sanity check
+            logger.warning(f"Prices too high ({max_price}), likely invalid data")
+            return False
+        
+        return True
+
     def _get_historical_data(self, symbol: Symbol, start_date: datetime, end_date: datetime) -> pd.DataFrame:
         """Get historical market data for the symbol"""
         try:
@@ -841,3 +872,270 @@ class StrategyBacktestingService:
             logger.error(f"Error generating trend-following signal: {e}")
         
         return None
+    
+    def _generate_fallback_signals(self, symbol: Symbol, start_date: datetime, end_date: datetime) -> List[Dict]:
+        """
+        Generate fallback signals when no historical data is available
+        Ensures minimum frequency requirement (1 signal per 2 months)
+        Uses deterministic approach to guarantee unique signals
+        """
+        fallback_signals = []
+        
+        try:
+            logger.info(f"Generating fallback signals for {symbol.symbol} to meet minimum frequency")
+            
+            # Calculate minimum signals needed (1 per 2 months)
+            days_diff = (end_date - start_date).days
+            min_signals = max(1, days_diff // 60)  # 60 days = 2 months
+            
+            logger.info(f"Minimum signals required: {min_signals} (1 per 2 months)")
+            
+            # Check for existing signals to avoid duplicates
+            existing_signals = self._get_existing_signals_in_period(symbol, start_date, end_date)
+            existing_dates = {signal.created_at.date() for signal in existing_signals}
+            
+            logger.info(f"Found {len(existing_signals)} existing signals in period, avoiding duplicates")
+            
+            # Generate signals using deterministic date selection
+            signals_generated = 0
+            current_date = start_date
+            
+            # Calculate exact intervals for signal distribution
+            interval_days = days_diff // min_signals if min_signals > 0 else 30
+            
+            # Create a list of all available dates in the period
+            available_dates = []
+            temp_date = start_date
+            while temp_date <= end_date:
+                if temp_date.date() not in existing_dates:
+                    available_dates.append(temp_date)
+                temp_date += timedelta(days=1)
+            
+            # Select specific dates for signals using deterministic algorithm
+            selected_dates = []
+            if len(available_dates) >= min_signals:
+                # Use evenly spaced dates
+                step = len(available_dates) // min_signals
+                for i in range(min_signals):
+                    if i * step < len(available_dates):
+                        selected_dates.append(available_dates[i * step])
+            else:
+                # Use all available dates if we don't have enough
+                selected_dates = available_dates
+            
+            # Generate signals for selected dates
+            for i, signal_date in enumerate(selected_dates):
+                signal = self._generate_simple_fallback_signal(symbol, signal_date, i)
+                if signal:
+                    fallback_signals.append(signal)
+                    signals_generated += 1
+                    logger.info(f"Generated fallback {signal['signal_type']} signal for {symbol.symbol} on {signal_date.date()}")
+            
+            logger.info(f"Generated {len(fallback_signals)} fallback signals for {symbol.symbol}")
+            
+        except Exception as e:
+            logger.error(f"Error generating fallback signals: {e}")
+        
+        return fallback_signals
+    
+    def _save_signals_to_database(self, signals: List[Dict], symbol: Symbol) -> None:
+        """Save generated signals to database to prevent regeneration"""
+        try:
+            from apps.signals.models import TradingSignal, SignalType
+            from decimal import Decimal
+            
+            signal_objects = []
+            for signal in signals:
+                # Get or create signal type
+                signal_type, created = SignalType.objects.get_or_create(
+                    name=signal['signal_type'],
+                    defaults={'description': f'{signal["signal_type"]} signal type'}
+                )
+                
+                # Create TradingSignal object
+                signal_obj = TradingSignal(
+                    symbol=symbol,
+                    signal_type=signal_type,
+                    entry_price=Decimal(str(signal['entry_price'])),
+                    target_price=Decimal(str(signal['target_price'])),
+                    stop_loss=Decimal(str(signal['stop_loss'])),
+                    confidence_score=signal['confidence_score'],
+                    confidence_level=signal.get('strength', 'MEDIUM'),
+                    risk_reward_ratio=signal['risk_reward_ratio'],
+                    timeframe=signal.get('timeframe', '1D'),
+                    entry_point_type=signal.get('entry_point_type', 'FALLBACK'),
+                    quality_score=signal.get('quality_score', 0.6),
+                    strength=signal.get('strength', 'MEDIUM'),
+                    notes=f"Generated signal for {symbol.symbol}",
+                    is_valid=True,
+                    expires_at=timezone.now() + timedelta(hours=24),
+                    created_at=datetime.fromisoformat(signal['created_at'].replace('Z', '+00:00')),
+                    is_hybrid=False,
+                    metadata={
+                    **signal.get('strategy_details', {}),
+                    'is_backtesting': True,
+                    'signal_source': 'BACKTESTING'
+                }
+                )
+                
+                signal_objects.append(signal_obj)
+            
+            # Bulk create signals
+            TradingSignal.objects.bulk_create(signal_objects, ignore_conflicts=True)
+            logger.info(f"Successfully saved {len(signal_objects)} signals to database")
+            
+        except Exception as e:
+            logger.error(f"Error saving signals to database: {e}")
+    
+    def _convert_db_signals_to_dict(self, db_signals: List) -> List[Dict]:
+        """Convert database signals to dictionary format"""
+        try:
+            signals = []
+            for signal in db_signals:
+                signal_dict = {
+                    'id': f"db_{signal.id}",
+                    'symbol': signal.symbol.symbol,
+                    'signal_type': signal.signal_type.name,
+                    'strength': signal.strength,
+                    'confidence_score': float(signal.confidence_score),
+                    'entry_price': float(signal.entry_price),
+                    'target_price': float(signal.target_price),
+                    'stop_loss': float(signal.stop_loss),
+                    'risk_reward_ratio': float(signal.risk_reward_ratio),
+                    'timeframe': signal.timeframe,
+                    'quality_score': float(signal.quality_score),
+                    'created_at': signal.created_at.isoformat(),
+                    'strategy_confirmations': signal.metadata.get('confirmations', 1),
+                    'strategy_details': signal.metadata
+                }
+                signals.append(signal_dict)
+            
+            return signals
+            
+        except Exception as e:
+            logger.error(f"Error converting DB signals to dict: {e}")
+            return []
+    
+    def _get_existing_signals_in_period(self, symbol: Symbol, start_date: datetime, end_date: datetime) -> List:
+        """Get existing signals in the period to avoid duplicates"""
+        try:
+            from apps.signals.models import TradingSignal
+            
+            existing_signals = TradingSignal.objects.filter(
+                symbol=symbol,
+                created_at__gte=start_date,
+                created_at__lte=end_date
+            ).order_by('created_at')
+            
+            return list(existing_signals)
+            
+        except Exception as e:
+            logger.error(f"Error getting existing signals: {e}")
+            return []
+    
+    def _generate_simple_fallback_signal(self, symbol: Symbol, current_date: datetime, signals_generated: int) -> Dict:
+        """
+        Generate a simple fallback signal with basic parameters
+        Uses deterministic approach to ensure unique signals
+        """
+        try:
+            # Get a reasonable price for the symbol
+            base_price = self._get_fallback_price_for_symbol(symbol)
+            
+            # Alternate between BUY and SELL signals
+            signal_type = 'BUY' if signals_generated % 2 == 0 else 'SELL'
+            
+            # Create unique price variation based on signal index and date
+            # This ensures each signal has a unique price
+            import random
+            import hashlib
+            
+            # Create a unique seed based on symbol, date, and signal index
+            seed_string = f"{symbol.symbol}_{current_date.date()}_{signals_generated}"
+            seed_hash = int(hashlib.md5(seed_string.encode()).hexdigest()[:8], 16)
+            random.seed(seed_hash)
+            
+            # Generate unique price variation
+            price_variation = 0.90 + (random.random() * 0.20)  # 90% to 110%
+            entry_price = base_price * price_variation
+            
+            # Add some randomness to target and stop loss percentages
+            if signal_type == 'BUY':
+                # For BUY signals: entry price, target above entry, stop loss below entry
+                target_multiplier = 1.12 + (random.random() * 0.06)  # 12% to 18%
+                stop_multiplier = 0.88 + (random.random() * 0.08)   # 88% to 96%
+                target_price = entry_price * target_multiplier
+                stop_loss = entry_price * stop_multiplier
+                risk_reward = (target_multiplier - 1) / (1 - stop_multiplier)
+            else:
+                # For SELL signals: entry price, target below entry, stop loss above entry
+                target_multiplier = 0.82 + (random.random() * 0.06)  # 82% to 88%
+                stop_multiplier = 1.12 + (random.random() * 0.08)   # 112% to 120%
+                target_price = entry_price * target_multiplier
+                stop_loss = entry_price * stop_multiplier
+                risk_reward = (1 - target_multiplier) / (stop_multiplier - 1)
+            
+            # Create unique signal ID based on symbol, date, and type
+            signal_id = f"{symbol.symbol}_{current_date.strftime('%Y%m%d')}_{signal_type}_{signals_generated}"
+            
+            signal = {
+                'id': signal_id,
+                'symbol': symbol.symbol,
+                'signal_type': signal_type,
+                'strength': 'MEDIUM',
+                'confidence_score': 0.6,
+                'entry_price': round(entry_price, 2),
+                'target_price': round(target_price, 2),
+                'stop_loss': round(stop_loss, 2),
+                'risk_reward_ratio': round(risk_reward, 2),
+                'timeframe': '1D',
+                'quality_score': 0.6,
+                'created_at': current_date.isoformat(),
+                'strategy_confirmations': 1,
+                'strategy_details': {
+                    'signal_source': 'FALLBACK_GENERATION',
+                    'reason': 'Minimum frequency requirement - no historical data available',
+                    'base_price': base_price,
+                    'price_variation': price_variation,
+                    'signal_id': signal_id,
+                    'take_profit_percentage': 15.0,
+                    'stop_loss_percentage': 8.0
+                }
+            }
+            
+            return signal
+            
+        except Exception as e:
+            logger.error(f"Error generating fallback signal: {e}")
+            return None
+    
+    def _get_fallback_price_for_symbol(self, symbol: Symbol) -> float:
+        """
+        Get a reasonable fallback price for a symbol
+        """
+        try:
+            # Try to get latest market data
+            latest_market_data = MarketData.objects.filter(
+                symbol=symbol
+            ).order_by('-timestamp').first()
+            
+            if latest_market_data and latest_market_data.close_price > 0:
+                return float(latest_market_data.close_price)
+            
+            # Fallback to reasonable default prices for major cryptocurrencies
+            default_prices = {
+                'BTC': 100000.0, 'ETH': 4000.0, 'BNB': 600.0, 'ADA': 1.0, 'SOL': 200.0,
+                'XRP': 2.0, 'DOGE': 0.4, 'MATIC': 1.0, 'DOT': 8.0, 'AVAX': 40.0,
+                'LINK': 20.0, 'UNI': 15.0, 'ATOM': 12.0, 'FTM': 1.2, 'ALGO': 0.3,
+                'AAVE': 300.0, 'COMP': 200.0, 'CRV': 2.0, 'SUSHI': 3.0, 'YFI': 10000.0,
+                'SNX': 5.0, 'BAL': 20.0, 'REN': 0.5, 'KNC': 2.0, 'ZRX': 1.0,
+                'VET': 0.05, 'ICP': 15.0, 'THETA': 2.0, 'SAND': 0.5, 'MANA': 0.8,
+                'LTC': 150.0, 'BCH': 500.0, 'ETC': 30.0, 'XLM': 0.3, 'TRX': 0.2,
+                'XMR': 200.0, 'ZEC': 50.0, 'DASH': 80.0, 'NEO': 25.0, 'QTUM': 5.0
+            }
+            
+            return default_prices.get(symbol.symbol, 100.0)  # Default to $100 for unknown symbols
+            
+        except Exception as e:
+            logger.error(f"Error getting fallback price: {e}")
+            return 100.0

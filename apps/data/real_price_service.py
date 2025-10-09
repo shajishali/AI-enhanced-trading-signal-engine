@@ -17,7 +17,7 @@ class RealPriceService:
     def __init__(self):
         self.binance_api = "https://api.binance.com/api/v3"
         self.coingecko_api = "https://api.coingecko.com/api/v3"
-        self.cache_timeout = 30  # Cache prices for 30 seconds
+        self.cache_timeout = 300  # Cache prices for 5 minutes instead of 30 seconds
         
         # Supported symbols for live data - 200+ popular cryptocurrencies
         self.live_symbols = [
@@ -129,7 +129,7 @@ class RealPriceService:
         """Fetch prices from Binance API"""
         try:
             url = f"{self.binance_api}/ticker/24hr"
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, timeout=5)
             
             if response.status_code == 200:
                 data = response.json()
@@ -176,7 +176,7 @@ class RealPriceService:
                 'include_24hr_vol': 'true'
             }
             
-            response = requests.get(url, params=params, timeout=10)
+            response = requests.get(url, params=params, timeout=5)
             
             if response.status_code == 200:
                 data = response.json()
