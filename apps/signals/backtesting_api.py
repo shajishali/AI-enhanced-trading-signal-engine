@@ -129,7 +129,19 @@ class BacktestAPIView(View):
                     })
                 
                 logger.info(f"Returning {len(formatted_signals)} cached signals from database")
-                return JsonResponse({
+                
+                # PHASE 2: Analyze existing signals
+                signal_analysis = None
+                if formatted_signals:
+                    try:
+                        signal_analysis = self._analyze_generated_signals(symbol, start_date, end_date)
+                        logger.info(f"Analysis completed for existing signals: {signal_analysis['total_summary']['total_signals']} signals analyzed")
+                    except Exception as e:
+                        logger.error(f"Error analyzing existing signals for {symbol.symbol}: {e}")
+                        signal_analysis = None
+                
+                # Prepare response data
+                response_data = {
                     'success': True,
                     'action': 'generate_signals',
                     'signals': formatted_signals,
@@ -147,7 +159,14 @@ class BacktestAPIView(View):
                         'rsi_sell_range': [50, 80],
                         'volume_threshold': 1.2
                     }
-                })
+                }
+                
+                # PHASE 2: Add analysis results to response
+                if signal_analysis:
+                    response_data['signal_analysis'] = signal_analysis
+                    logger.info(f"Added signal analysis to response for existing signals")
+                
+                return JsonResponse(response_data)
             
             # No existing signals found, generate new ones
             logger.info(f"No existing signals found for {symbol.symbol}, generating new ones")
@@ -185,6 +204,16 @@ class BacktestAPIView(View):
             
             logger.info(f"Generated {len(formatted_signals)} new signals using YOUR strategy for {symbol.symbol}")
             
+            # PHASE 2: Analyze the generated signals immediately
+            signal_analysis = None
+            if formatted_signals:
+                try:
+                    signal_analysis = self._analyze_generated_signals(symbol, start_date, end_date)
+                    logger.info(f"Analysis completed for {symbol.symbol}: {signal_analysis['total_summary']['total_signals']} signals analyzed")
+                except Exception as e:
+                    logger.error(f"Error analyzing signals for {symbol.symbol}: {e}")
+                    signal_analysis = None
+            
             # Check if no signals were generated and provide helpful message
             no_signals_reason = None
             if len(formatted_signals) == 0:
@@ -201,7 +230,8 @@ class BacktestAPIView(View):
                 else:
                     no_signals_reason = f"Your strategy analyzed {data_count} data points for {symbol.symbol} but found no signals meeting your criteria. This is normal - your strategy is selective and only generates high-quality signals."
             
-            return JsonResponse({
+            # Prepare response data
+            response_data = {
                 'success': True,
                 'action': 'generate_signals',
                 'signals': formatted_signals,
@@ -220,7 +250,14 @@ class BacktestAPIView(View):
                     'rsi_sell_range': [50, 80],
                     'volume_threshold': 1.2
                 }
-            })
+            }
+            
+            # PHASE 2: Add analysis results to response
+            if signal_analysis:
+                response_data['signal_analysis'] = signal_analysis
+                logger.info(f"Added signal analysis to response for {symbol.symbol}")
+            
+            return JsonResponse(response_data)
             
         except Exception as e:
             logger.error(f"Error generating historical signals with YOUR strategy: {e}")
@@ -249,6 +286,57 @@ class BacktestAPIView(View):
         except Exception as e:
             logger.error(f"Error running backtest: {e}")
             return JsonResponse({'success': False, 'error': str(e)})
+    
+    def _analyze_generated_signals(self, symbol, start_date, end_date):
+        """PHASE 2: Analyze the generated signals using the coin performance analyzer"""
+        try:
+            from apps.signals.coin_performance_analyzer import CoinPerformanceAnalyzer
+            
+            # Initialize the analyzer
+            analyzer = CoinPerformanceAnalyzer()
+            
+            # Analyze the signals for this symbol and period
+            analysis = analyzer.analyze_coin_signals(symbol, start_date, end_date)
+            
+            # Get strategy quality rating
+            quality_rating = analyzer.get_strategy_quality_rating(analysis)
+            
+            # Add quality rating to analysis
+            analysis['strategy_quality'] = quality_rating
+            
+            logger.info(f"Signal analysis completed for {symbol.symbol}: {analysis['total_summary']['total_signals']} signals, {analysis['total_summary']['total_profit_percentage']:.2f}% profit")
+            
+            return analysis
+            
+        except Exception as e:
+            logger.error(f"Error analyzing signals for {symbol.symbol}: {e}")
+            # Return empty analysis on error
+            return {
+                'symbol': symbol.symbol,
+                'symbol_name': symbol.name,
+                'analysis_date': timezone.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'period': {
+                    'start_date': start_date.strftime('%Y-%m-%d'),
+                    'end_date': end_date.strftime('%Y-%m-%d'),
+                    'days': (end_date - start_date).days
+                },
+                'total_summary': {
+                    'total_signals': 0,
+                    'profit_signals': 0,
+                    'loss_signals': 0,
+                    'not_opened_signals': 0,
+                    'total_investment': 0,
+                    'total_profit_loss': 0,
+                    'total_profit_percentage': 0
+                },
+                'individual_signals': [],
+                'strategy_quality': {
+                    'quality_score': 0,
+                    'quality_rating': 'Error',
+                    'recommendation': f'Error analyzing signals: {str(e)}',
+                    'metrics': {'profit_rate': 0, 'execution_rate': 0, 'profit_percentage': 0}
+                }
+            }
 
 
 class BacktestSearchAPIView(View):

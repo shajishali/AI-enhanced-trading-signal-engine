@@ -611,11 +611,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (result.action === 'generate_signals') {
                     if (result.signals && result.signals.length > 0) {
                         displaySignals(result.signals);
-                        displayStrategyInfo(result.strategy_details);
+                        
+                        // PHASE 3: Display signal analysis if available
+                        if (result.signal_analysis) {
+                            displaySignalAnalysis(result.signal_analysis, result.symbol);
+                        }
                     } else {
                         // No signals generated - show appropriate message
                         displayNoSignalsMessage(result.no_signals_reason);
-                        displayStrategyInfo(result.strategy_details);
                     }
                     loadSearchHistory(); // Refresh history
                 } else {
@@ -632,37 +635,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    function displayStrategyInfo(strategyDetails) {
-        if (!strategyDetails) return;
-        
-        // Create strategy info panel
-        const strategyPanel = document.createElement('div');
-        strategyPanel.className = 'alert alert-success mt-3';
-        strategyPanel.innerHTML = `
-            <h6><i class="fas fa-check-circle me-2"></i>Strategy Analysis Complete</h6>
-            <p class="mb-2">Signals generated using YOUR actual trading strategy with the following parameters:</p>
-            <div class="row">
-                <div class="col-md-6">
-                    <ul class="list-unstyled mb-0">
-                        <li><strong>Take Profit:</strong> ${strategyDetails.take_profit_percentage}%</li>
-                        <li><strong>Stop Loss:</strong> ${strategyDetails.stop_loss_percentage}%</li>
-                        <li><strong>Min Risk/Reward:</strong> ${strategyDetails.min_risk_reward_ratio}:1</li>
-                    </ul>
-                </div>
-                <div class="col-md-6">
-                    <ul class="list-unstyled mb-0">
-                        <li><strong>RSI Buy Range:</strong> ${strategyDetails.rsi_buy_range[0]}-${strategyDetails.rsi_buy_range[1]}</li>
-                        <li><strong>RSI Sell Range:</strong> ${strategyDetails.rsi_sell_range[0]}-${strategyDetails.rsi_sell_range[1]}</li>
-                        <li><strong>Volume Threshold:</strong> ${strategyDetails.volume_threshold}x</li>
-                    </ul>
-                </div>
-            </div>
-        `;
-        
-        // Insert after the form
-        const form = document.getElementById('backtestForm');
-        form.parentNode.insertBefore(strategyPanel, form.nextSibling);
-    }
     
     function displaySignals(signals) {
         currentSignals = signals;
@@ -1247,6 +1219,474 @@ Average Confidence: ${stats.avgConfidence}%`);
             }
         }, 5000);
     }
+    
+    // PHASE 3: Display signal analysis results in table format
+    function displaySignalAnalysis(analysis, symbol) {
+        // Remove existing analysis container if it exists
+        const existingContainer = document.getElementById('signalAnalysisContainer');
+        if (existingContainer) {
+            existingContainer.remove();
+        }
+        
+        // Create analysis container as part of the results section
+        const analysisContainer = document.createElement('div');
+        analysisContainer.id = 'signalAnalysisContainer';
+        analysisContainer.className = 'mt-4';
+        
+        const summary = analysis.total_summary;
+        const quality = analysis.strategy_quality;
+        
+        // Calculate rates
+        const totalSignals = summary.total_signals;
+        const profitRate = totalSignals > 0 ? (summary.profit_signals / totalSignals * 100) : 0;
+        const lossRate = totalSignals > 0 ? (summary.loss_signals / totalSignals * 100) : 0;
+        const notOpenedRate = totalSignals > 0 ? (summary.not_opened_signals / totalSignals * 100) : 0;
+        
+        analysisContainer.innerHTML = `
+            <h5 class="mb-3">
+                <i class="fas fa-chart-line me-2"></i>Signal Analysis Results - ${symbol}
+            </h5>
+            
+            <!-- Analysis Summary Table -->
+            <div class="table-responsive mb-4">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th colspan="2">Signal Status Breakdown</th>
+                            <th colspan="2">Financial Summary</th>
+                            <th colspan="2">Strategy Quality</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><i class="fas fa-arrow-up text-success me-1"></i>Profit Signals</td>
+                            <td class="text-success fw-bold">${summary.profit_signals} (${profitRate.toFixed(1)}%)</td>
+                            <td>Total Investment</td>
+                            <td class="fw-bold">$${summary.total_investment.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td>Quality Score</td>
+                            <td class="fw-bold ${quality.quality_score >= 70 ? 'text-success' : quality.quality_score >= 50 ? 'text-warning' : 'text-danger'}">${quality.quality_score.toFixed(1)}/100</td>
+                        </tr>
+                        <tr>
+                            <td><i class="fas fa-arrow-down text-danger me-1"></i>Loss Signals</td>
+                            <td class="text-danger fw-bold">${summary.loss_signals} (${lossRate.toFixed(1)}%)</td>
+                            <td>Total Profit/Loss</td>
+                            <td class="fw-bold ${summary.total_profit_loss >= 0 ? 'text-success' : 'text-danger'}">$${summary.total_profit_loss.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td>Quality Rating</td>
+                            <td class="fw-bold ${quality.quality_rating === 'Excellent' ? 'text-success' : quality.quality_rating === 'Good' ? 'text-primary' : quality.quality_rating === 'Fair' ? 'text-warning' : 'text-danger'}">${quality.quality_rating}</td>
+                        </tr>
+                        <tr>
+                            <td><i class="fas fa-pause text-warning me-1"></i>Not Opened</td>
+                            <td class="text-warning fw-bold">${summary.not_opened_signals} (${notOpenedRate.toFixed(1)}%)</td>
+                            <td>Profit Percentage</td>
+                            <td class="fw-bold ${summary.total_profit_percentage >= 0 ? 'text-success' : 'text-danger'}">${summary.total_profit_percentage.toFixed(2)}%</td>
+                            <td>Analysis Date</td>
+                            <td class="small">${analysis.analysis_date}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Progress Bars -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="mb-2">
+                        <small class="text-muted">Profit Signals</small>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-success" style="width: ${profitRate}%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-2">
+                        <small class="text-muted">Loss Signals</small>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-danger" style="width: ${lossRate}%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-2">
+                        <small class="text-muted">Not Opened</small>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-warning" style="width: ${notOpenedRate}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="mb-3">
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="downloadAnalysisCSV('${symbol}')">
+                        <i class="fas fa-download me-1"></i>Download Analysis CSV
+                    </button>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="downloadSignalsOnlyCSV('${symbol}')">
+                        <i class="fas fa-table me-1"></i>Signals Only CSV
+                    </button>
+                    <button type="button" class="btn btn-outline-info btn-sm" onclick="downloadSummaryCSV('${symbol}')">
+                        <i class="fas fa-chart-bar me-1"></i>Summary CSV
+                    </button>
+                </div>
+                <button type="button" class="btn btn-outline-secondary btn-sm ms-2" onclick="toggleSignalDetails()">
+                    <i class="fas fa-list me-1"></i>Show Individual Signals
+                </button>
+            </div>
+            
+            <!-- Individual Signal Details Table -->
+            <div id="signalDetailsContainer" style="display: none;">
+                <h6><i class="fas fa-list me-2"></i>Individual Signal Details</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Type</th>
+                                <th>Entry Price</th>
+                                <th>Status</th>
+                                <th>P/L Amount</th>
+                                <th>P/L %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="signalDetailsTable">
+                            <!-- Individual signals will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        
+        // Add to page under the signals table
+        const resultsSection = document.getElementById('resultsSection');
+        if (resultsSection) {
+            resultsSection.appendChild(analysisContainer);
+        } else {
+            // Fallback: add after the form
+            const form = document.getElementById('backtestForm');
+            form.parentNode.insertBefore(analysisContainer, form.nextSibling);
+        }
+        
+        // Store analysis data for CSV download
+        window.currentAnalysisData = analysis;
+        
+        // Populate individual signals table
+        populateSignalDetailsTable(analysis.individual_signals);
+        
+        // Scroll to analysis
+        analysisContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    
+    // Function to populate individual signals table
+    function populateSignalDetailsTable(signals) {
+        const tbody = document.getElementById('signalDetailsTable');
+        if (!tbody || !signals) return;
+        
+        tbody.innerHTML = '';
+        
+        signals.forEach(signal => {
+            const statusIcon = signal.status === 'PROFIT' ? '✅' : 
+                              signal.status === 'LOSS' ? '❌' : '⏸️';
+            const statusClass = signal.status === 'PROFIT' ? 'text-success' : 
+                               signal.status === 'LOSS' ? 'text-danger' : 'text-warning';
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${signal.date}</td>
+                <td>${signal.time}</td>
+                <td>${signal.signal_type}</td>
+                <td>$${signal.entry_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td class="${statusClass}">${statusIcon} ${signal.status}</td>
+                <td class="${signal.profit_loss_amount >= 0 ? 'text-success' : 'text-danger'}">
+                    $${signal.profit_loss_amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                </td>
+                <td class="${signal.profit_loss_percentage >= 0 ? 'text-success' : 'text-danger'}">
+                    ${signal.profit_loss_percentage.toFixed(2)}%
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+    
+    // Function to toggle signal details visibility
+    function toggleSignalDetails() {
+        const container = document.getElementById('signalDetailsContainer');
+        const button = event.target;
+        
+        if (container.style.display === 'none') {
+            container.style.display = 'block';
+            button.innerHTML = '<i class="fas fa-eye-slash me-2"></i>Hide Individual Signals';
+        } else {
+            container.style.display = 'none';
+            button.innerHTML = '<i class="fas fa-list me-2"></i>Show Individual Signals';
+        }
+    }
+    
+    // Function to download analysis CSV
+    function downloadAnalysisCSV(symbol) {
+        const analysisData = window.currentAnalysisData;
+        
+        if (!analysisData) {
+            showAlert('error', 'No analysis data available for download');
+            return;
+        }
+        
+        // Generate CSV content
+        const csvContent = generateAnalysisCSV(analysisData, symbol);
+        
+        // Download CSV
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${symbol}_signal_analysis_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        showAlert('success', `Analysis CSV downloaded for ${symbol}`);
+    }
+    
+    // Function to generate CSV content
+    function generateAnalysisCSV(analysis, symbol) {
+        const summary = analysis.total_summary;
+        const signals = analysis.individual_signals;
+        const quality = analysis.strategy_quality;
+        
+        let csv = `Signal Analysis Report - ${symbol}\n`;
+        csv += `Analysis Date: ${analysis.analysis_date}\n`;
+        csv += `Period: ${analysis.period.start_date} to ${analysis.period.end_date}\n`;
+        csv += `Generated Signals: ${summary.total_signals}\n\n`;
+        
+        // Summary section
+        csv += 'SIGNAL SUMMARY\n';
+        csv += 'Metric,Value\n';
+        csv += `Total Signals Generated,${summary.total_signals}\n`;
+        csv += `Profit Signals,${summary.profit_signals}\n`;
+        csv += `Loss Signals,${summary.loss_signals}\n`;
+        csv += `Not Opened Signals,${summary.not_opened_signals}\n`;
+        csv += `Total Investment,${summary.total_investment}\n`;
+        csv += `Total Profit/Loss,${summary.total_profit_loss}\n`;
+        csv += `Total Profit Percentage %,${summary.total_profit_percentage}\n\n`;
+        
+        // Strategy quality section
+        csv += 'STRATEGY QUALITY\n';
+        csv += 'Metric,Value\n';
+        csv += `Quality Score,${quality.quality_score}\n`;
+        csv += `Quality Rating,${quality.quality_rating}\n`;
+        csv += `Recommendation,${quality.recommendation}\n\n`;
+        
+        // Individual signals
+        csv += 'INDIVIDUAL SIGNAL ANALYSIS\n';
+        csv += 'Signal ID,Date,Time,Signal Type,Entry Price,Target Price,Stop Loss,Execution Price,Is Executed,Status,Profit/Loss Amount,Profit/Loss %,Confidence Score,Risk/Reward Ratio\n';
+        
+        signals.forEach(signal => {
+            csv += `${signal.signal_id},${signal.date},${signal.time},${signal.signal_type},${signal.entry_price},${signal.target_price},${signal.stop_loss},${signal.execution_price},${signal.is_executed ? 'Yes' : 'No'},${signal.status},${signal.profit_loss_amount},${signal.profit_loss_percentage},${signal.confidence_score},${signal.risk_reward_ratio}\n`;
+        });
+        
+        return csv;
+    }
+    
+    // PHASE 4: Enhanced CSV download functions
+    function downloadSignalsOnlyCSV(symbol) {
+        const analysisData = window.currentAnalysisData;
+        
+        if (!analysisData) {
+            showAlert('error', 'No analysis data available for download');
+            return;
+        }
+        
+        // Generate signals-only CSV content
+        const csvContent = generateSignalsOnlyCSV(analysisData, symbol);
+        
+        // Download CSV
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${symbol}_signals_only_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        showAlert('success', `Signals-only CSV downloaded for ${symbol}`);
+    }
+    
+    function downloadSummaryCSV(symbol) {
+        const analysisData = window.currentAnalysisData;
+        
+        if (!analysisData) {
+            showAlert('error', 'No analysis data available for download');
+            return;
+        }
+        
+        // Generate summary-only CSV content
+        const csvContent = generateSummaryCSV(analysisData, symbol);
+        
+        // Download CSV
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${symbol}_summary_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        showAlert('success', `Summary CSV downloaded for ${symbol}`);
+    }
+    
+    function generateSignalsOnlyCSV(analysis, symbol) {
+        const signals = analysis.individual_signals;
+        
+        let csv = `Individual Signals Report - ${symbol}\n`;
+        csv += `Analysis Date: ${analysis.analysis_date}\n`;
+        csv += `Period: ${analysis.period.start_date} to ${analysis.period.end_date}\n`;
+        csv += `Total Signals: ${signals.length}\n\n`;
+        
+        // Headers
+        csv += 'Signal ID,Date,Time,Signal Type,Entry Price,Target Price,Stop Loss,Execution Price,Is Executed,Status,Profit/Loss Amount,Profit/Loss %,Confidence Score,Risk/Reward Ratio,Quality Score\n';
+        
+        // Signal data
+        signals.forEach(signal => {
+            csv += `${signal.signal_id},${signal.date},${signal.time},${signal.signal_type},${signal.entry_price},${signal.target_price},${signal.stop_loss},${signal.execution_price},${signal.is_executed ? 'Yes' : 'No'},${signal.status},${signal.profit_loss_amount},${signal.profit_loss_percentage},${signal.confidence_score},${signal.risk_reward_ratio},${signal.quality_score || 'N/A'}\n`;
+        });
+        
+        return csv;
+    }
+    
+    function generateSummaryCSV(analysis, symbol) {
+        const summary = analysis.total_summary;
+        const quality = analysis.strategy_quality;
+        
+        let csv = `Strategy Performance Summary - ${symbol}\n`;
+        csv += `Analysis Date: ${analysis.analysis_date}\n`;
+        csv += `Period: ${analysis.period.start_date} to ${analysis.period.end_date}\n`;
+        csv += `Days Analyzed: ${analysis.period.days}\n\n`;
+        
+        // Performance metrics
+        csv += 'PERFORMANCE METRICS\n';
+        csv += 'Metric,Value,Percentage\n';
+        csv += `Total Signals Generated,${summary.total_signals},100.00%\n`;
+        csv += `Profit Signals,${summary.profit_signals},${summary.total_signals > 0 ? (summary.profit_signals / summary.total_signals * 100).toFixed(2) : '0.00'}%\n`;
+        csv += `Loss Signals,${summary.loss_signals},${summary.total_signals > 0 ? (summary.loss_signals / summary.total_signals * 100).toFixed(2) : '0.00'}%\n`;
+        csv += `Not Opened Signals,${summary.not_opened_signals},${summary.total_signals > 0 ? (summary.not_opened_signals / summary.total_signals * 100).toFixed(2) : '0.00'}%\n\n`;
+        
+        // Financial metrics
+        csv += 'FINANCIAL METRICS\n';
+        csv += 'Metric,Value\n';
+        csv += `Total Investment,$${summary.total_investment.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n`;
+        csv += `Total Profit/Loss,$${summary.total_profit_loss.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n`;
+        csv += `Total Profit Percentage,${summary.total_profit_percentage.toFixed(2)}%\n`;
+        csv += `Average Profit per Signal,$${summary.total_signals > 0 ? (summary.total_profit_loss / summary.total_signals).toFixed(2) : '0.00'}\n\n`;
+        
+        // Strategy quality metrics
+        csv += 'STRATEGY QUALITY ASSESSMENT\n';
+        csv += 'Metric,Value\n';
+        csv += `Quality Score,${quality.quality_score}/100\n`;
+        csv += `Quality Rating,${quality.quality_rating}\n`;
+        csv += `Recommendation,"${quality.recommendation}"\n`;
+        
+        if (quality.metrics) {
+            csv += `Profit Rate,${quality.metrics.profit_rate}%\n`;
+            csv += `Execution Rate,${quality.metrics.execution_rate}%\n`;
+            csv += `Profit Percentage,${quality.metrics.profit_percentage}%\n`;
+        }
+        
+        return csv;
+    }
+    
+    // Enhanced analysis CSV with better formatting
+    function generateEnhancedAnalysisCSV(analysis, symbol) {
+        const summary = analysis.total_summary;
+        const signals = analysis.individual_signals;
+        const quality = analysis.strategy_quality;
+        
+        let csv = `COMPREHENSIVE SIGNAL ANALYSIS REPORT\n`;
+        csv += `=====================================\n\n`;
+        csv += `Symbol: ${symbol}\n`;
+        csv += `Analysis Date: ${analysis.analysis_date}\n`;
+        csv += `Period: ${analysis.period.start_date} to ${analysis.period.end_date}\n`;
+        csv += `Days Analyzed: ${analysis.period.days}\n`;
+        csv += `Generated Signals: ${summary.total_signals}\n\n`;
+        
+        // Executive Summary
+        csv += `EXECUTIVE SUMMARY\n`;
+        csv += `================\n`;
+        csv += `Total Signals: ${summary.total_signals}\n`;
+        csv += `Profitable Signals: ${summary.profit_signals} (${summary.total_signals > 0 ? (summary.profit_signals / summary.total_signals * 100).toFixed(1) : '0.0'}%)\n`;
+        csv += `Loss Signals: ${summary.loss_signals} (${summary.total_signals > 0 ? (summary.loss_signals / summary.total_signals * 100).toFixed(1) : '0.0'}%)\n`;
+        csv += `Not Opened Signals: ${summary.not_opened_signals} (${summary.total_signals > 0 ? (summary.not_opened_signals / summary.total_signals * 100).toFixed(1) : '0.0'}%)\n`;
+        csv += `Total Investment: $${summary.total_investment.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n`;
+        csv += `Total Profit/Loss: $${summary.total_profit_loss.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n`;
+        csv += `Overall Performance: ${summary.total_profit_percentage.toFixed(2)}%\n`;
+        csv += `Strategy Quality: ${quality.quality_score}/100 (${quality.quality_rating})\n\n`;
+        
+        // Detailed breakdown
+        csv += `DETAILED BREAKDOWN\n`;
+        csv += `==================\n`;
+        csv += `Metric,Value,Percentage\n`;
+        csv += `Total Signals,${summary.total_signals},100.00%\n`;
+        csv += `Profit Signals,${summary.profit_signals},${summary.total_signals > 0 ? (summary.profit_signals / summary.total_signals * 100).toFixed(2) : '0.00'}%\n`;
+        csv += `Loss Signals,${summary.loss_signals},${summary.total_signals > 0 ? (summary.loss_signals / summary.total_signals * 100).toFixed(2) : '0.00'}%\n`;
+        csv += `Not Opened Signals,${summary.not_opened_signals},${summary.total_signals > 0 ? (summary.not_opened_signals / summary.total_signals * 100).toFixed(2) : '0.00'}%\n\n`;
+        
+        // Financial analysis
+        csv += `FINANCIAL ANALYSIS\n`;
+        csv += `==================\n`;
+        csv += `Total Investment,$${summary.total_investment.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n`;
+        csv += `Total Profit/Loss,$${summary.total_profit_loss.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n`;
+        csv += `Profit Percentage,${summary.total_profit_percentage.toFixed(2)}%\n`;
+        csv += `Average Profit per Signal,$${summary.total_signals > 0 ? (summary.total_profit_loss / summary.total_signals).toFixed(2) : '0.00'}\n`;
+        csv += `Average Investment per Signal,$${summary.total_signals > 0 ? (summary.total_investment / summary.total_signals).toFixed(2) : '0.00'}\n\n`;
+        
+        // Strategy quality assessment
+        csv += `STRATEGY QUALITY ASSESSMENT\n`;
+        csv += `==========================\n`;
+        csv += `Quality Score,${quality.quality_score}/100\n`;
+        csv += `Quality Rating,${quality.quality_rating}\n`;
+        csv += `Recommendation,"${quality.recommendation}"\n\n`;
+        
+        // Individual signals
+        csv += `INDIVIDUAL SIGNAL ANALYSIS\n`;
+        csv += `==========================\n`;
+        csv += `Signal ID,Date,Time,Signal Type,Entry Price,Target Price,Stop Loss,Execution Price,Is Executed,Status,Profit/Loss Amount,Profit/Loss %,Confidence Score,Risk/Reward Ratio\n`;
+        
+        signals.forEach(signal => {
+            csv += `${signal.signal_id},${signal.date},${signal.time},${signal.signal_type},${signal.entry_price},${signal.target_price},${signal.stop_loss},${signal.execution_price},${signal.is_executed ? 'Yes' : 'No'},${signal.status},${signal.profit_loss_amount},${signal.profit_loss_percentage},${signal.confidence_score},${signal.risk_reward_ratio}\n`;
+        });
+        
+        return csv;
+    }
+    
+    // Override the original downloadAnalysisCSV to use enhanced version
+    const originalDownloadAnalysisCSV = downloadAnalysisCSV;
+    downloadAnalysisCSV = function(symbol) {
+        const analysisData = window.currentAnalysisData;
+        
+        if (!analysisData) {
+            showAlert('error', 'No analysis data available for download');
+            return;
+        }
+        
+        // Generate enhanced CSV content
+        const csvContent = generateEnhancedAnalysisCSV(analysisData, symbol);
+        
+        // Download CSV
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${symbol}_comprehensive_analysis_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        showAlert('success', `Comprehensive analysis CSV downloaded for ${symbol}`);
+    };
 });
 </script>
 {% endblock %}
