@@ -39,6 +39,81 @@
     .loading-spinner.show {
         display: inline-block;
     }
+    
+    /* Beautiful Button Alignment */
+    .btn-group-custom {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        justify-content: center;
+        align-items: center;
+        margin: 1rem 0;
+    }
+    
+    .btn-group-custom .btn {
+        min-width: 200px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        border-radius: 0.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .btn-group-custom .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .btn-group-custom .btn-primary {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        border: none;
+    }
+    
+    .btn-group-custom .btn-outline-success {
+        color: #28a745;
+        border-color: #28a745;
+        background: linear-gradient(135deg, rgba(40, 167, 69, 0.1) 0%, rgba(40, 167, 69, 0.05) 100%);
+    }
+    
+    .btn-group-custom .btn-outline-success:hover {
+        background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+        color: white;
+    }
+    
+    .btn-group-custom .btn-outline-secondary {
+        color: #6c757d;
+        border-color: #6c757d;
+        background: linear-gradient(135deg, rgba(108, 117, 125, 0.1) 0%, rgba(108, 117, 125, 0.05) 100%);
+    }
+    
+    .btn-group-custom .btn-outline-secondary:hover {
+        background: linear-gradient(135deg, #6c757d 0%, #545b62 100%);
+        color: white;
+    }
+    
+    .btn-group-custom .btn-outline-info {
+        color: #17a2b8;
+        border-color: #17a2b8;
+        background: linear-gradient(135deg, rgba(23, 162, 184, 0.1) 0%, rgba(23, 162, 184, 0.05) 100%);
+    }
+    
+    .btn-group-custom .btn-outline-info:hover {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        color: white;
+    }
+    
+    @media (max-width: 768px) {
+        .btn-group-custom {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .btn-group-custom .btn {
+            min-width: auto;
+            width: 100%;
+        }
+    }
+    
 </style>
 {% endblock %}
 
@@ -113,6 +188,7 @@
                                     <option value="">Loading symbols...</option>
                                 </select>
                                 <div class="form-text">Select a cryptocurrency for backtesting</div>
+                                <div id="symbolsSummary" class="mt-2"></div>
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label for="start_date" class="form-label">Start Date</label>
@@ -195,12 +271,15 @@
                             </div>
                         </div>
                         
-                        <div class="d-flex gap-2">
+                        <div class="btn-group-custom">
                             <button type="submit" class="btn btn-primary" id="submitBtn">
                                 <i class="fas fa-play me-2"></i>Generate Signals Using YOUR Strategy
                             </button>
                             <button type="button" class="btn btn-outline-secondary" id="clearBtn">
                                 <i class="fas fa-eraser me-2"></i>Clear Form
+                            </button>
+                            <button type="button" class="btn btn-outline-success" id="backtestingHistoryBtn">
+                                <i class="fas fa-history me-2"></i>Backtesting History
                             </button>
                             <button type="button" class="btn btn-outline-info" id="exportBtn" style="display: none;">
                                 <i class="fas fa-download me-2"></i>Export CSV
@@ -371,12 +450,25 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function loadSymbols() {
-        fetch('/signals/api/backtests/search/?action=symbols')
+        fetch('{% url "signals:backtest_available_symbols" %}')
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     availableSymbols = data.symbols;
                     populateSymbolDropdown();
+                    
+                    // Show summary
+                    const summaryDiv = document.getElementById('symbolsSummary');
+                    if (summaryDiv) {
+                        summaryDiv.innerHTML = `
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>${data.total_available} cryptocurrencies</strong> with real historical data available for backtesting using YOUR strategy
+                            </div>
+                        `;
+                    }
+                    
+                    console.log(`Loaded ${data.total_available} symbols with real data for backtesting`);
                 } else {
                     console.error('Failed to load symbols:', data.error);
                 }
@@ -388,15 +480,24 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function populateSymbolDropdown() {
         const symbolSelect = document.getElementById('symbol');
-        symbolSelect.innerHTML = '<option value="">Select Cryptocurrency</option>';
+        symbolSelect.innerHTML = '<option value="">Select Cryptocurrency with Real Data</option>';
         
         availableSymbols.forEach(symbol => {
             const option = document.createElement('option');
             option.value = symbol.symbol;
-            option.textContent = `${symbol.symbol} - ${symbol.name}`;
+            
+            // Show data quality indicator
+            const qualityIcon = symbol.is_real_data ? '✅' : '⚠️';
+            const dataInfo = `${symbol.data_count} records`;
+            
+            // Enhanced display with full coin names
+            option.textContent = `${qualityIcon} ${symbol.symbol} - ${symbol.name} (${dataInfo})`;
+            option.title = `${symbol.name} - Price range: $${symbol.price_range.min.toFixed(2)} - $${symbol.price_range.max.toFixed(2)}`;
+            
             symbolSelect.appendChild(option);
         });
     }
+    
     
     function loadSearchHistory() {
         fetch('/signals/api/backtests/search/?action=history')
@@ -1074,6 +1175,78 @@ Average Confidence: ${stats.avgConfidence}%`);
         // This would show detailed information about a specific signal
         console.log('Viewing signal details:', signalId);
     };
+    
+    // Backtesting History Button Handler
+    document.getElementById('backtestingHistoryBtn').addEventListener('click', function() {
+        // Show loading state
+        const btn = this;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating History...';
+        btn.disabled = true;
+        
+        // Make API call to get backtesting history
+        fetch('{% url "signals:backtesting_history_export" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                action: 'export_all_history'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Create and download ZIP file with all CSV files
+                downloadBacktestingHistory(data.files);
+                showAlert('success', `Backtesting history exported successfully! ${data.files.symbols_count} cryptocurrencies, ${data.files.total_signals} total signals.`);
+            } else {
+                showAlert('error', data.error || 'Failed to export backtesting history');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('error', 'An error occurred while exporting backtesting history');
+        })
+        .finally(() => {
+            // Restore button state
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    });
+    
+    // Function to download backtesting history as ZIP
+    function downloadBacktestingHistory(files) {
+        // Create a temporary link to download the ZIP file
+        const link = document.createElement('a');
+        link.href = 'data:application/zip;base64,' + files.zip_data;
+        link.download = files.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    
+    // Function to show alerts
+    function showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        // Insert at the top of the form
+        const form = document.getElementById('backtestForm');
+        form.insertBefore(alertDiv, form.firstChild);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
 });
 </script>
 {% endblock %}

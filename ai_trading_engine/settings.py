@@ -346,11 +346,9 @@ LOGGING = {
     'handlers': {
         'file': {
             'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': 'logging.FileHandler',
             'filename': BASE_DIR / 'logs' / 'trading_engine.log',
             'formatter': 'verbose',
-            'maxBytes': 10485760,  # 10MB
-            'backupCount': 5,
         },
         'console': {
             'level': 'DEBUG',
@@ -359,19 +357,15 @@ LOGGING = {
         },
         'json_file': {
             'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': 'logging.FileHandler',
             'filename': BASE_DIR / 'logs' / 'trading_engine_json.log',
             'formatter': 'json',
-            'maxBytes': 10485760,  # 10MB
-            'backupCount': 5,
         },
         'error_file': {
             'level': 'ERROR',
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': 'logging.FileHandler',
             'filename': BASE_DIR / 'logs' / 'errors.log',
             'formatter': 'verbose',
-            'maxBytes': 10485760,  # 10MB
-            'backupCount': 10,
         },
     },
     'root': {
@@ -460,12 +454,20 @@ HANDLER404 = 'apps.core.views.handler404'
 HANDLER403 = 'apps.core.views.handler403'
 HANDLER500 = 'apps.core.views.handler500'
 
-# Debug settings for production
-if not DEBUG:
-    # Production settings
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = 'DENY'
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
+# Celery Beat Schedule for Enhanced Signal Generation
+CELERY_BEAT_SCHEDULE = {
+    'generate-enhanced-signals': {
+        'task': 'apps.signals.enhanced_tasks.generate_enhanced_signals_task',
+        'schedule': 7200.0,  # Every 2 hours (7200 seconds)
+        'options': {
+            'expires': 3600,  # Expire after 1 hour if not executed
+        }
+    },
+    'cleanup-old-signals': {
+        'task': 'apps.signals.enhanced_tasks.cleanup_old_signals_task',
+        'schedule': 86400.0,  # Every 24 hours
+        'options': {
+            'expires': 3600,
+        }
+    },
+}

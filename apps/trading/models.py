@@ -32,6 +32,11 @@ class Symbol(models.Model):
     exchange = models.CharField(max_length=50, blank=True)
     sector = models.ForeignKey('data.Sector', on_delete=models.SET_NULL, null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    is_crypto_symbol = models.BooleanField(default=False, help_text="Is this a cryptocurrency symbol?")
+    is_spot_tradable = models.BooleanField(default=False, help_text="Can this symbol be traded spot?")
+    market_cap_rank = models.IntegerField(null=True, blank=True, help_text="Market cap ranking")
+    circulating_supply = models.DecimalField(max_digits=20, decimal_places=8, null=True, blank=True, help_text="Circulating supply")
+    total_supply = models.DecimalField(max_digits=20, decimal_places=8, null=True, blank=True, help_text="Total supply")
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):

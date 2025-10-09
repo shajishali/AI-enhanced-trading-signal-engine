@@ -87,10 +87,17 @@ class APIRateLimitMiddleware(MiddlewareMixin):
     
     def is_ip_blacklisted(self, ip):
         """Check if IP is blacklisted"""
+        # Never blacklist localhost/development IPs
+        if ip in ['127.0.0.1', '::1', 'localhost']:
+            return False
         return ip in self.ip_blacklist
     
     def add_suspicious_activity(self, ip, reason):
         """Track suspicious activity from IP"""
+        # Never track suspicious activity for localhost/development IPs
+        if ip in ['127.0.0.1', '::1', 'localhost']:
+            return
+            
         self.suspicious_ips[ip] += 1
         
         # Auto-blacklist after 5 suspicious activities
@@ -120,6 +127,10 @@ class APIRateLimitMiddleware(MiddlewareMixin):
     def check_rate_limit(self, request, limit_type='default'):
         """Check if request exceeds rate limit"""
         ip = self.get_client_ip(request)
+        
+        # Skip rate limiting for localhost/development IPs
+        if ip in ['127.0.0.1', '::1', 'localhost']:
+            return True, None
         
         # Check blacklist first
         if self.is_ip_blacklisted(ip):

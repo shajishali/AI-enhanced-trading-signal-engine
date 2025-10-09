@@ -190,8 +190,8 @@ class SignalGenerationService:
             except SignalType.DoesNotExist:
                 signal_type = SignalType.objects.get(name='HOLD')
             
-            # Calculate overall confidence score
-            confidence_score = spot_signal.overall_score
+            # Calculate overall confidence score from individual scores
+            confidence_score = (spot_signal.fundamental_score + spot_signal.technical_score + spot_signal.sentiment_score) / 3.0
             
             # Determine strength based on confidence
             if confidence_score >= 0.8:
@@ -222,6 +222,9 @@ class SignalGenerationService:
                 confidence_level=confidence_level,
                 timeframe='1D',  # Long-term timeframe
                 entry_point_type='ACCUMULATION_ZONE',
+                quality_score=confidence_score,
+                technical_score=spot_signal.technical_score,
+                sentiment_score=spot_signal.sentiment_score,
                 is_hybrid=True,
                 metadata={
                     'spot_signal_id': spot_signal.id,
@@ -238,7 +241,8 @@ class SignalGenerationService:
                     'max_position_size': spot_signal.max_position_size,
                     'stop_loss_percentage': spot_signal.stop_loss_percentage,
                     'signal_type': 'SPOT_TRADING',
-                }
+                },
+                notes=f"Spot signal conversion: {spot_signal.signal_category} - {spot_signal.investment_horizon}"
             )
             
             return trading_signal

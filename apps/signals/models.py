@@ -187,7 +187,10 @@ class TradingSignal(models.Model):
     profit_loss = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
     
     # Metadata
-    created_at = models.DateTimeField(auto_now_add=True)
+    is_hybrid = models.BooleanField(default=False, help_text="Is this a hybrid signal (spot + futures)?")
+    metadata = models.JSONField(default=dict, blank=True, help_text="Additional metadata")
+    analyzed_at = models.DateTimeField(default=timezone.now, help_text='Time when signal was analyzed')
+    created_at = models.DateTimeField()
     updated_at = models.DateTimeField(auto_now=True)
     notes = models.TextField(blank=True)
     
@@ -257,7 +260,7 @@ class MarketRegime(models.Model):
         validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
         help_text="Regime classification confidence"
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField()
     
     class Meta:
         verbose_name = 'Market Regime'
@@ -301,7 +304,7 @@ class SignalPerformance(models.Model):
     average_quality_score = models.FloatField(default=0.0)
     signal_accuracy = models.FloatField(default=0.0)
     
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField()
     
     class Meta:
         verbose_name = 'Signal Performance'
@@ -337,7 +340,7 @@ class SignalAlert(models.Model):
     message = models.TextField()
     signal = models.ForeignKey(TradingSignal, on_delete=models.CASCADE, null=True, blank=True)
     is_read = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField()
     
     class Meta:
         verbose_name = 'Signal Alert'
@@ -349,3 +352,233 @@ class SignalAlert(models.Model):
     
     def __str__(self):
         return f"{self.alert_type} - {self.title}"
+
+
+class SpotPortfolio(models.Model):
+    """Spot trading portfolio for long-term investment strategies"""
+    PORTFOLIO_TYPES = [
+        ('ACCUMULATION', 'Accumulation Portfolio'),
+        ('DCA', 'Dollar Cost Average Portfolio'),
+        ('BALANCED', 'Balanced Portfolio'),
+        ('GROWTH', 'Growth Portfolio'),
+        ('CONSERVATIVE', 'Conservative Portfolio'),
+    ]
+    
+    REBALANCE_FREQUENCIES = [
+        ('MONTHLY', 'Monthly'),
+        ('QUARTERLY', 'Quarterly'),
+        ('SEMI_ANNUALLY', 'Semi-Annually'),
+        ('ANNUALLY', 'Annually'),
+    ]
+    
+    name = models.CharField(max_length=100)
+    portfolio_type = models.CharField(max_length=20, choices=PORTFOLIO_TYPES)
+    description = models.TextField(blank=True)
+    total_value_usd = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    target_allocation = models.JSONField(default=dict, help_text="Target allocation per symbol")
+    rebalance_frequency = models.CharField(max_length=20, choices=REBALANCE_FREQUENCIES, default='QUARTERLY')
+    
+    # Performance metrics
+    total_return_percentage = models.FloatField(default=0)
+    annualized_return = models.FloatField(default=0)
+    max_drawdown = models.FloatField(default=0)
+    sharpe_ratio = models.FloatField(default=0)
+    
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Spot Portfolio'
+        verbose_name_plural = 'Spot Portfolios'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.name} ({self.portfolio_type})"
+
+
+class TradingType(models.Model):
+    """Types of trading strategies"""
+    TRADING_TYPES = [
+        ('FUTURES', 'Futures Trading'),
+        ('SPOT', 'Spot Trading'),
+        ('MARGIN', 'Margin Trading'),
+        ('STAKING', 'Staking'),
+    ]
+    
+    name = models.CharField(max_length=20, choices=TRADING_TYPES, unique=True)
+    description = models.TextField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField()
+    
+    class Meta:
+        verbose_name = 'Trading Type'
+        verbose_name_plural = 'Trading Types'
+        ordering = ['name']
+    
+    def __str__(self):
+        return self.name
+
+
+class SpotTradingSignal(models.Model):
+    """Spot trading signals for long-term investment strategies"""
+    SIGNAL_CATEGORIES = [
+        ('ACCUMULATION', 'Accumulation Phase'),
+        ('DISTRIBUTION', 'Distribution Phase'),
+        ('HOLD', 'Hold Position'),
+        ('DCA', 'Dollar Cost Average'),
+        ('REBALANCE', 'Portfolio Rebalance'),
+    ]
+    
+    INVESTMENT_HORIZONS = [
+        ('SHORT_TERM', '6-12 months'),
+        ('MEDIUM_TERM', '1-2 years'),
+        ('LONG_TERM', '2-5 years'),
+        ('VERY_LONG_TERM', '5+ years'),
+    ]
+    
+    DCA_FREQUENCIES = [
+        ('DAILY', 'Daily'),
+        ('WEEKLY', 'Weekly'),
+        ('MONTHLY', 'Monthly'),
+        ('QUARTERLY', 'Quarterly'),
+    ]
+    
+    symbol = models.ForeignKey(Symbol, on_delete=models.CASCADE)
+    signal_category = models.CharField(max_length=20, choices=SIGNAL_CATEGORIES)
+    investment_horizon = models.CharField(max_length=20, choices=INVESTMENT_HORIZONS)
+    
+    # Analysis scores (0-1)
+    fundamental_score = models.FloatField(
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        help_text="Fundamental analysis score (0-1)"
+    )
+    technical_score = models.FloatField(
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        help_text="Technical analysis score (0-1)"
+    )
+    sentiment_score = models.FloatField(
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        help_text="Market sentiment score (0-1)"
+    )
+    
+    # Portfolio allocation
+    recommended_allocation = models.FloatField(
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        help_text="Recommended portfolio allocation (0-1)"
+    )
+    
+    # DCA settings
+    dca_frequency = models.CharField(max_length=20, choices=DCA_FREQUENCIES, default='MONTHLY')
+    dca_amount_usd = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    
+    # Target prices
+    target_price_6m = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
+    target_price_1y = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
+    target_price_2y = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
+    
+    # Risk management
+    max_position_size = models.FloatField(
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        help_text="Maximum position size as % of portfolio"
+    )
+    stop_loss_percentage = models.FloatField(
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        help_text="Stop loss as % of entry price"
+    )
+    
+    # Additional data
+    analysis_metadata = models.JSONField(default=dict, blank=True)
+    fundamental_factors = models.JSONField(default=list, blank=True)
+    technical_factors = models.JSONField(default=list, blank=True)
+    
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField(auto_now=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    analyzed_at = models.DateTimeField(default=timezone.now, help_text='Time when signal was analyzed')
+    
+    class Meta:
+        verbose_name = 'Spot Trading Signal'
+        verbose_name_plural = 'Spot Trading Signals'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['symbol', 'is_active']),
+            models.Index(fields=['signal_category', 'investment_horizon']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.symbol.symbol} - {self.signal_category} ({self.investment_horizon})"
+
+
+class SpotSignalHistory(models.Model):
+    """Historical record of spot trading signals for performance tracking"""
+    original_signal = models.ForeignKey(SpotTradingSignal, on_delete=models.CASCADE)
+    symbol_name = models.CharField(max_length=20)
+    signal_category = models.CharField(max_length=20)
+    investment_horizon = models.CharField(max_length=20)
+    
+    # Scores
+    fundamental_score = models.FloatField()
+    technical_score = models.FloatField()
+    sentiment_score = models.FloatField()
+    recommended_allocation = models.FloatField()
+    dca_frequency = models.CharField(max_length=20)
+    
+    # Target prices
+    target_price_6m = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
+    target_price_1y = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
+    target_price_2y = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
+    
+    # Performance tracking
+    entry_price = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
+    exit_price = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
+    performance_percentage = models.FloatField(null=True, blank=True)
+    is_profitable = models.BooleanField(null=True, blank=True)
+    
+    created_at = models.DateTimeField()
+    archived_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = 'Spot Signal History'
+        verbose_name_plural = 'Spot Signal Histories'
+        ordering = ['-archived_at']
+    
+    def __str__(self):
+        return f"{self.symbol_name} - {self.signal_category} (Archived)"
+
+
+class SpotPosition(models.Model):
+    """Spot trading positions within portfolios"""
+    portfolio = models.ForeignKey(SpotPortfolio, on_delete=models.CASCADE, related_name='positions')
+    symbol = models.ForeignKey(Symbol, on_delete=models.CASCADE)
+    
+    # Position details
+    quantity = models.DecimalField(max_digits=20, decimal_places=8)
+    average_price = models.DecimalField(max_digits=15, decimal_places=6)
+    current_price = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
+    
+    # Value calculations
+    total_cost = models.DecimalField(max_digits=15, decimal_places=2)
+    current_value = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    unrealized_pnl = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    unrealized_pnl_percentage = models.FloatField(null=True, blank=True)
+    
+    # Portfolio allocation
+    portfolio_allocation = models.FloatField(
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        help_text="Position allocation as % of portfolio"
+    )
+    
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Spot Position'
+        verbose_name_plural = 'Spot Positions'
+        ordering = ['-portfolio_allocation']
+        unique_together = [['portfolio', 'symbol']]
+    
+    def __str__(self):
+        return f"{self.portfolio.name} - {self.symbol.symbol}"
