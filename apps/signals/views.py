@@ -605,8 +605,17 @@ def signal_history(request):
         if signal_type:
             query &= Q(signal_type__name__icontains=signal_type)
         
-        # Show archived signals (executed or expired)
-        query &= Q(Q(is_executed=True) | Q(is_valid=False))
+        # Show archived signals (executed or expired) OR active signals if no archived signals exist
+        archived_signals_count = TradingSignal.objects.filter(
+            Q(is_executed=True) | Q(is_valid=False)
+        ).exclude(metadata__is_backtesting=True).count()
+        
+        if archived_signals_count > 0:
+            # Show only archived signals
+            query &= Q(Q(is_executed=True) | Q(is_valid=False))
+        else:
+            # If no archived signals, show active signals for demonstration
+            query &= Q(is_valid=True)
         
         # Get signals with pagination (exclude backtesting signals)
         signals = TradingSignal.objects.select_related(
@@ -670,7 +679,7 @@ def signal_history(request):
                 'performance_percentage': performance_percentage,
                 'analyzed_at': signal.analyzed_at,
                 'archived_at': signal.executed_at or signal.created_at,  # Use executed_at as archived_at
-                'archived_reason': 'EXECUTED' if signal.is_executed else 'EXPIRED',
+                'archived_reason': 'EXECUTED' if signal.is_executed else ('EXPIRED' if not signal.is_valid else 'ACTIVE'),
                 'notes': signal.notes,
                 'created_at': signal.created_at,
                 'updated_at': signal.updated_at,
@@ -682,13 +691,15 @@ def signal_history(request):
             created_at__gte=start_date, created_at__lte=end_date
         ).values_list('signal_type__name', flat=True).distinct().exclude(signal_type__name__isnull=True))
         
-        unique_reasons = ['EXECUTED', 'EXPIRED', 'MANUAL_ARCHIVE', 'SYSTEM_CLEANUP']
+        unique_reasons = ['EXECUTED', 'EXPIRED', 'MANUAL_ARCHIVE', 'SYSTEM_CLEANUP', 'ACTIVE']
         
         # Calculate statistics
         total_count = total_signals
         recent_archived = TradingSignal.objects.filter(
             created_at__gte=timezone.now() - timedelta(days=1),
             created_at__lte=timezone.now()
+        ).filter(
+            Q(is_executed=True) | Q(is_valid=False)  # Only count actually archived signals
         ).count()
         
         # Pagination info

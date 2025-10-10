@@ -102,6 +102,24 @@
         color: white;
     }
     
+    /* Clickable row styles */
+    .clickable-row:hover {
+        background-color: #f8f9fa !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.2s ease;
+    }
+    
+    .clickable-row:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    .filtered-signals-highlight {
+        background-color: #e3f2fd !important;
+        border-left: 4px solid #2196f3;
+    }
+    
     @media (max-width: 768px) {
         .btn-group-custom {
             flex-direction: column;
@@ -250,6 +268,26 @@
                             </div>
                         </div>
                         
+                        <!-- Signal Count Options -->
+                        <div class="row" id="signalCountOptions">
+                            <div class="col-md-6 mb-3">
+                                <label for="desired_signal_count" class="form-label">Desired Signal Count (Optional)</label>
+                                <input type="number" class="form-control" id="desired_signal_count" name="desired_signal_count" 
+                                       min="1" max="100" placeholder="Leave empty for all signals">
+                                <div class="form-text">Specify how many best signals you want (1-100)</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Signal Count Info</h6>
+                                        <div id="signalCountInfo">
+                                            <small class="text-muted">Generate signals to see maximum count</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- Strategy Information Panel -->
                         <div class="alert alert-info mt-3" id="strategyInfo">
                             <h6><i class="fas fa-info-circle me-2"></i>YOUR Strategy Details:</h6>
@@ -363,6 +401,55 @@
                                 <div class="card-body text-center">
                                     <h6 class="card-title">Avg Confidence</h6>
                                     <h4 class="text-info" id="avgConfidence">0%</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Summarizing Results -->
+                    <div class="row mb-3" id="summarizingResults" style="display: none;">
+                        <div class="col-12">
+                            <div class="card bg-primary text-white">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Summarizing Results</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="text-center">
+                                                <h4 id="summaryTotalSignals">0</h4>
+                                                <small>Total Signals</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center">
+                                                <h4 id="summaryAvgConfidence">0%</h4>
+                                                <small>Avg Confidence</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center">
+                                                <h4 id="summaryAvgRiskReward">0.0</h4>
+                                                <small>Avg Risk/Reward</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center">
+                                                <h4 id="summaryBestSignalType">-</h4>
+                                                <small>Best Signal Type</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3">
+                                        <div class="col-md-6">
+                                            <h6>Signal Distribution</h6>
+                                            <div id="signalDistribution"></div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>Quality Breakdown</h6>
+                                            <div id="qualityBreakdown"></div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -609,8 +696,16 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (result.success) {
                 if (result.action === 'generate_signals') {
+                    // Update signal count info
+                    updateSignalCountInfo(result.max_possible_signals, result.desired_signal_count);
+                    
                     if (result.signals && result.signals.length > 0) {
                         displaySignals(result.signals);
+                        
+                        // Display summarizing results
+                        if (result.summarizing_results) {
+                            displaySummarizingResults(result.summarizing_results);
+                        }
                         
                         // PHASE 3: Display signal analysis if available
                         if (result.signal_analysis) {
@@ -861,6 +956,12 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('backtestForm').reset();
         setDefaultDates();
         document.getElementById('additionalOptions').style.display = 'none';
+        
+        // Reset signal count info
+        document.getElementById('signalCountInfo').innerHTML = '<small class="text-muted">Generate signals to see maximum count</small>';
+        
+        // Hide summarizing results
+        document.getElementById('summarizingResults').style.display = 'none';
     }
     
     function clearResults() {
@@ -1222,6 +1323,11 @@ Average Confidence: ${stats.avgConfidence}%`);
     
     // PHASE 3: Display signal analysis results in table format
     function displaySignalAnalysis(analysis, symbol) {
+        console.log('Displaying signal analysis for:', symbol, analysis);
+        
+        // Store analysis data globally
+        currentAnalysisData = analysis;
+        
         // Remove existing analysis container if it exists
         const existingContainer = document.getElementById('signalAnalysisContainer');
         if (existingContainer) {
@@ -1258,7 +1364,7 @@ Average Confidence: ${stats.avgConfidence}%`);
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
+                        <tr class="clickable-row" data-signal-type="profit" style="cursor: pointer;">
                             <td><i class="fas fa-arrow-up text-success me-1"></i>Profit Signals</td>
                             <td class="text-success fw-bold">${summary.profit_signals} (${profitRate.toFixed(1)}%)</td>
                             <td>Total Investment</td>
@@ -1266,7 +1372,7 @@ Average Confidence: ${stats.avgConfidence}%`);
                             <td>Quality Score</td>
                             <td class="fw-bold ${quality.quality_score >= 70 ? 'text-success' : quality.quality_score >= 50 ? 'text-warning' : 'text-danger'}">${quality.quality_score.toFixed(1)}/100</td>
                         </tr>
-                        <tr>
+                        <tr class="clickable-row" data-signal-type="loss" style="cursor: pointer;">
                             <td><i class="fas fa-arrow-down text-danger me-1"></i>Loss Signals</td>
                             <td class="text-danger fw-bold">${summary.loss_signals} (${lossRate.toFixed(1)}%)</td>
                             <td>Total Profit/Loss</td>
@@ -1274,7 +1380,7 @@ Average Confidence: ${stats.avgConfidence}%`);
                             <td>Quality Rating</td>
                             <td class="fw-bold ${quality.quality_rating === 'Excellent' ? 'text-success' : quality.quality_rating === 'Good' ? 'text-primary' : quality.quality_rating === 'Fair' ? 'text-warning' : 'text-danger'}">${quality.quality_rating}</td>
                         </tr>
-                        <tr>
+                        <tr class="clickable-row" data-signal-type="not_opened" style="cursor: pointer;">
                             <td><i class="fas fa-pause text-warning me-1"></i>Not Opened</td>
                             <td class="text-warning fw-bold">${summary.not_opened_signals} (${notOpenedRate.toFixed(1)}%)</td>
                             <td>Profit Percentage</td>
@@ -1317,17 +1423,17 @@ Average Confidence: ${stats.avgConfidence}%`);
             <!-- Action Buttons -->
             <div class="mb-3">
                 <div class="btn-group" role="group">
-                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="downloadAnalysisCSV('${symbol}')">
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="downloadAnalysisBtn">
                         <i class="fas fa-download me-1"></i>Download Analysis CSV
                     </button>
-                    <button type="button" class="btn btn-outline-success btn-sm" onclick="downloadSignalsOnlyCSV('${symbol}')">
+                    <button type="button" class="btn btn-outline-success btn-sm" id="downloadSignalsBtn">
                         <i class="fas fa-table me-1"></i>Signals Only CSV
                     </button>
-                    <button type="button" class="btn btn-outline-info btn-sm" onclick="downloadSummaryCSV('${symbol}')">
+                    <button type="button" class="btn btn-outline-info btn-sm" id="downloadSummaryBtn">
                         <i class="fas fa-chart-bar me-1"></i>Summary CSV
                     </button>
                 </div>
-                <button type="button" class="btn btn-outline-secondary btn-sm ms-2" onclick="toggleSignalDetails()">
+                <button type="button" class="btn btn-outline-secondary btn-sm ms-2" id="toggleSignalsBtn">
                     <i class="fas fa-list me-1"></i>Show Individual Signals
                 </button>
             </div>
@@ -1354,6 +1460,38 @@ Average Confidence: ${stats.avgConfidence}%`);
                     </table>
                 </div>
             </div>
+            
+            <!-- Filtered Signal Details Container -->
+            <div id="filteredSignalsContainer" style="display: none;">
+                <h6 id="filteredSignalsTitle"><i class="fas fa-filter me-2"></i>Filtered Signal Details</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Type</th>
+                                <th>Entry Price</th>
+                                <th>Target Price</th>
+                                <th>Stop Loss</th>
+                                <th>Execution Price</th>
+                                <th>Status</th>
+                                <th>P/L Amount</th>
+                                <th>P/L %</th>
+                                <th>Confidence</th>
+                            </tr>
+                        </thead>
+                        <tbody id="filteredSignalsTable">
+                            <!-- Filtered signals will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="closeFilteredSignalsBtn">
+                        <i class="fas fa-times me-1"></i>Close
+                    </button>
+                </div>
+            </div>
         `;
         
         // Add to page under the signals table
@@ -1368,12 +1506,29 @@ Average Confidence: ${stats.avgConfidence}%`);
         
         // Store analysis data for CSV download
         window.currentAnalysisData = analysis;
+        window.currentSymbol = symbol;
+        
+        console.log('Analysis data stored:', window.currentAnalysisData);
+        
+        // Bind button event handlers
+        bindAnalysisButtonHandlers();
         
         // Populate individual signals table
         populateSignalDetailsTable(analysis.individual_signals);
         
         // Scroll to analysis
         analysisContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        // Setup clickable rows and close button after a short delay
+        setTimeout(() => {
+            setupClickableSignalRows();
+            
+            // Setup close button
+            const closeBtn = document.getElementById('closeFilteredSignalsBtn');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', closeFilteredSignals);
+            }
+        }, 100);
     }
     
     // Function to populate individual signals table
@@ -1407,44 +1562,104 @@ Average Confidence: ${stats.avgConfidence}%`);
         });
     }
     
+    // Function to bind analysis button event handlers
+    function bindAnalysisButtonHandlers() {
+        console.log('Binding analysis button handlers');
+        
+        // Download Analysis CSV button
+        const downloadAnalysisBtn = document.getElementById('downloadAnalysisBtn');
+        if (downloadAnalysisBtn) {
+            downloadAnalysisBtn.addEventListener('click', function() {
+                console.log('Download Analysis CSV clicked');
+                downloadAnalysisCSV(window.currentSymbol);
+            });
+        }
+        
+        // Download Signals Only CSV button
+        const downloadSignalsBtn = document.getElementById('downloadSignalsBtn');
+        if (downloadSignalsBtn) {
+            downloadSignalsBtn.addEventListener('click', function() {
+                console.log('Download Signals Only CSV clicked');
+                downloadSignalsOnlyCSV(window.currentSymbol);
+            });
+        }
+        
+        // Download Summary CSV button
+        const downloadSummaryBtn = document.getElementById('downloadSummaryBtn');
+        if (downloadSummaryBtn) {
+            downloadSummaryBtn.addEventListener('click', function() {
+                console.log('Download Summary CSV clicked');
+                downloadSummaryCSV(window.currentSymbol);
+            });
+        }
+        
+        // Toggle Signal Details button
+        const toggleSignalsBtn = document.getElementById('toggleSignalsBtn');
+        if (toggleSignalsBtn) {
+            toggleSignalsBtn.addEventListener('click', function() {
+                console.log('Toggle Signal Details clicked');
+                toggleSignalDetails();
+            });
+        }
+    }
+    
     // Function to toggle signal details visibility
     function toggleSignalDetails() {
         const container = document.getElementById('signalDetailsContainer');
-        const button = event.target;
+        const button = document.getElementById('toggleSignalsBtn');
+        
+        if (!container || !button) return;
         
         if (container.style.display === 'none') {
             container.style.display = 'block';
-            button.innerHTML = '<i class="fas fa-eye-slash me-2"></i>Hide Individual Signals';
+            button.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Hide Individual Signals';
         } else {
             container.style.display = 'none';
-            button.innerHTML = '<i class="fas fa-list me-2"></i>Show Individual Signals';
+            button.innerHTML = '<i class="fas fa-list me-1"></i>Show Individual Signals';
         }
     }
     
     // Function to download analysis CSV
     function downloadAnalysisCSV(symbol) {
+        console.log('downloadAnalysisCSV called with symbol:', symbol);
+        console.log('Current analysis data:', window.currentAnalysisData);
+        
         const analysisData = window.currentAnalysisData;
+        const currentSymbol = symbol || window.currentSymbol;
         
         if (!analysisData) {
+            console.error('No analysis data available');
             showAlert('error', 'No analysis data available for download');
             return;
         }
         
-        // Generate CSV content
-        const csvContent = generateAnalysisCSV(analysisData, symbol);
+        if (!currentSymbol) {
+            console.error('No symbol available');
+            showAlert('error', 'No symbol information available');
+            return;
+        }
         
-        // Download CSV
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${symbol}_signal_analysis_${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        
-        showAlert('success', `Analysis CSV downloaded for ${symbol}`);
+        try {
+            // Generate CSV content
+            const csvContent = generateAnalysisCSV(analysisData, currentSymbol);
+            
+            // Download CSV
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentSymbol}_signal_analysis_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            console.log('Analysis CSV downloaded successfully');
+            showAlert('success', `Analysis CSV downloaded for ${currentSymbol}`);
+        } catch (error) {
+            console.error('Error downloading analysis CSV:', error);
+            showAlert('error', 'Error downloading analysis CSV: ' + error.message);
+        }
     }
     
     // Function to generate CSV content
@@ -1489,53 +1704,85 @@ Average Confidence: ${stats.avgConfidence}%`);
     
     // PHASE 4: Enhanced CSV download functions
     function downloadSignalsOnlyCSV(symbol) {
+        console.log('downloadSignalsOnlyCSV called with symbol:', symbol);
+        
         const analysisData = window.currentAnalysisData;
+        const currentSymbol = symbol || window.currentSymbol;
         
         if (!analysisData) {
+            console.error('No analysis data available');
             showAlert('error', 'No analysis data available for download');
             return;
         }
         
-        // Generate signals-only CSV content
-        const csvContent = generateSignalsOnlyCSV(analysisData, symbol);
+        if (!currentSymbol) {
+            console.error('No symbol available');
+            showAlert('error', 'No symbol information available');
+            return;
+        }
         
-        // Download CSV
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${symbol}_signals_only_${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        
-        showAlert('success', `Signals-only CSV downloaded for ${symbol}`);
+        try {
+            // Generate signals-only CSV content
+            const csvContent = generateSignalsOnlyCSV(analysisData, currentSymbol);
+            
+            // Download CSV
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentSymbol}_signals_only_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            console.log('Signals-only CSV downloaded successfully');
+            showAlert('success', `Signals-only CSV downloaded for ${currentSymbol}`);
+        } catch (error) {
+            console.error('Error downloading signals-only CSV:', error);
+            showAlert('error', 'Error downloading signals-only CSV: ' + error.message);
+        }
     }
     
     function downloadSummaryCSV(symbol) {
+        console.log('downloadSummaryCSV called with symbol:', symbol);
+        
         const analysisData = window.currentAnalysisData;
+        const currentSymbol = symbol || window.currentSymbol;
         
         if (!analysisData) {
+            console.error('No analysis data available');
             showAlert('error', 'No analysis data available for download');
             return;
         }
         
-        // Generate summary-only CSV content
-        const csvContent = generateSummaryCSV(analysisData, symbol);
+        if (!currentSymbol) {
+            console.error('No symbol available');
+            showAlert('error', 'No symbol information available');
+            return;
+        }
         
-        // Download CSV
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${symbol}_summary_${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        
-        showAlert('success', `Summary CSV downloaded for ${symbol}`);
+        try {
+            // Generate summary-only CSV content
+            const csvContent = generateSummaryCSV(analysisData, currentSymbol);
+            
+            // Download CSV
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentSymbol}_summary_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            console.log('Summary CSV downloaded successfully');
+            showAlert('success', `Summary CSV downloaded for ${currentSymbol}`);
+        } catch (error) {
+            console.error('Error downloading summary CSV:', error);
+            showAlert('error', 'Error downloading summary CSV: ' + error.message);
+        }
     }
     
     function generateSignalsOnlyCSV(analysis, symbol) {
@@ -1664,29 +1911,228 @@ Average Confidence: ${stats.avgConfidence}%`);
     // Override the original downloadAnalysisCSV to use enhanced version
     const originalDownloadAnalysisCSV = downloadAnalysisCSV;
     downloadAnalysisCSV = function(symbol) {
+        console.log('Enhanced downloadAnalysisCSV called with symbol:', symbol);
+        
         const analysisData = window.currentAnalysisData;
+        const currentSymbol = symbol || window.currentSymbol;
         
         if (!analysisData) {
+            console.error('No analysis data available');
             showAlert('error', 'No analysis data available for download');
             return;
         }
         
-        // Generate enhanced CSV content
-        const csvContent = generateEnhancedAnalysisCSV(analysisData, symbol);
+        if (!currentSymbol) {
+            console.error('No symbol available');
+            showAlert('error', 'No symbol information available');
+            return;
+        }
         
-        // Download CSV
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${symbol}_comprehensive_analysis_${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        
-        showAlert('success', `Comprehensive analysis CSV downloaded for ${symbol}`);
+        try {
+            // Generate enhanced CSV content
+            const csvContent = generateEnhancedAnalysisCSV(analysisData, currentSymbol);
+            
+            // Download CSV
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentSymbol}_comprehensive_analysis_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            console.log('Comprehensive analysis CSV downloaded successfully');
+            showAlert('success', `Comprehensive analysis CSV downloaded for ${currentSymbol}`);
+        } catch (error) {
+            console.error('Error downloading comprehensive analysis CSV:', error);
+            showAlert('error', 'Error downloading comprehensive analysis CSV: ' + error.message);
+        }
     };
+    
+    // NEW: Update signal count information
+    function updateSignalCountInfo(maxPossible, desired) {
+        const signalCountInfo = document.getElementById('signalCountInfo');
+        if (maxPossible > 0) {
+            signalCountInfo.innerHTML = `
+                <div class="row">
+                    <div class="col-6">
+                        <strong>Max Possible:</strong><br>
+                        <span class="badge bg-primary">${maxPossible}</span>
+                    </div>
+                    <div class="col-6">
+                        <strong>Requested:</strong><br>
+                        <span class="badge bg-success">${desired || 'All'}</span>
+                    </div>
+                </div>
+            `;
+        } else {
+            signalCountInfo.innerHTML = '<small class="text-muted">No signals available</small>';
+        }
+    }
+    
+    // NEW: Display summarizing results
+    function displaySummarizingResults(summary) {
+        const summarizingResults = document.getElementById('summarizingResults');
+        summarizingResults.style.display = 'block';
+        
+        // Update summary cards
+        document.getElementById('summaryTotalSignals').textContent = summary.total_signals;
+        document.getElementById('summaryAvgConfidence').textContent = (summary.avg_confidence * 100).toFixed(1) + '%';
+        document.getElementById('summaryAvgRiskReward').textContent = summary.avg_risk_reward.toFixed(2);
+        document.getElementById('summaryBestSignalType').textContent = summary.best_signal?.type || '-';
+        
+        // Update signal distribution
+        const signalDistribution = document.getElementById('signalDistribution');
+        let distributionHtml = '';
+        for (const [type, count] of Object.entries(summary.signal_distribution)) {
+            const percentage = ((count / summary.total_signals) * 100).toFixed(1);
+            distributionHtml += `
+                <div class="d-flex justify-content-between mb-1">
+                    <span>${type}</span>
+                    <span><strong>${count}</strong> (${percentage}%)</span>
+                </div>
+            `;
+        }
+        signalDistribution.innerHTML = distributionHtml;
+        
+        // Update quality breakdown
+        const qualityBreakdown = document.getElementById('qualityBreakdown');
+        const total = summary.quality_breakdown.high_quality + summary.quality_breakdown.medium_quality + summary.quality_breakdown.low_quality;
+        qualityBreakdown.innerHTML = `
+            <div class="d-flex justify-content-between mb-1">
+                <span class="text-success">High Quality (≥80%)</span>
+                <span><strong>${summary.quality_breakdown.high_quality}</strong></span>
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+                <span class="text-warning">Medium Quality (60-79%)</span>
+                <span><strong>${summary.quality_breakdown.medium_quality}</strong></span>
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+                <span class="text-danger">Low Quality (<60%)</span>
+                <span><strong>${summary.quality_breakdown.low_quality}</strong></span>
+            </div>
+        `;
+    }
+    
+    // Store current analysis data globally
+    let currentAnalysisData = null;
+    
+    // Function to handle clickable signal status rows
+    function setupClickableSignalRows() {
+        const clickableRows = document.querySelectorAll('.clickable-row');
+        
+        clickableRows.forEach(row => {
+            row.addEventListener('click', function() {
+                const signalType = this.getAttribute('data-signal-type');
+                showFilteredSignals(signalType);
+            });
+        });
+    }
+    
+    // Function to show filtered signals
+    function showFilteredSignals(signalType) {
+        if (!currentAnalysisData || !currentAnalysisData.individual_signals) {
+            console.warn('No analysis data available');
+            return;
+        }
+        
+        const signals = currentAnalysisData.individual_signals;
+        let filteredSignals = [];
+        let title = '';
+        
+        // Filter signals based on type
+        switch(signalType) {
+            case 'profit':
+                filteredSignals = signals.filter(s => s.status === 'PROFIT');
+                title = `Profit Signals (${filteredSignals.length})`;
+                break;
+            case 'loss':
+                filteredSignals = signals.filter(s => s.status === 'LOSS');
+                title = `Loss Signals (${filteredSignals.length})`;
+                break;
+            case 'not_opened':
+                filteredSignals = signals.filter(s => s.status === 'NOT_OPENED');
+                title = `Not Opened Signals (${filteredSignals.length})`;
+                break;
+            default:
+                return;
+        }
+        
+        // Update title
+        document.getElementById('filteredSignalsTitle').innerHTML = `<i class="fas fa-filter me-2"></i>${title}`;
+        
+        // Populate filtered signals table
+        populateFilteredSignalsTable(filteredSignals);
+        
+        // Show the container
+        document.getElementById('filteredSignalsContainer').style.display = 'block';
+        
+        // Scroll to the filtered signals
+        document.getElementById('filteredSignalsContainer').scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+        });
+    }
+    
+    // Function to populate filtered signals table
+    function populateFilteredSignalsTable(signals) {
+        const tbody = document.getElementById('filteredSignalsTable');
+        if (!tbody) return;
+        
+        tbody.innerHTML = '';
+        
+        if (signals.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="11" class="text-center text-muted py-3">
+                        <i class="fas fa-info-circle me-2"></i>No signals found for this category
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        signals.forEach(signal => {
+            const statusIcon = signal.status === 'PROFIT' ? '✅' : 
+                              signal.status === 'LOSS' ? '❌' : '⏸️';
+            const statusClass = signal.status === 'PROFIT' ? 'text-success' : 
+                               signal.status === 'LOSS' ? 'text-danger' : 'text-warning';
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${signal.date}</td>
+                <td>${signal.time}</td>
+                <td><span class="badge ${signal.signal_type.includes('BUY') ? 'bg-success' : 'bg-danger'}">${signal.signal_type}</span></td>
+                <td>$${signal.entry_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
+                <td>$${signal.target_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
+                <td>$${signal.stop_loss.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
+                <td>${signal.execution_price ? '$' + signal.execution_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4}) : 'N/A'}</td>
+                <td class="${statusClass}">${statusIcon} ${signal.status}</td>
+                <td class="${signal.profit_loss_amount >= 0 ? 'text-success' : 'text-danger'}">
+                    $${signal.profit_loss_amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                </td>
+                <td class="${signal.profit_loss_percentage >= 0 ? 'text-success' : 'text-danger'}">
+                    ${signal.profit_loss_percentage.toFixed(2)}%
+                </td>
+                <td>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar ${signal.confidence_score >= 0.8 ? 'bg-success' : signal.confidence_score >= 0.6 ? 'bg-warning' : 'bg-danger'}" 
+                             style="width: ${signal.confidence_score * 100}%">
+                            ${Math.round(signal.confidence_score * 100)}%
+                        </div>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+    
+    // Function to close filtered signals
+    function closeFilteredSignals() {
+        document.getElementById('filteredSignalsContainer').style.display = 'none';
+    }
 });
 </script>
 {% endblock %}

@@ -97,6 +97,13 @@ class BacktestAPIView(View):
             if end_date.tzinfo is None:
                 end_date = timezone.make_aware(end_date)
             
+            # Get user-specified signal count
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+            else:
+                data = request.POST
+            desired_signal_count = int(data.get('desired_signal_count', 0))  # 0 means all signals
+            
             # First, check if signals already exist in database for this period
             existing_signals = TradingSignal.objects.filter(
                 symbol=symbol,
@@ -161,10 +168,40 @@ class BacktestAPIView(View):
                     }
                 }
                 
+                # Add signal count analysis and filtering
+                max_possible_signals = len(formatted_signals)
+                
+                # Filter to best signals if count is specified
+                if desired_signal_count > 0 and max_possible_signals > desired_signal_count:
+                    formatted_signals = self._select_best_signals_by_count(
+                        formatted_signals, desired_signal_count
+                    )
+                
+                # Simulate signal execution for backtesting
+                executed_signals = self._simulate_signal_execution(formatted_signals, symbol, start_date, end_date)
+                
+                # Generate summarizing results
+                summarizing_results = self._generate_summarizing_results(
+                    executed_signals, symbol, start_date, end_date
+                )
+                
                 # PHASE 2: Add analysis results to response
-                if signal_analysis:
-                    response_data['signal_analysis'] = signal_analysis
-                    logger.info(f"Added signal analysis to response for existing signals")
+                if executed_signals:
+                    try:
+                        signal_analysis = self._analyze_executed_signals(executed_signals, symbol, start_date, end_date)
+                        response_data['signal_analysis'] = signal_analysis
+                        logger.info(f"Added signal analysis to response for existing signals")
+                    except Exception as e:
+                        logger.error(f"Error analyzing existing signals: {e}")
+                
+                # Add new fields to response
+                response_data.update({
+                    'max_possible_signals': max_possible_signals,
+                    'desired_signal_count': desired_signal_count,
+                    'summarizing_results': summarizing_results,
+                    'signals': executed_signals,
+                    'total_signals': len(executed_signals)
+                })
                 
                 return JsonResponse(response_data)
             
@@ -204,11 +241,28 @@ class BacktestAPIView(View):
             
             logger.info(f"Generated {len(formatted_signals)} new signals using YOUR strategy for {symbol.symbol}")
             
+            # Add signal count analysis and filtering
+            max_possible_signals = len(formatted_signals)
+            
+            # Filter to best signals if count is specified
+            if desired_signal_count > 0 and max_possible_signals > desired_signal_count:
+                formatted_signals = self._select_best_signals_by_count(
+                    formatted_signals, desired_signal_count
+                )
+            
+            # Simulate signal execution for backtesting
+            executed_signals = self._simulate_signal_execution(formatted_signals, symbol, start_date, end_date)
+            
+            # Generate summarizing results
+            summarizing_results = self._generate_summarizing_results(
+                executed_signals, symbol, start_date, end_date
+            )
+            
             # PHASE 2: Analyze the generated signals immediately
             signal_analysis = None
-            if formatted_signals:
+            if executed_signals:
                 try:
-                    signal_analysis = self._analyze_generated_signals(symbol, start_date, end_date)
+                    signal_analysis = self._analyze_executed_signals(executed_signals, symbol, start_date, end_date)
                     logger.info(f"Analysis completed for {symbol.symbol}: {signal_analysis['total_summary']['total_signals']} signals analyzed")
                 except Exception as e:
                     logger.error(f"Error analyzing signals for {symbol.symbol}: {e}")
@@ -234,8 +288,11 @@ class BacktestAPIView(View):
             response_data = {
                 'success': True,
                 'action': 'generate_signals',
-                'signals': formatted_signals,
-                'total_signals': len(formatted_signals),
+                'signals': executed_signals,
+                'total_signals': len(executed_signals),
+                'max_possible_signals': max_possible_signals,
+                'desired_signal_count': desired_signal_count,
+                'summarizing_results': summarizing_results,
                 'symbol': symbol.symbol,
                 'start_date': start_date.strftime('%Y-%m-%d'),
                 'end_date': end_date.strftime('%Y-%m-%d'),
@@ -337,6 +394,448 @@ class BacktestAPIView(View):
                     'metrics': {'profit_rate': 0, 'execution_rate': 0, 'profit_percentage': 0}
                 }
             }
+    
+    def _select_best_signals_by_count(self, signals, count):
+        """Select the best N signals based on quality metrics"""
+        if not signals or count <= 0:
+            return signals
+        
+        # Sort signals by quality score (confidence * risk_reward_ratio)
+        def signal_quality_score(signal):
+            confidence = signal.get('confidence_score', 0)
+            risk_reward = signal.get('risk_reward_ratio', 1)
+            quality_score = signal.get('quality_score', 0)
+            return (confidence * 0.4) + (risk_reward * 0.3) + (quality_score * 0.3)
+        
+        sorted_signals = sorted(signals, key=signal_quality_score, reverse=True)
+        return sorted_signals[:count]
+    
+    def _generate_summarizing_results(self, signals, symbol, start_date, end_date):
+        """Generate summarizing results for the selected signals"""
+        if not signals:
+            return {
+                'total_signals': 0,
+                'buy_signals': 0,
+                'sell_signals': 0,
+                'avg_confidence': 0,
+                'avg_risk_reward': 0,
+                'best_signal': None,
+                'signal_distribution': {},
+                'quality_breakdown': {}
+            }
+        
+        # Calculate basic statistics
+        total_signals = len(signals)
+        buy_signals = len([s for s in signals if s.get('signal_type', '').upper() in ['BUY', 'STRONG_BUY']])
+        sell_signals = len([s for s in signals if s.get('signal_type', '').upper() in ['SELL', 'STRONG_SELL']])
+        
+        # Calculate averages
+        confidences = [s.get('confidence_score', 0) for s in signals]
+        risk_rewards = [s.get('risk_reward_ratio', 1) for s in signals]
+        
+        avg_confidence = sum(confidences) / len(confidences) if confidences else 0
+        avg_risk_reward = sum(risk_rewards) / len(risk_rewards) if risk_rewards else 0
+        
+        # Find best signal
+        best_signal = max(signals, key=lambda s: s.get('confidence_score', 0) * s.get('risk_reward_ratio', 1))
+        
+        # Signal distribution
+        signal_distribution = {}
+        for signal in signals:
+            signal_type = signal.get('signal_type', 'UNKNOWN')
+            signal_distribution[signal_type] = signal_distribution.get(signal_type, 0) + 1
+        
+        # Quality breakdown
+        high_quality = len([s for s in signals if s.get('confidence_score', 0) >= 0.8])
+        medium_quality = len([s for s in signals if 0.6 <= s.get('confidence_score', 0) < 0.8])
+        low_quality = len([s for s in signals if s.get('confidence_score', 0) < 0.6])
+        
+        return {
+            'total_signals': total_signals,
+            'buy_signals': buy_signals,
+            'sell_signals': sell_signals,
+            'avg_confidence': round(avg_confidence, 2),
+            'avg_risk_reward': round(avg_risk_reward, 2),
+            'best_signal': {
+                'type': best_signal.get('signal_type'),
+                'confidence': best_signal.get('confidence_score'),
+                'risk_reward': best_signal.get('risk_reward_ratio'),
+                'entry_price': best_signal.get('entry_price'),
+                'target_price': best_signal.get('target_price')
+            },
+            'signal_distribution': signal_distribution,
+            'quality_breakdown': {
+                'high_quality': high_quality,
+                'medium_quality': medium_quality,
+                'low_quality': low_quality
+            }
+        }
+    
+    def _simulate_signal_execution(self, signals, symbol, start_date, end_date):
+        """Simulate signal execution for backtesting by checking if targets were hit"""
+        if not signals:
+            return signals
+        
+        logger.info(f"Simulating execution for {len(signals)} signals for {symbol.symbol}")
+        
+        # Get historical price data for execution simulation
+        historical_data = self._get_historical_price_data(symbol, start_date, end_date)
+        
+        executed_signals = []
+        for signal in signals:
+            try:
+                # Create a copy of the signal to modify
+                executed_signal = signal.copy()
+                
+                # Simulate execution
+                execution_result = self._simulate_single_signal_execution(
+                    signal, historical_data, symbol
+                )
+                
+                # Update signal with execution results
+                executed_signal.update(execution_result)
+                executed_signals.append(executed_signal)
+                
+            except Exception as e:
+                logger.error(f"Error simulating execution for signal {signal.get('id', 'unknown')}: {e}")
+                # Keep original signal if execution simulation fails
+                executed_signals.append(signal)
+        
+        logger.info(f"Simulated execution for {len(executed_signals)} signals")
+        return executed_signals
+    
+    def _get_historical_price_data(self, symbol, start_date, end_date):
+        """Get historical price data for execution simulation"""
+        try:
+            from apps.data.models import MarketData
+            
+            # Get market data for the period
+            market_data = MarketData.objects.filter(
+                symbol=symbol,
+                timestamp__gte=start_date,
+                timestamp__lte=end_date
+            ).order_by('timestamp')
+            
+            # Convert to a more usable format
+            price_data = {}
+            for data_point in market_data:
+                timestamp = data_point.timestamp
+                price_data[timestamp] = {
+                    'open': float(data_point.open_price),
+                    'high': float(data_point.high_price),
+                    'low': float(data_point.low_price),
+                    'close': float(data_point.close_price),
+                    'volume': float(data_point.volume)
+                }
+            
+            logger.info(f"Retrieved {len(price_data)} price data points for execution simulation")
+            return price_data
+            
+        except Exception as e:
+            logger.error(f"Error getting historical price data: {e}")
+            return {}
+    
+    def _simulate_single_signal_execution(self, signal, historical_data, symbol):
+        """Simulate execution of a single signal"""
+        try:
+            from datetime import datetime, timedelta
+            from decimal import Decimal
+            
+            # Parse signal timestamp
+            signal_time = datetime.fromisoformat(signal['created_at'].replace('Z', '+00:00'))
+            if signal_time.tzinfo is None:
+                from django.utils import timezone
+                signal_time = timezone.make_aware(signal_time)
+            
+            entry_price = float(signal['entry_price'])
+            target_price = float(signal['target_price'])
+            stop_loss = float(signal['stop_loss'])
+            signal_type = signal['signal_type'].upper()
+            
+            # Look for execution in the next 7 days after signal
+            execution_window = timedelta(days=7)
+            end_time = signal_time + execution_window
+            
+            # Find price data points within the execution window
+            relevant_price_data = []
+            for timestamp, price_data in historical_data.items():
+                if timestamp >= signal_time and timestamp <= end_time:
+                    relevant_price_data.append((timestamp, price_data))
+            
+            # Sort by timestamp to process chronologically
+            relevant_price_data.sort(key=lambda x: x[0])
+            
+            if not relevant_price_data:
+                # No price data found, mark as not executed
+                return {
+                    'is_executed': False,
+                    'executed_at': None,
+                    'execution_price': None,
+                    'is_profitable': None,
+                    'profit_loss': 0.0,
+                    'execution_status': 'NO_DATA'
+                }
+            
+            # Process price data chronologically to find execution
+            execution_price = None
+            execution_time = None
+            execution_status = 'NOT_EXECUTED'
+            
+            for timestamp, price_data in relevant_price_data:
+                high_price = price_data['high']
+                low_price = price_data['low']
+                
+                if signal_type in ['BUY', 'STRONG_BUY']:
+                    # For buy signals, check if price hit target (above entry) or stop loss (below entry)
+                    if high_price >= target_price:
+                        execution_price = target_price
+                        execution_time = timestamp
+                        execution_status = 'TARGET_HIT'
+                        break
+                    elif low_price <= stop_loss:
+                        execution_price = stop_loss
+                        execution_time = timestamp
+                        execution_status = 'STOP_LOSS_HIT'
+                        break
+                else:  # SELL or STRONG_SELL
+                    # For sell signals, check if price hit target (below entry) or stop loss (above entry)
+                    if low_price <= target_price:
+                        execution_price = target_price
+                        execution_time = timestamp
+                        execution_status = 'TARGET_HIT'
+                        break
+                    elif high_price >= stop_loss:
+                        execution_price = stop_loss
+                        execution_time = timestamp
+                        execution_status = 'STOP_LOSS_HIT'
+                        break
+            
+            # If no target or stop loss was hit, execute at the last available price
+            if execution_price is None and relevant_price_data:
+                last_timestamp, last_price_data = relevant_price_data[-1]
+                execution_price = last_price_data['close']
+                execution_time = last_timestamp
+                execution_status = 'CLOSE_PRICE'
+            
+            # Calculate profit/loss based on execution
+            if execution_price is not None:
+                if signal_type in ['BUY', 'STRONG_BUY']:
+                    profit_loss = (execution_price - entry_price) / entry_price * 100
+                    is_profitable = execution_price > entry_price
+                else:  # SELL or STRONG_SELL
+                    profit_loss = (entry_price - execution_price) / entry_price * 100
+                    is_profitable = execution_price < entry_price
+            else:
+                # No execution possible
+                return {
+                    'is_executed': False,
+                    'executed_at': None,
+                    'execution_price': None,
+                    'is_profitable': None,
+                    'profit_loss': 0.0,
+                    'execution_status': 'NO_DATA'
+                }
+            
+            return {
+                'is_executed': True,
+                'executed_at': execution_time.isoformat() if execution_time else None,
+                'execution_price': round(execution_price, 6),
+                'is_profitable': is_profitable,
+                'profit_loss': round(profit_loss, 2),
+                'execution_status': execution_status
+            }
+            
+        except Exception as e:
+            logger.error(f"Error simulating single signal execution: {e}")
+            return {
+                'is_executed': False,
+                'executed_at': None,
+                'execution_price': None,
+                'is_profitable': None,
+                'profit_loss': 0.0,
+                'execution_status': 'ERROR'
+            }
+    
+    def _analyze_executed_signals(self, executed_signals, symbol, start_date, end_date):
+        """Analyze executed signals for performance metrics"""
+        try:
+            total_signals = len(executed_signals)
+            profit_signals = 0
+            loss_signals = 0
+            not_opened_signals = 0
+            total_investment = 0
+            total_profit_loss = 0
+            
+            individual_signals = []
+            
+            for signal in executed_signals:
+                # Calculate investment (assuming $1000 per signal)
+                investment = 1000.0
+                total_investment += investment
+                
+                if signal.get('is_executed', False):
+                    profit_loss_pct = signal.get('profit_loss', 0)
+                    profit_loss_amount = investment * (profit_loss_pct / 100)
+                    total_profit_loss += profit_loss_amount
+                    
+                    if signal.get('is_profitable', False):
+                        profit_signals += 1
+                        status = 'PROFIT'
+                    else:
+                        loss_signals += 1
+                        status = 'LOSS'
+                else:
+                    profit_loss_amount = 0
+                    not_opened_signals += 1
+                    status = 'NOT_OPENED'
+                
+                # Add to individual signals
+                individual_signals.append({
+                    'signal_id': signal.get('id', 'unknown'),
+                    'date': signal.get('created_at', '')[:10],  # Extract date part
+                    'time': signal.get('created_at', '')[11:19],  # Extract time part
+                    'signal_type': signal.get('signal_type', 'UNKNOWN'),
+                    'entry_price': signal.get('entry_price', 0),
+                    'target_price': signal.get('target_price', 0),
+                    'stop_loss': signal.get('stop_loss', 0),
+                    'execution_price': signal.get('execution_price', 0),
+                    'is_executed': signal.get('is_executed', False),
+                    'status': status,
+                    'profit_loss_amount': round(profit_loss_amount, 2),
+                    'profit_loss_percentage': round(signal.get('profit_loss', 0), 2),
+                    'confidence_score': signal.get('confidence_score', 0),
+                    'risk_reward_ratio': signal.get('risk_reward_ratio', 0)
+                })
+            
+            # Calculate total profit percentage
+            total_profit_percentage = (total_profit_loss / total_investment * 100) if total_investment > 0 else 0
+            
+            # Calculate strategy quality
+            quality_score = self._calculate_strategy_quality(
+                total_signals, profit_signals, loss_signals, not_opened_signals, total_profit_percentage
+            )
+            
+            return {
+                'symbol': symbol.symbol,
+                'symbol_name': symbol.name,
+                'analysis_date': timezone.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'period': {
+                    'start_date': start_date.strftime('%Y-%m-%d'),
+                    'end_date': end_date.strftime('%Y-%m-%d'),
+                    'days': (end_date - start_date).days
+                },
+                'total_summary': {
+                    'total_signals': total_signals,
+                    'profit_signals': profit_signals,
+                    'loss_signals': loss_signals,
+                    'not_opened_signals': not_opened_signals,
+                    'total_investment': total_investment,
+                    'total_profit_loss': total_profit_loss,
+                    'total_profit_percentage': round(total_profit_percentage, 2)
+                },
+                'individual_signals': individual_signals,
+                'strategy_quality': quality_score
+            }
+            
+        except Exception as e:
+            logger.error(f"Error analyzing executed signals: {e}")
+            return self._empty_signal_analysis(symbol, start_date, end_date)
+    
+    def _calculate_strategy_quality(self, total_signals, profit_signals, loss_signals, not_opened_signals, profit_percentage):
+        """Calculate strategy quality score and rating"""
+        try:
+            if total_signals == 0:
+                return {
+                    'quality_score': 0,
+                    'quality_rating': 'No Data',
+                    'recommendation': 'No signals generated to analyze',
+                    'metrics': {'profit_rate': 0, 'execution_rate': 0, 'profit_percentage': 0}
+                }
+            
+            # Calculate metrics
+            profit_rate = (profit_signals / total_signals) * 100 if total_signals > 0 else 0
+            execution_rate = ((profit_signals + loss_signals) / total_signals) * 100 if total_signals > 0 else 0
+            
+            # Calculate quality score (0-100)
+            quality_score = 0
+            
+            # Execution rate component (40% weight)
+            execution_score = min(execution_rate * 0.4, 40)
+            quality_score += execution_score
+            
+            # Profit rate component (30% weight)
+            profit_score = min(profit_rate * 0.3, 30)
+            quality_score += profit_score
+            
+            # Profit percentage component (30% weight)
+            profit_pct_score = min(max(profit_percentage, 0) * 0.3, 30)
+            quality_score += profit_pct_score
+            
+            # Determine rating
+            if quality_score >= 80:
+                rating = 'Excellent'
+                recommendation = 'Strategy is performing very well. Consider increasing position sizes.'
+            elif quality_score >= 60:
+                rating = 'Good'
+                recommendation = 'Strategy is performing well. Monitor for consistency.'
+            elif quality_score >= 40:
+                rating = 'Fair'
+                recommendation = 'Strategy needs improvement. Review entry/exit criteria.'
+            elif quality_score >= 20:
+                rating = 'Poor'
+                recommendation = 'Strategy needs significant improvement. Consider strategy revision.'
+            else:
+                rating = 'Very Poor'
+                recommendation = 'Strategy is not performing well. Major revision required.'
+            
+            return {
+                'quality_score': round(quality_score, 1),
+                'quality_rating': rating,
+                'recommendation': recommendation,
+                'metrics': {
+                    'profit_rate': round(profit_rate, 1),
+                    'execution_rate': round(execution_rate, 1),
+                    'profit_percentage': round(profit_percentage, 2)
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating strategy quality: {e}")
+            return {
+                'quality_score': 0,
+                'quality_rating': 'Error',
+                'recommendation': f'Error calculating quality: {str(e)}',
+                'metrics': {'profit_rate': 0, 'execution_rate': 0, 'profit_percentage': 0}
+            }
+    
+    def _empty_signal_analysis(self, symbol, start_date, end_date):
+        """Return empty signal analysis structure"""
+        return {
+            'symbol': symbol.symbol,
+            'symbol_name': symbol.name,
+            'analysis_date': timezone.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'period': {
+                'start_date': start_date.strftime('%Y-%m-%d'),
+                'end_date': end_date.strftime('%Y-%m-%d'),
+                'days': (end_date - start_date).days
+            },
+            'total_summary': {
+                'total_signals': 0,
+                'profit_signals': 0,
+                'loss_signals': 0,
+                'not_opened_signals': 0,
+                'total_investment': 0,
+                'total_profit_loss': 0,
+                'total_profit_percentage': 0
+            },
+            'individual_signals': [],
+            'strategy_quality': {
+                'quality_score': 0,
+                'quality_rating': 'No Data',
+                'recommendation': 'No signals to analyze',
+                'metrics': {'profit_rate': 0, 'execution_rate': 0, 'profit_percentage': 0}
+            }
+        }
 
 
 class BacktestSearchAPIView(View):

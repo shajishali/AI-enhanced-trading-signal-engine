@@ -735,13 +735,27 @@ class SignalGenerationService:
             except Exception as e:
                 logger.warning(f"Could not fetch live price for {symbol.symbol}: {e}")
             
-            # Use live price if available, otherwise fall back to market data
+            # Calculate entry price based on signal type and current price
             if current_price and current_price > 0:
-                entry_price = current_price
-                logger.info(f"Signal created with live price: {entry_price}")
+                base_price = current_price
+                logger.info(f"Using live price as base: {base_price}")
             else:
-                entry_price = Decimal(str(market_data.get('close_price', 0)))
-                logger.info(f"Signal created with market data price: {entry_price}")
+                base_price = Decimal(str(market_data.get('close_price', 0)))
+                logger.info(f"Using market data price as base: {base_price}")
+            
+            # Calculate realistic entry price based on signal type
+            if signal_type_name in ['BUY', 'STRONG_BUY']:
+                # For buy signals, entry should be slightly below current price for better entry
+                entry_price = base_price * Decimal('0.98')  # 2% below current price
+                logger.info(f"BUY signal entry price: {entry_price} (2% below current {base_price})")
+            elif signal_type_name in ['SELL', 'STRONG_SELL']:
+                # For sell signals, entry should be slightly above current price for better entry
+                entry_price = base_price * Decimal('1.02')  # 2% above current price
+                logger.info(f"SELL signal entry price: {entry_price} (2% above current {base_price})")
+            else:
+                # For HOLD signals, use current price as entry
+                entry_price = base_price
+                logger.info(f"HOLD signal entry price: {entry_price} (same as current)")
             
             # Enhanced price validation with multiple fallbacks
             if not entry_price or entry_price <= 0:
@@ -834,21 +848,30 @@ class SignalGenerationService:
                 return None
             
 
-            # Calculate target price based on signal type with 60% profit and 40% stop loss
+            # Calculate realistic target price and stop loss based on signal type
             if signal_type_name in ['BUY', 'STRONG_BUY']:
-                # For buy signals: 60% profit target, 40% stop loss
-                target_percentage = Decimal('0.60')  # 60% profit target
-                stop_loss_percentage = Decimal('0.40')  # 40% stop loss
+                # For buy signals: target above entry, stop loss below entry
+                profit_percentage = Decimal('0.15')  # 15% profit target (more realistic)
+                stop_loss_percentage = Decimal('0.08')  # 8% stop loss (more realistic)
                 
-                target_price = entry_price * (Decimal('1.0') + target_percentage)
+                target_price = entry_price * (Decimal('1.0') + profit_percentage)
                 stop_loss = entry_price * (Decimal('1.0') - stop_loss_percentage)
-            else:
-                # For sell signals: 60% profit target, 40% stop loss
-                target_percentage = Decimal('0.60')  # 60% profit target
-                stop_loss_percentage = Decimal('0.40')  # 40% stop loss
+                logger.info(f"BUY signal targets: entry={entry_price}, target={target_price} (+15%), stop={stop_loss} (-8%)")
                 
-                target_price = entry_price * (Decimal('1.0') - target_percentage)  # Lower price for profit
+            elif signal_type_name in ['SELL', 'STRONG_SELL']:
+                # For sell signals: target below entry, stop loss above entry
+                profit_percentage = Decimal('0.12')  # 12% profit target for sells
+                stop_loss_percentage = Decimal('0.06')  # 6% stop loss for sells
+                
+                target_price = entry_price * (Decimal('1.0') - profit_percentage)  # Lower price for profit
                 stop_loss = entry_price * (Decimal('1.0') + stop_loss_percentage)  # Higher price for stop loss
+                logger.info(f"SELL signal targets: entry={entry_price}, target={target_price} (-12%), stop={stop_loss} (+6%)")
+                
+            else:  # HOLD signals
+                # For hold signals, set conservative targets
+                target_price = entry_price * Decimal('1.05')  # 5% target
+                stop_loss = entry_price * Decimal('0.95')     # 5% stop loss
+                logger.info(f"HOLD signal targets: entry={entry_price}, target={target_price} (+5%), stop={stop_loss} (-5%)")
             
             # Calculate risk-reward ratio
             risk = abs(float(entry_price - stop_loss))
