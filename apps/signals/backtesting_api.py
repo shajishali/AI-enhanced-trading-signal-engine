@@ -508,27 +508,48 @@ class BacktestAPIView(View):
         """Get historical price data for execution simulation"""
         try:
             from apps.data.models import MarketData
+            from apps.data.historical_data_service import get_historical_data
             
-            # Get market data for the period
+            # First try to get data from database
             market_data = MarketData.objects.filter(
                 symbol=symbol,
                 timestamp__gte=start_date,
                 timestamp__lte=end_date
             ).order_by('timestamp')
             
-            # Convert to a more usable format
             price_data = {}
-            for data_point in market_data:
-                timestamp = data_point.timestamp
-                price_data[timestamp] = {
-                    'open': float(data_point.open_price),
-                    'high': float(data_point.high_price),
-                    'low': float(data_point.low_price),
-                    'close': float(data_point.close_price),
-                    'volume': float(data_point.volume)
-                }
             
-            logger.info(f"Retrieved {len(price_data)} price data points for execution simulation")
+            if market_data.exists():
+                # Use existing database data
+                for data_point in market_data:
+                    timestamp = data_point.timestamp
+                    price_data[timestamp] = {
+                        'open': float(data_point.open_price),
+                        'high': float(data_point.high_price),
+                        'low': float(data_point.low_price),
+                        'close': float(data_point.close_price),
+                        'volume': float(data_point.volume)
+                    }
+                logger.info(f"Retrieved {len(price_data)} price data points from database for execution simulation")
+            else:
+                # Fetch real historical data from Binance API
+                logger.info(f"No database data found, fetching real historical data for {symbol.symbol}")
+                historical_data = get_historical_data(symbol.symbol, start_date, end_date, '1h')
+                
+                if historical_data:
+                    for data_point in historical_data:
+                        timestamp = data_point['timestamp']
+                        price_data[timestamp] = {
+                            'open': data_point['open'],
+                            'high': data_point['high'],
+                            'low': data_point['low'],
+                            'close': data_point['close'],
+                            'volume': data_point['volume']
+                        }
+                    logger.info(f"Retrieved {len(price_data)} real historical price data points for execution simulation")
+                else:
+                    logger.warning(f"No historical data available for {symbol.symbol} in range {start_date} to {end_date}")
+            
             return price_data
             
         except Exception as e:
@@ -716,6 +737,17 @@ class BacktestAPIView(View):
                 total_signals, profit_signals, loss_signals, not_opened_signals, total_profit_percentage
             )
             
+            # Validate signal prices against real market history
+            try:
+                from apps.data.price_validation_service import validate_backtesting_results
+                validation_results = validate_backtesting_results(
+                    symbol.symbol, start_date, end_date, individual_signals
+                )
+                logger.info(f"Price validation: {validation_results['valid_signals']}/{validation_results['total_signals']} signals valid")
+            except Exception as e:
+                logger.warning(f"Price validation failed: {e}")
+                validation_results = None
+            
             return {
                 'symbol': symbol.symbol,
                 'symbol_name': symbol.name,
@@ -735,7 +767,8 @@ class BacktestAPIView(View):
                     'total_profit_percentage': round(total_profit_percentage, 2)
                 },
                 'individual_signals': individual_signals,
-                'strategy_quality': quality_score
+                'strategy_quality': quality_score,
+                'price_validation': validation_results
             }
             
         except Exception as e:

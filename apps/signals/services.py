@@ -740,8 +740,23 @@ class SignalGenerationService:
                 base_price = current_price
                 logger.info(f"Using live price as base: {base_price}")
             else:
-                base_price = Decimal(str(market_data.get('close_price', 0)))
-                logger.info(f"Using market data price as base: {base_price}")
+                # Try to get historical price from market data first
+                market_close_price = market_data.get('close_price', 0)
+                if market_close_price and market_close_price > 0:
+                    base_price = Decimal(str(market_close_price))
+                    logger.info(f"Using market data price as base: {base_price}")
+                else:
+                    # Fallback to reasonable default price
+                    fallback_prices = {
+                        'BTC': 50000.0, 'ETH': 3000.0, 'BNB': 300.0, 'ADA': 1.0, 'SOL': 100.0,
+                        'XRP': 0.5, 'DOGE': 0.1, 'TRX': 0.05, 'LINK': 20.0, 'DOT': 10.0,
+                        'MATIC': 1.0, 'UNI': 15.0, 'AVAX': 30.0, 'ATOM': 8.0, 'FTM': 0.5,
+                        'ALGO': 0.3, 'VET': 0.05, 'ICP': 15.0, 'THETA': 2.0, 'SAND': 0.5,
+                        'MANA': 0.8, 'LTC': 150.0, 'BCH': 300.0, 'ETC': 30.0, 'XLM': 0.3,
+                        'XMR': 150.0, 'ZEC': 50.0, 'DASH': 80.0, 'NEO': 25.0, 'QTUM': 5.0
+                    }
+                    base_price = Decimal(str(fallback_prices.get(symbol.symbol, 1.0)))
+                    logger.info(f"Using fallback price as base: {base_price}")
             
             # Calculate realistic entry price based on signal type
             if signal_type_name in ['BUY', 'STRONG_BUY']:
@@ -3556,9 +3571,17 @@ class HistoricalSignalService:
             if start_date >= end_date:
                 raise ValueError("Start date must be before end date")
             
-            # Get fallback price for this symbol
-            fallback_price = self._get_fallback_price_for_symbol(symbol)
-            self.logger.info(f"Using fallback price for {symbol.symbol}: {fallback_price}")
+            # Fetch real historical data for this period
+            self._fetch_real_historical_data(symbol, start_date, end_date)
+            
+            # Get historical price at start date for signal generation
+            historical_price = self._get_historical_price_at_date(symbol, start_date)
+            if historical_price:
+                self.logger.info(f"Using historical price for {symbol.symbol} at {start_date}: {historical_price}")
+                fallback_price = historical_price
+            else:
+                fallback_price = self._get_fallback_price_for_symbol(symbol)
+                self.logger.info(f"Using fallback price for {symbol.symbol}: {fallback_price}")
             
             # Generate base signals using the main signal service
             base_signals = self.signal_service.generate_signals_for_symbol(symbol)
@@ -3724,9 +3747,74 @@ class HistoricalSignalService:
             timestamp__lte=end_date
         ).order_by('timestamp')
     
-    def _generate_synthetic_data(self, symbol: Symbol, start_date: datetime, end_date: datetime):
-        """Generate synthetic market data for testing purposes"""
+    def _fetch_real_historical_data(self, symbol: Symbol, start_date: datetime, end_date: datetime):
+        """Fetch real historical market data from Binance API"""
+        try:
+            from apps.data.historical_data_service import get_historical_data
+            
+            # Check if symbol is supported
+            if not symbol.symbol.upper() in ['BTC', 'ETH', 'BNB', 'ADA', 'SOL', 'XRP', 'DOGE', 'TRX', 'LINK', 'DOT', 'MATIC', 'UNI', 'AVAX', 'ATOM', 'FTM', 'ALGO', 'VET', 'ICP', 'THETA', 'SAND', 'MANA', 'LTC', 'BCH', 'ETC', 'XLM', 'XMR', 'ZEC', 'DASH', 'NEO', 'QTUM']:
+                self.logger.warning(f"Symbol {symbol.symbol} not supported for real historical data, using fallback")
+                return self._generate_fallback_data(symbol, start_date, end_date)
+            
+            # Check if data already exists for this symbol and date range
+            existing_data = MarketData.objects.filter(
+                symbol=symbol,
+                timestamp__gte=start_date,
+                timestamp__lte=end_date
+            ).exists()
+            
+            if existing_data:
+                self.logger.info(f"Historical data already exists for {symbol.symbol} in range {start_date} to {end_date}")
+                return
+            
+            # Fetch real historical data from Binance
+            self.logger.info(f"Fetching real historical data for {symbol.symbol} from {start_date} to {end_date}")
+            historical_data = get_historical_data(symbol.symbol, start_date, end_date, '1h')
+            
+            if not historical_data:
+                self.logger.warning(f"No historical data found for {symbol.symbol}, using fallback")
+                return self._generate_fallback_data(symbol, start_date, end_date)
+            
+            # Convert to MarketData objects
+            data_points = []
+            for data_point in historical_data:
+                data_points.append(MarketData(
+                    symbol=symbol,
+                    timestamp=data_point['timestamp'],
+                    open_price=data_point['open'],
+                    high_price=data_point['high'],
+                    low_price=data_point['low'],
+                    close_price=data_point['close'],
+                    volume=data_point['volume']
+                ))
+            
+            # Bulk create data with ignore_conflicts to avoid duplicate errors
+            try:
+                MarketData.objects.bulk_create(data_points, ignore_conflicts=True)
+                self.logger.info(f"Stored {len(data_points)} real historical data points for {symbol.symbol}")
+            except Exception as e:
+                self.logger.warning(f"Error storing historical data: {e}")
+                # Try to create data one by one to identify specific conflicts
+                created_count = 0
+                for data_point in data_points:
+                    try:
+                        data_point.save()
+                        created_count += 1
+                    except Exception as individual_error:
+                        self.logger.warning(f"Skipping duplicate data point: {individual_error}")
+                self.logger.info(f"Stored {created_count} real historical data points for {symbol.symbol}")
+                
+        except Exception as e:
+            self.logger.error(f"Error fetching real historical data for {symbol.symbol}: {e}")
+            self.logger.info("Falling back to synthetic data generation")
+            return self._generate_fallback_data(symbol, start_date, end_date)
+    
+    def _generate_fallback_data(self, symbol: Symbol, start_date: datetime, end_date: datetime):
+        """Generate fallback synthetic data when real data is not available"""
         import random
+        
+        self.logger.warning(f"Generating fallback synthetic data for {symbol.symbol}")
         
         # Check if data already exists for this symbol and date range
         existing_data = MarketData.objects.filter(
@@ -3736,11 +3824,20 @@ class HistoricalSignalService:
         ).exists()
         
         if existing_data:
-            self.logger.info(f"Synthetic data already exists for {symbol.symbol} in range {start_date} to {end_date}")
+            self.logger.info(f"Fallback data already exists for {symbol.symbol} in range {start_date} to {end_date}")
             return
         
-        # Generate realistic price movement
-        base_price = 0.50 if symbol.symbol == 'XRP' else 100.0
+        # Use realistic base prices based on symbol
+        base_prices = {
+            'BTC': 50000.0, 'ETH': 3000.0, 'BNB': 300.0, 'ADA': 1.0, 'SOL': 100.0,
+            'XRP': 0.5, 'DOGE': 0.1, 'TRX': 0.05, 'LINK': 20.0, 'DOT': 10.0,
+            'MATIC': 1.0, 'UNI': 15.0, 'AVAX': 30.0, 'ATOM': 8.0, 'FTM': 0.5,
+            'ALGO': 0.3, 'VET': 0.05, 'ICP': 15.0, 'THETA': 2.0, 'SAND': 0.5,
+            'MANA': 0.8, 'LTC': 150.0, 'BCH': 300.0, 'ETC': 30.0, 'XLM': 0.3,
+            'XMR': 150.0, 'ZEC': 50.0, 'DASH': 80.0, 'NEO': 25.0, 'QTUM': 5.0
+        }
+        
+        base_price = base_prices.get(symbol.symbol, 1.0)
         current_price = base_price
         
         current_date = start_date
@@ -3752,7 +3849,7 @@ class HistoricalSignalService:
             current_price *= (1 + change)
             
             # Ensure price stays reasonable
-            current_price = max(0.01, min(1000.0, current_price))
+            current_price = max(0.01, min(100000.0, current_price))
             
             # Generate OHLC from current price
             volatility = random.uniform(0.005, 0.03)  # 0.5-3% daily volatility
@@ -3779,9 +3876,9 @@ class HistoricalSignalService:
         # Bulk create data with ignore_conflicts to avoid duplicate errors
         try:
             MarketData.objects.bulk_create(data_points, ignore_conflicts=True)
-            self.logger.info(f"Generated {len(data_points)} synthetic data points for {symbol.symbol}")
+            self.logger.info(f"Generated {len(data_points)} fallback data points for {symbol.symbol}")
         except Exception as e:
-            self.logger.warning(f"Error creating synthetic data: {e}")
+            self.logger.warning(f"Error creating fallback data: {e}")
             # Try to create data one by one to identify specific conflicts
             created_count = 0
             for data_point in data_points:
@@ -3790,7 +3887,16 @@ class HistoricalSignalService:
                     created_count += 1
                 except Exception as individual_error:
                     self.logger.warning(f"Skipping duplicate data point: {individual_error}")
-            self.logger.info(f"Created {created_count} synthetic data points for {symbol.symbol}")
+            self.logger.info(f"Created {created_count} fallback data points for {symbol.symbol}")
+    
+    def _get_historical_price_at_date(self, symbol: Symbol, target_date: datetime) -> Optional[float]:
+        """Get the historical price of a symbol at a specific date"""
+        try:
+            from apps.data.historical_data_service import get_symbol_price_at_date
+            return get_symbol_price_at_date(symbol.symbol, target_date)
+        except Exception as e:
+            self.logger.warning(f"Could not get historical price for {symbol.symbol} at {target_date}: {e}")
+            return None
     
     def get_available_symbols(self) -> List[Symbol]:
         """Get all active symbols available for backtesting"""
