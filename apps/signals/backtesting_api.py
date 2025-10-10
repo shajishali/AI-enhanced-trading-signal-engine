@@ -694,6 +694,7 @@ class BacktestAPIView(View):
                     'signal_id': signal.get('id', 'unknown'),
                     'date': signal.get('created_at', '')[:10],  # Extract date part
                     'time': signal.get('created_at', '')[11:19],  # Extract time part
+                    'executed_at': signal.get('executed_at', None),  # Execution timestamp
                     'signal_type': signal.get('signal_type', 'UNKNOWN'),
                     'entry_price': signal.get('entry_price', 0),
                     'target_price': signal.get('target_price', 0),

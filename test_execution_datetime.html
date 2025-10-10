@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Execution Date/Time Display</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .clickable-row:hover {
+            background-color: #f8f9fa !important;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>Test Execution Date/Time Display</h2>
+        
+        <!-- Test Signal Analysis Table -->
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th colspan="2">Signal Status Breakdown</th>
+                        <th colspan="2">Financial Summary</th>
+                        <th colspan="2">Strategy Quality</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="clickable-row" data-signal-type="profit" style="cursor: pointer;">
+                        <td><i class="fas fa-arrow-up text-success me-1"></i>Profit Signals</td>
+                        <td class="text-success fw-bold">1 (20.0%)</td>
+                        <td>Total Investment</td>
+                        <td class="fw-bold">$5,000.00</td>
+                        <td>Quality Score</td>
+                        <td class="fw-bold text-warning">46.0/100</td>
+                    </tr>
+                    <tr class="clickable-row" data-signal-type="loss" style="cursor: pointer;">
+                        <td><i class="fas fa-arrow-down text-danger me-1"></i>Loss Signals</td>
+                        <td class="text-danger fw-bold">4 (80.0%)</td>
+                        <td>Total Profit/Loss</td>
+                        <td class="fw-bold text-danger">$-170.00</td>
+                        <td>Quality Rating</td>
+                        <td class="fw-bold text-warning">Fair</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Filtered Signals Container -->
+        <div id="filteredSignalsContainer" style="display: none;">
+            <h6 id="filteredSignalsTitle"><i class="fas fa-filter me-2"></i>Filtered Signal Details</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th>Signal Date</th>
+                            <th>Signal Time</th>
+                            <th>Execution Date</th>
+                            <th>Execution Time</th>
+                            <th>Type</th>
+                            <th>Entry Price</th>
+                            <th>Target Price</th>
+                            <th>Stop Loss</th>
+                            <th>Execution Price</th>
+                            <th>Status</th>
+                            <th>P/L Amount</th>
+                            <th>P/L %</th>
+                            <th>Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody id="filteredSignalsTable">
+                        <!-- Filtered signals will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="closeFilteredSignalsBtn">
+                    <i class="fas fa-times me-1"></i>Close
+                </button>
+            </div>
+        </div>
+        
+        <div class="alert alert-info mt-3">
+            <h6>Test Instructions:</h6>
+            <ul>
+                <li>Click on "Profit Signals" to see the profit signal with execution date/time</li>
+                <li>Click on "Loss Signals" to see loss signals with execution date/time</li>
+                <li>Notice the "Execution Date" and "Execution Time" columns show when the signal was actually executed</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Mock analysis data with execution timestamps
+        const mockAnalysisData = {
+            individual_signals: [
+                {
+                    date: '2021-12-15',
+                    time: '00:00:00',
+                    executed_at: '2021-12-15T10:30:45Z', // Signal executed 10:30 AM same day
+                    signal_type: 'BUY',
+                    entry_price: 19.24,
+                    target_price: 22.126,
+                    stop_loss: 17.7008,
+                    execution_price: 22.126,
+                    status: 'PROFIT',
+                    profit_loss_amount: 150.00,
+                    profit_loss_percentage: 15.00,
+                    confidence_score: 0.70
+                },
+                {
+                    date: '2021-12-16',
+                    time: '14:15:00',
+                    executed_at: '2021-12-16T16:45:30Z', // Signal executed 4:45 PM same day
+                    signal_type: 'SELL',
+                    entry_price: 28.00,
+                    target_price: 24.64,
+                    stop_loss: 29.68,
+                    execution_price: 29.68,
+                    status: 'LOSS',
+                    profit_loss_amount: -60.00,
+                    profit_loss_percentage: -6.00,
+                    confidence_score: 0.72
+                },
+                {
+                    date: '2021-12-17',
+                    time: '09:45:00',
+                    executed_at: null, // Signal not executed
+                    signal_type: 'BUY',
+                    entry_price: 26.00,
+                    target_price: 29.90,
+                    stop_loss: 23.92,
+                    execution_price: null,
+                    status: 'NOT_OPENED',
+                    profit_loss_amount: 0.00,
+                    profit_loss_percentage: 0.00,
+                    confidence_score: 0.65
+                }
+            ]
+        };
+        
+        // Store current analysis data globally
+        let currentAnalysisData = mockAnalysisData;
+        
+        // Function to handle clickable signal status rows
+        function setupClickableSignalRows() {
+            const clickableRows = document.querySelectorAll('.clickable-row');
+            
+            clickableRows.forEach(row => {
+                row.addEventListener('click', function() {
+                    const signalType = this.getAttribute('data-signal-type');
+                    showFilteredSignals(signalType);
+                });
+            });
+        }
+        
+        // Function to show filtered signals
+        function showFilteredSignals(signalType) {
+            if (!currentAnalysisData || !currentAnalysisData.individual_signals) {
+                console.warn('No analysis data available');
+                return;
+            }
+            
+            const signals = currentAnalysisData.individual_signals;
+            let filteredSignals = [];
+            let title = '';
+            
+            // Filter signals based on type
+            switch(signalType) {
+                case 'profit':
+                    filteredSignals = signals.filter(s => s.status === 'PROFIT');
+                    title = `Profit Signals (${filteredSignals.length})`;
+                    break;
+                case 'loss':
+                    filteredSignals = signals.filter(s => s.status === 'LOSS');
+                    title = `Loss Signals (${filteredSignals.length})`;
+                    break;
+                case 'not_opened':
+                    filteredSignals = signals.filter(s => s.status === 'NOT_OPENED');
+                    title = `Not Opened Signals (${filteredSignals.length})`;
+                    break;
+                default:
+                    return;
+            }
+            
+            // Update title
+            document.getElementById('filteredSignalsTitle').innerHTML = `<i class="fas fa-filter me-2"></i>${title}`;
+            
+            // Populate filtered signals table
+            populateFilteredSignalsTable(filteredSignals);
+            
+            // Show the container
+            document.getElementById('filteredSignalsContainer').style.display = 'block';
+            
+            // Scroll to the filtered signals
+            document.getElementById('filteredSignalsContainer').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }
+        
+        // Function to populate filtered signals table
+        function populateFilteredSignalsTable(signals) {
+            const tbody = document.getElementById('filteredSignalsTable');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            
+            if (signals.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="13" class="text-center text-muted py-3">
+                            <i class="fas fa-info-circle me-2"></i>No signals found for this category
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            signals.forEach(signal => {
+                const statusIcon = signal.status === 'PROFIT' ? '✅' : 
+                                  signal.status === 'LOSS' ? '❌' : '⏸️';
+                const statusClass = signal.status === 'PROFIT' ? 'text-success' : 
+                                   signal.status === 'LOSS' ? 'text-danger' : 'text-warning';
+                
+                // Parse execution date and time
+                let executionDate = 'N/A';
+                let executionTime = 'N/A';
+                
+                if (signal.executed_at) {
+                    try {
+                        const execDate = new Date(signal.executed_at);
+                        executionDate = execDate.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit'
+                        });
+                        executionTime = execDate.toLocaleTimeString('en-US', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: false
+                        });
+                    } catch (e) {
+                        console.warn('Error parsing execution date:', e);
+                    }
+                }
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${signal.date}</td>
+                    <td>${signal.time}</td>
+                    <td class="${signal.executed_at ? 'text-primary fw-bold' : 'text-muted'}">${executionDate}</td>
+                    <td class="${signal.executed_at ? 'text-primary fw-bold' : 'text-muted'}">${executionTime}</td>
+                    <td><span class="badge ${signal.signal_type.includes('BUY') ? 'bg-success' : 'bg-danger'}">${signal.signal_type}</span></td>
+                    <td>$${signal.entry_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
+                    <td>$${signal.target_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
+                    <td>$${signal.stop_loss.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
+                    <td>${signal.execution_price ? '$' + signal.execution_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4}) : 'N/A'}</td>
+                    <td class="${statusClass}">${statusIcon} ${signal.status}</td>
+                    <td class="${signal.profit_loss_amount >= 0 ? 'text-success' : 'text-danger'}">
+                        $${signal.profit_loss_amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </td>
+                    <td class="${signal.profit_loss_percentage >= 0 ? 'text-success' : 'text-danger'}">
+                        ${signal.profit_loss_percentage.toFixed(2)}%
+                    </td>
+                    <td>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar ${signal.confidence_score >= 0.8 ? 'bg-success' : signal.confidence_score >= 0.6 ? 'bg-warning' : 'bg-danger'}" 
+                                 style="width: ${signal.confidence_score * 100}%">
+                                ${Math.round(signal.confidence_score * 100)}%
+                            </div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // Function to close filtered signals
+        function closeFilteredSignals() {
+            document.getElementById('filteredSignalsContainer').style.display = 'none';
+        }
+        
+        // Setup when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            setupClickableSignalRows();
+            
+            // Setup close button
+            const closeBtn = document.getElementById('closeFilteredSignalsBtn');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', closeFilteredSignals);
+            }
+        });
+    </script>
+</body>
+</html>

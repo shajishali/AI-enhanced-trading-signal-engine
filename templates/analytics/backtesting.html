@@ -1468,8 +1468,10 @@ Average Confidence: ${stats.avgConfidence}%`);
                     <table class="table table-sm table-striped">
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Time</th>
+                                <th>Signal Date</th>
+                                <th>Signal Time</th>
+                                <th>Execution Date</th>
+                                <th>Execution Time</th>
                                 <th>Type</th>
                                 <th>Entry Price</th>
                                 <th>Target Price</th>
@@ -2086,7 +2088,7 @@ Average Confidence: ${stats.avgConfidence}%`);
         if (signals.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="11" class="text-center text-muted py-3">
+                    <td colspan="13" class="text-center text-muted py-3">
                         <i class="fas fa-info-circle me-2"></i>No signals found for this category
                     </td>
                 </tr>
@@ -2100,10 +2102,35 @@ Average Confidence: ${stats.avgConfidence}%`);
             const statusClass = signal.status === 'PROFIT' ? 'text-success' : 
                                signal.status === 'LOSS' ? 'text-danger' : 'text-warning';
             
+            // Parse execution date and time
+            let executionDate = 'N/A';
+            let executionTime = 'N/A';
+            
+            if (signal.executed_at) {
+                try {
+                    const execDate = new Date(signal.executed_at);
+                    executionDate = execDate.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    });
+                    executionTime = execDate.toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false
+                    });
+                } catch (e) {
+                    console.warn('Error parsing execution date:', e);
+                }
+            }
+            
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${signal.date}</td>
                 <td>${signal.time}</td>
+                <td class="${signal.executed_at ? 'text-primary fw-bold' : 'text-muted'}">${executionDate}</td>
+                <td class="${signal.executed_at ? 'text-primary fw-bold' : 'text-muted'}">${executionTime}</td>
                 <td><span class="badge ${signal.signal_type.includes('BUY') ? 'bg-success' : 'bg-danger'}">${signal.signal_type}</span></td>
                 <td>$${signal.entry_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
                 <td>$${signal.target_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
