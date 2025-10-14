@@ -520,11 +520,15 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Global variables
     let currentSignals = [];
     let availableSymbols = [];
+    let signalDistributionChart = null; // Store chart instance for cleanup
     
     // Initialize the page
     initializePage();
@@ -1334,6 +1338,16 @@ Average Confidence: ${stats.avgConfidence}%`);
             existingContainer.remove();
         }
         
+        // Hide and cleanup pie chart section
+        const pieChartSection = document.getElementById('signalDistributionSection');
+        if (pieChartSection) {
+            pieChartSection.style.display = 'none';
+        }
+        if (signalDistributionChart) {
+            signalDistributionChart.destroy();
+            signalDistributionChart = null;
+        }
+        
         // Create analysis container as part of the results section
         const analysisContainer = document.createElement('div');
         analysisContainer.id = 'signalAnalysisContainer';
@@ -1464,6 +1478,7 @@ Average Confidence: ${stats.avgConfidence}%`);
             <!-- Filtered Signal Details Container -->
             <div id="filteredSignalsContainer" style="display: none;">
                 <h6 id="filteredSignalsTitle"><i class="fas fa-filter me-2"></i>Filtered Signal Details</h6>
+                
                 <div class="table-responsive">
                     <table class="table table-sm table-striped">
                         <thead>
@@ -1488,10 +1503,24 @@ Average Confidence: ${stats.avgConfidence}%`);
                         </tbody>
                     </table>
                 </div>
+                
                 <div class="mt-2">
                     <button type="button" class="btn btn-sm btn-outline-secondary" id="closeFilteredSignalsBtn">
                         <i class="fas fa-times me-1"></i>Close
                     </button>
+                </div>
+            </div>
+            
+            <!-- Pie Chart Section - Displayed automatically after analysis -->
+            <div id="signalDistributionSection" class="mt-4 mb-4" style="display: none;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                    <h6 class="text-center mb-3 text-white"><i class="fas fa-chart-pie me-2"></i>Signal Distribution for <span id="pieChartSymbol" class="fw-bold"></span></h6>
+                    <div style="max-width: 350px; margin: 0 auto; background: white; padding: 15px; border-radius: 10px;">
+                        <canvas id="signalDistributionChart"></canvas>
+                    </div>
+                    <div class="text-center mt-3" id="pieChartStats">
+                        <!-- Stats will be populated here -->
+                    </div>
                 </div>
             </div>
         `;
@@ -1517,6 +1546,10 @@ Average Confidence: ${stats.avgConfidence}%`);
         
         // Populate individual signals table
         populateSignalDetailsTable(analysis.individual_signals);
+        
+        // Show and render the pie chart automatically after analysis
+        document.getElementById('signalDistributionSection').style.display = 'block';
+        renderSignalDistributionPieChart(symbol);
         
         // Scroll to analysis
         analysisContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2030,6 +2063,137 @@ Average Confidence: ${stats.avgConfidence}%`);
                 const signalType = this.getAttribute('data-signal-type');
                 showFilteredSignals(signalType);
             });
+        });
+    }
+    
+    // Function to render signal distribution pie chart
+    function renderSignalDistributionPieChart(symbol) {
+        if (!currentAnalysisData || !currentAnalysisData.individual_signals) {
+            console.warn('No analysis data available for pie chart');
+            return;
+        }
+        
+        const signals = currentAnalysisData.individual_signals;
+        
+        // Calculate counts for each status
+        const profitCount = signals.filter(s => s.status === 'PROFIT').length;
+        const lossCount = signals.filter(s => s.status === 'LOSS').length;
+        const notOpenedCount = signals.filter(s => s.status === 'NOT_OPENED').length;
+        const totalCount = signals.length;
+        
+        // Calculate percentages
+        const profitPercentage = totalCount > 0 ? ((profitCount / totalCount) * 100).toFixed(2) : 0;
+        const lossPercentage = totalCount > 0 ? ((lossCount / totalCount) * 100).toFixed(2) : 0;
+        const notOpenedPercentage = totalCount > 0 ? ((notOpenedCount / totalCount) * 100).toFixed(2) : 0;
+        
+        // Update symbol name
+        document.getElementById('pieChartSymbol').textContent = symbol || currentSymbol || 'All Signals';
+        
+        // Update stats
+        const statsDiv = document.getElementById('pieChartStats');
+        statsDiv.innerHTML = `
+            <div class="row text-center">
+                <div class="col-4">
+                    <div style="background: rgba(255, 255, 255, 0.95); border-radius: 8px; padding: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <div style="color: #28a745; font-size: 1.1rem; font-weight: bold;">
+                            <i class="fas fa-check-circle me-1"></i>Profit
+                        </div>
+                        <div style="font-size: 1.3rem; font-weight: bold; color: #333; margin-top: 0.25rem;">
+                            ${profitCount}
+                        </div>
+                        <div style="color: #666; font-size: 0.9rem;">
+                            ${profitPercentage}%
+                        </div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div style="background: rgba(255, 255, 255, 0.95); border-radius: 8px; padding: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <div style="color: #dc3545; font-size: 1.1rem; font-weight: bold;">
+                            <i class="fas fa-times-circle me-1"></i>Loss
+                        </div>
+                        <div style="font-size: 1.3rem; font-weight: bold; color: #333; margin-top: 0.25rem;">
+                            ${lossCount}
+                        </div>
+                        <div style="color: #666; font-size: 0.9rem;">
+                            ${lossPercentage}%
+                        </div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div style="background: rgba(255, 255, 255, 0.95); border-radius: 8px; padding: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <div style="color: #ffc107; font-size: 1.1rem; font-weight: bold;">
+                            <i class="fas fa-pause-circle me-1"></i>Not Opened
+                        </div>
+                        <div style="font-size: 1.3rem; font-weight: bold; color: #333; margin-top: 0.25rem;">
+                            ${notOpenedCount}
+                        </div>
+                        <div style="color: #666; font-size: 0.9rem;">
+                            ${notOpenedPercentage}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Destroy previous chart instance if exists
+        if (signalDistributionChart) {
+            signalDistributionChart.destroy();
+        }
+        
+        // Get canvas element
+        const ctx = document.getElementById('signalDistributionChart');
+        if (!ctx) {
+            console.error('Canvas element not found');
+            return;
+        }
+        
+        // Create new chart
+        signalDistributionChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: ['Profit', 'Loss', 'Not Opened'],
+                datasets: [{
+                    label: 'Signal Distribution',
+                    data: [profitCount, lossCount, notOpenedCount],
+                    backgroundColor: [
+                        'rgba(40, 167, 69, 0.8)',   // Green for profit
+                        'rgba(220, 53, 69, 0.8)',   // Red for loss
+                        'rgba(255, 193, 7, 0.8)'    // Yellow for not opened
+                    ],
+                    borderColor: [
+                        'rgba(40, 167, 69, 1)',
+                        'rgba(220, 53, 69, 1)',
+                        'rgba(255, 193, 7, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: {
+                                size: 13,
+                                weight: 'bold'
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const percentage = totalCount > 0 ? ((value / totalCount) * 100).toFixed(2) : 0;
+                                return `${label}: ${value} signals (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
         });
     }
     

@@ -32,17 +32,63 @@ class MarketData(models.Model):
     low_price = models.DecimalField(max_digits=15, decimal_places=6)
     close_price = models.DecimalField(max_digits=15, decimal_places=6)
     volume = models.DecimalField(max_digits=20, decimal_places=2)
+    timeframe = models.CharField(max_length=10, default='1h')  # e.g., 1m,5m,15m,1h,4h,1d
     source = models.ForeignKey(DataSource, on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
-        unique_together = ['symbol', 'timestamp']
+        unique_together = ['symbol', 'timestamp', 'timeframe']
         indexes = [
-            models.Index(fields=['symbol', 'timestamp']),
+            models.Index(fields=['symbol', 'timestamp', 'timeframe']),
         ]
     
     def __str__(self):
         return f"{self.symbol.symbol} - {self.timestamp}"
+
+
+class HistoricalDataRange(models.Model):
+    """Track historical data coverage per symbol/timeframe."""
+    symbol = models.ForeignKey(Symbol, on_delete=models.CASCADE)
+    timeframe = models.CharField(max_length=10)
+    earliest_date = models.DateTimeField()
+    latest_date = models.DateTimeField()
+    total_records = models.IntegerField(default=0)
+    is_complete = models.BooleanField(default=False)
+    last_synced = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['symbol', 'timeframe']
+        indexes = [
+            models.Index(fields=['symbol', 'timeframe']),
+            models.Index(fields=['latest_date']),
+        ]
+
+    def __str__(self):
+        return f"{self.symbol.symbol} {self.timeframe} {self.earliest_date.date()}→{self.latest_date.date()}"
+
+
+class DataQuality(models.Model):
+    """Quality metrics for stored historical data windows."""
+    symbol = models.ForeignKey(Symbol, on_delete=models.CASCADE)
+    timeframe = models.CharField(max_length=10)
+    date_range_start = models.DateTimeField()
+    date_range_end = models.DateTimeField()
+    total_expected_records = models.IntegerField()
+    total_actual_records = models.IntegerField()
+    missing_records = models.IntegerField()
+    completeness_percentage = models.FloatField()
+    has_gaps = models.BooleanField(default=False)
+    has_anomalies = models.BooleanField(default=False)
+    checked_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['symbol', 'timeframe']),
+            models.Index(fields=['date_range_start', 'date_range_end']),
+        ]
+
+    def __str__(self):
+        return f"Quality {self.symbol.symbol} {self.timeframe}: {self.completeness_percentage:.2f}%"
 
 
 class DataFeed(models.Model):

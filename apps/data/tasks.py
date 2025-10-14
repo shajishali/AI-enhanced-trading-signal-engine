@@ -4,6 +4,7 @@ from datetime import timedelta
 import logging
 
 from .models import DataSyncLog, Symbol, MarketData, TechnicalIndicator
+from .historical_data_manager import HistoricalDataManager
 from .services import CryptoDataIngestionService, TechnicalAnalysisService
 
 logger = logging.getLogger(__name__)
@@ -115,16 +116,25 @@ def calculate_technical_indicators_task():
 def cleanup_old_data_task():
     """Celery task to cleanup old market data and indicators"""
     try:
-        # Keep only last 30 days of market data
-        cutoff_date = timezone.now() - timedelta(days=30)
-        
-        old_market_data = MarketData.objects.filter(timestamp__lt=cutoff_date)
-        old_indicators = TechnicalIndicator.objects.filter(timestamp__lt=cutoff_date)
-        
-        market_data_deleted = old_market_data.count()
+        # Retention by timeframe
+        cutoff_1m = timezone.now() - timedelta(days=365)
+        cutoff_1h = timezone.now() - timedelta(days=730)
+        cutoff_1d = timezone.now() - timedelta(days=1825)
+
+        old_1m = MarketData.objects.filter(timestamp__lt=cutoff_1m, timeframe='1m')
+        old_1h = MarketData.objects.filter(timestamp__lt=cutoff_1h, timeframe='1h')
+        old_1d = MarketData.objects.filter(timestamp__lt=cutoff_1d, timeframe='1d')
+
+        market_data_deleted = old_1m.count() + old_1h.count() + old_1d.count()
+
+        old_1m.delete()
+        old_1h.delete()
+        old_1d.delete()
+
+        # Indicators: keep 2 years
+        cutoff_ind = timezone.now() - timedelta(days=730)
+        old_indicators = TechnicalIndicator.objects.filter(timestamp__lt=cutoff_ind)
         indicators_deleted = old_indicators.count()
-        
-        old_market_data.delete()
         old_indicators.delete()
         
         logger.info(f"Cleaned up {market_data_deleted} old market data records and {indicators_deleted} old indicators")
@@ -132,6 +142,45 @@ def cleanup_old_data_task():
         return True
     except Exception as e:
         logger.error(f"Error in cleanup_old_data_task: {e}")
+        return False
+
+
+@shared_task
+def update_historical_data_task():
+    """Daily incremental update for historical data (last 2 days)."""
+    try:
+        manager = HistoricalDataManager()
+        symbols = Symbol.objects.filter(symbol_type='CRYPTO', is_active=True)
+        success = 0
+        for sym in symbols:
+            try:
+                end = timezone.now()
+                start = end - timedelta(days=2)
+                if manager.fetch_complete_historical_data(sym, timeframe='1h', start=start, end=end):
+                    success += 1
+            except Exception as e:
+                logger.error(f"Incremental update failed for {sym.symbol}: {e}")
+        logger.info(f"Incremental updates completed for {success}/{symbols.count()} symbols")
+        return True
+    except Exception as e:
+        logger.error(f"Error in update_historical_data_task: {e}")
+        return False
+
+
+@shared_task
+def weekly_gap_check_and_fill_task():
+    """Weekly task: check last 90 days for gaps and fill them."""
+    try:
+        manager = HistoricalDataManager()
+        symbols = Symbol.objects.filter(symbol_type='CRYPTO', is_active=True)[:50]
+        for sym in symbols:
+            report = manager.check_data_quality(sym, timeframe='1h', days_back=90)
+            if report.get('has_gaps'):
+                manager.fill_data_gaps(sym, timeframe='1h')
+        logger.info("Weekly gap check/fill completed")
+        return True
+    except Exception as e:
+        logger.error(f"Error in weekly_gap_check_and_fill_task: {e}")
         return False
 
 

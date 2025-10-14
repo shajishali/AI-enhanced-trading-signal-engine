@@ -124,8 +124,11 @@ class Phase2BacktestingService:
             ).order_by('timestamp')
             
             if not market_data.exists():
-                logger.warning(f"No market data found for {symbol.symbol}, generating synthetic data")
-                return self._generate_synthetic_data(start_date, end_date)
+                logger.error(
+                    f"No market data found for {symbol.symbol} in range {start_date} to {end_date}. "
+                    f"Populate historical data and retry."
+                )
+                return pd.DataFrame()
             
             # Convert to pandas DataFrame
             data = []

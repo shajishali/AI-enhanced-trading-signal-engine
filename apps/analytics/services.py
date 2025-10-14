@@ -249,8 +249,12 @@ class BacktestingService:
             ).order_by('timestamp')
             
             if not market_data.exists():
-                # If no real data, generate synthetic data for testing
-                return self._generate_synthetic_data(start_date, end_date)
+                # No real data available; enforce real-data-only policy
+                logger.error(
+                    f"No historical data found for {symbol} in range {start_date} to {end_date}. "
+                    f"Populate historical data before running backtests."
+                )
+                return pd.DataFrame()
             
             # Convert to pandas DataFrame for efficient processing
             data = []
@@ -268,8 +272,8 @@ class BacktestingService:
             
         except Exception as e:
             logger.error(f"Error getting historical data: {e}")
-            # Fallback to synthetic data
-            return self._generate_synthetic_data(start_date, end_date)
+            # Enforce real-data-only policy
+            return pd.DataFrame()
     
     def _generate_synthetic_data(self, start_date, end_date):
         """Generate synthetic market data for testing when real data unavailable"""

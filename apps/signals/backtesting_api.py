@@ -97,12 +97,21 @@ class BacktestAPIView(View):
             if end_date.tzinfo is None:
                 end_date = timezone.make_aware(end_date)
             
-            # Get user-specified signal count
+            # Get user-specified signal count (safe parsing; blank => 0)
             if request.content_type == 'application/json':
                 data = json.loads(request.body)
             else:
                 data = request.POST
-            desired_signal_count = int(data.get('desired_signal_count', 0))  # 0 means all signals
+            raw_count = data.get('desired_signal_count')
+            try:
+                desired_signal_count = int(raw_count) if raw_count not in (None, '', 'null') else 0
+            except (TypeError, ValueError):
+                desired_signal_count = 0
+            # Clamp to valid range 0..100
+            if desired_signal_count < 0:
+                desired_signal_count = 0
+            if desired_signal_count > 100:
+                desired_signal_count = 100
             
             # First, check if signals already exist in database for this period
             existing_signals = TradingSignal.objects.filter(
@@ -510,9 +519,35 @@ class BacktestAPIView(View):
             from apps.data.models import MarketData
             from apps.data.historical_data_service import get_historical_data
             
-            # First try to get data from database
+            # Map USDT symbols to base symbols for database lookup
+            symbol_mapping = {
+                'BTCUSDT': 'BTC', 'ETHUSDT': 'ETH', 'BNBUSDT': 'BNB', 'SOLUSDT': 'SOL', 'XRPUSDT': 'XRP',
+                'ADAUSDT': 'ADA', 'DOGEUSDT': 'DOGE', 'TRXUSDT': 'TRX', 'LINKUSDT': 'LINK', 'DOTUSDT': 'DOT',
+                'MATICUSDT': 'MATIC', 'AVAXUSDT': 'AVAX', 'UNIUSDT': 'UNI', 'ATOMUSDT': 'ATOM', 'LTCUSDT': 'LTC',
+                'BCHUSDT': 'BCH', 'ALGOUSDT': 'ALGO', 'VETUSDT': 'VET', 'FTMUSDT': 'FTM', 'ICPUSDT': 'ICP',
+                'SANDUSDT': 'SAND', 'MANAUSDT': 'MANA', 'NEARUSDT': 'NEAR', 'APTUSDT': 'APT', 'OPUSDT': 'OP',
+                'ARBUSDT': 'ARB', 'MKRUSDT': 'MKR', 'RUNEUSDT': 'RUNE', 'INJUSDT': 'INJ', 'STXUSDT': 'STX',
+                'AAVEUSDT': 'AAVE', 'COMPUSDT': 'COMP', 'CRVUSDT': 'CRV', 'LDOUSDT': 'LDO', 'CAKEUSDT': 'CAKE',
+                'PENDLEUSDT': 'PENDLE', 'DYDXUSDT': 'DYDX', 'FETUSDT': 'FET', 'CROUSDT': 'CRO', 'KCSUSDT': 'KCS',
+                'OKBUSDT': 'OKB', 'LEOUSDT': 'LEO', 'QNTUSDT': 'QNT', 'HBARUSDT': 'HBAR', 'EGLDUSDT': 'EGLD',
+                'FLOWUSDT': 'FLOW', 'SEIUSDT': 'SEI', 'TIAUSDT': 'TIA', 'GALAUSDT': 'GALA', 'GRTUSDT': 'GRT',
+                'XMRUSDT': 'XMR', 'ZECUSDT': 'ZEC', 'DAIUSDT': 'DAI', 'TUSDUSDT': 'TUSD', 'GTUSDT': 'GT',
+            }
+            
+            # Get the base symbol for database lookup
+            base_symbol_name = symbol_mapping.get(symbol.symbol, symbol.symbol)
+            
+            # Try to find the symbol in database
+            from apps.trading.models import Symbol
+            try:
+                base_symbol = Symbol.objects.get(symbol=base_symbol_name)
+            except Symbol.DoesNotExist:
+                logger.error(f"Symbol {base_symbol_name} not found in database")
+                return {}
+            
+            # First try to get data from database using base symbol
             market_data = MarketData.objects.filter(
-                symbol=symbol,
+                symbol=base_symbol,
                 timestamp__gte=start_date,
                 timestamp__lte=end_date
             ).order_by('timestamp')

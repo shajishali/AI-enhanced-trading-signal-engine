@@ -53,7 +53,38 @@ class HistoricalDataService:
             'ZEC': 'ZECUSDT',
             'DASH': 'DASHUSDT',
             'NEO': 'NEOUSDT',
-            'QTUM': 'QTUMUSDT'
+            'QTUM': 'QTUMUSDT',
+            'AAVE': 'AAVEUSDT',
+            'COMP': 'COMPUSDT',
+            'CRV': 'CRVUSDT',
+            'LDO': 'LDOUSDT',
+            'CAKE': 'CAKEUSDT',
+            'PENDLE': 'PENDLEUSDT',
+            'DYDX': 'DYDXUSDT',
+            'FET': 'FETUSDT',
+            'CRO': 'CROUSDT',
+            'KCS': 'KCSUSDT',
+            'OKB': 'OKBUSDT',
+            'LEO': 'LEOUSDT',
+            'QNT': 'QNTUSDT',
+            'HBAR': 'HBARUSDT',
+            'EGLD': 'EGLDUSDT',
+            'FLOW': 'FLOWUSDT',
+            'SEI': 'SEIUSDT',
+            'TIA': 'TIAUSDT',
+            'GALA': 'GALAUSDT',
+            'GRT': 'GRTUSDT',
+            'DAI': 'DAIUSDT',
+            'TUSD': 'TUSDUSDT',
+            'GT': 'GTUSDT',
+            'NEAR': 'NEARUSDT',
+            'APT': 'APTUSDT',
+            'OP': 'OPUSDT',
+            'ARB': 'ARBUSDT',
+            'MKR': 'MKRUSDT',
+            'RUNE': 'RUNEUSDT',
+            'INJ': 'INJUSDT',
+            'STX': 'STXUSDT',
         }
     
     def get_historical_data(self, symbol: str, start_date: datetime, end_date: datetime, 
@@ -80,10 +111,17 @@ class HistoricalDataService:
                 return cached_data
             
             # Map symbol to Binance format
-            binance_symbol = self.symbol_mapping.get(symbol.upper())
-            if not binance_symbol:
-                logger.error(f"Symbol {symbol} not supported for historical data")
-                return []
+            symbol_upper = symbol.upper()
+            
+            # Check if it's already a USDT pair
+            if symbol_upper.endswith('USDT'):
+                binance_symbol = symbol_upper
+            else:
+                # Map base symbol to USDT pair
+                binance_symbol = self.symbol_mapping.get(symbol_upper)
+                if not binance_symbol:
+                    logger.error(f"Symbol {symbol} not supported for historical data")
+                    return []
             
             # Convert dates to milliseconds
             start_ms = int(start_date.timestamp() * 1000)
@@ -220,7 +258,19 @@ class HistoricalDataService:
     
     def validate_symbol_support(self, symbol: str) -> bool:
         """Check if a symbol is supported for historical data"""
-        return symbol.upper() in self.symbol_mapping
+        symbol_upper = symbol.upper()
+        
+        # Check if it's a base symbol (e.g., 'BTC', 'AAVE')
+        if symbol_upper in self.symbol_mapping:
+            return True
+        
+        # Check if it's a USDT pair (e.g., 'BTCUSDT', 'AAVEUSDT')
+        # Create reverse mapping to check USDT pairs
+        reverse_mapping = {v: k for k, v in self.symbol_mapping.items()}
+        if symbol_upper in reverse_mapping:
+            return True
+        
+        return False
     
     def get_supported_symbols(self) -> List[str]:
         """Get list of supported symbols"""

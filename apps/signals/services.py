@@ -3740,12 +3740,18 @@ class HistoricalSignalService:
         
         return target_price, stop_loss
     def _get_historical_data(self, symbol: Symbol, start_date: datetime, end_date: datetime):
-        """Get historical market data for the symbol and date range"""
-        return MarketData.objects.filter(
+        """Get historical market data for the symbol and date range (real-data-only)."""
+        qs = MarketData.objects.filter(
             symbol=symbol,
             timestamp__gte=start_date,
             timestamp__lte=end_date
         ).order_by('timestamp')
+        if not qs.exists():
+            self.logger.error(
+                f"No historical data found for {symbol.symbol} in range {start_date} to {end_date}. "
+                f"Populate historical data before generating signals."
+            )
+        return qs
     
     def _fetch_real_historical_data(self, symbol: Symbol, start_date: datetime, end_date: datetime):
         """Fetch real historical market data from Binance API"""

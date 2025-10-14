@@ -195,9 +195,12 @@ class ComprehensiveBacktestingService:
                 return df
             
             else:
-                # Generate synthetic data for backtesting if no real data available
-                self.logger.info(f"No real market data found, generating synthetic data for {symbol.symbol}")
-                return self._generate_synthetic_data(symbol, start_date, end_date)
+                # Enforce real-data-only policy
+                self.logger.error(
+                    f"No real market data found for {symbol.symbol} in range {start_date} to {end_date}. "
+                    f"Populate historical data and retry."
+                )
+                return pd.DataFrame()
                 
         except Exception as e:
             self.logger.error(f"Error getting historical data: {e}")
