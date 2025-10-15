@@ -16,17 +16,18 @@ logger = logging.getLogger(__name__)
 
 
 class HistoricalDataManager:
-    """Fetch, store, and track historical OHLCV data for backtesting.
+    """Fetch, store, and track historical OHLCV data for futures trading backtesting.
 
     Responsibilities:
-    - Chunked fetching from Binance klines API per timeframe
+    - Chunked fetching from Binance Futures klines API per timeframe
     - Idempotent upsert to MarketData keyed by (symbol, timestamp, timeframe)
     - Range tracking via HistoricalDataRange
     - Simple rate limiting and retry logic
     """
 
     def __init__(self) -> None:
-        self.binance_api_base = "https://api.binance.com/api/v3/klines"
+        # Use Binance Futures API for futures trading backtesting
+        self.binance_api_base = "https://fapi.binance.com/fapi/v1/klines"
         self.base_delay_seconds = 0.2
         self.burst_every = 20
         self.burst_sleep = 2.0
@@ -74,10 +75,16 @@ class HistoricalDataManager:
             logger.error(f"Symbol not supported for backfill: {symbol.symbol}")
             return False
 
+        # Ensure all dates are UTC
         if start is None:
             start = datetime(2020, 1, 1, tzinfo=dt_timezone.utc)
+        elif start.tzinfo is None:
+            start = start.replace(tzinfo=dt_timezone.utc)
+            
         if end is None:
             end = timezone.now()
+        elif end.tzinfo is None:
+            end = end.replace(tzinfo=dt_timezone.utc)
 
         max_days = int(self.timeframes[timeframe]['max_days'])
         interval = str(self.timeframes[timeframe]['interval'])
@@ -115,6 +122,13 @@ class HistoricalDataManager:
         return True
 
     def _fetch_klines_chunk(self, mapped_symbol: str, start: datetime, end: datetime, interval: str) -> List[Dict]:
+        """Fetch klines chunk with proper UTC handling"""
+        # Ensure timestamps are UTC
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=dt_timezone.utc)
+        if end.tzinfo is None:
+            end = end.replace(tzinfo=dt_timezone.utc)
+            
         start_ms = int(start.timestamp() * 1000)
         end_ms = int(end.timestamp() * 1000)
 
@@ -134,8 +148,10 @@ class HistoricalDataManager:
 
                 parsed: List[Dict] = []
                 for k in data:
+                    # Ensure timestamp is UTC
+                    timestamp = datetime.fromtimestamp(k[0] / 1000, tz=dt_timezone.utc)
                     parsed.append({
-                        'timestamp': datetime.fromtimestamp(k[0] / 1000, tz=dt_timezone.utc),
+                        'timestamp': timestamp,
                         'open': Decimal(str(k[1])),
                         'high': Decimal(str(k[2])),
                         'low': Decimal(str(k[3])),
@@ -152,12 +168,18 @@ class HistoricalDataManager:
         return []
 
     def _save_market_data(self, symbol: Symbol, timeframe: str, records: List[Dict]) -> int:
+        """Save market data with proper UTC timestamps"""
         saved = 0
         with transaction.atomic():
             for r in records:
+                # Ensure timestamp is UTC
+                timestamp = r['timestamp']
+                if timestamp.tzinfo is None:
+                    timestamp = timestamp.replace(tzinfo=dt_timezone.utc)
+                    
                 _, created = MarketData.objects.update_or_create(
                     symbol=symbol,
-                    timestamp=r['timestamp'],
+                    timestamp=timestamp,
                     timeframe=timeframe,
                     defaults={
                         'open_price': r['open'],
@@ -172,7 +194,14 @@ class HistoricalDataManager:
         return saved
 
     def _update_range(self, symbol: Symbol, timeframe: str, start: datetime, end: datetime, total: int) -> None:
+        """Update range tracking with UTC timestamps"""
         try:
+            # Ensure timestamps are UTC
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=dt_timezone.utc)
+            if end.tzinfo is None:
+                end = end.replace(tzinfo=dt_timezone.utc)
+                
             HistoricalDataRange.objects.update_or_create(
                 symbol=symbol,
                 timeframe=timeframe,

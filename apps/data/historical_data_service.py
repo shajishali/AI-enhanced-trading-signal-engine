@@ -15,10 +15,11 @@ logger = logging.getLogger(__name__)
 
 
 class HistoricalDataService:
-    """Service for fetching real historical cryptocurrency data from Binance"""
+    """Service for fetching real historical cryptocurrency data from Binance Futures API"""
     
     def __init__(self):
-        self.binance_api = "https://api.binance.com/api/v3"
+        # Use Binance Futures API for futures trading backtesting
+        self.binance_api = "https://fapi.binance.com/fapi/v1"
         self.cache_timeout = 3600  # Cache for 1 hour
         self.rate_limit_delay = 0.1  # 100ms delay between requests
         
