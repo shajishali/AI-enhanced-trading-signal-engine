@@ -127,3 +127,14 @@ if __name__ == "__main__":
         print(f"   ⚠️  No coins have complete data")
         print(f"   ⚠️  May need more historical data import")
 
+
+
+
+
+
+
+
+
+
+
+

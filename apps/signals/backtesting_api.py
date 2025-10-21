@@ -332,26 +332,120 @@ class BacktestAPIView(View):
     def _run_backtest(self, request, symbol, start_date, end_date):
         """Run a full backtest"""
         try:
-            # This would implement actual backtesting logic
-            # For now, return a mock result
+            logger.info(f"Running backtest for {symbol.symbol} from {start_date} to {end_date}")
+            
+            # Get signals in the date range
+            signals = TradingSignal.objects.filter(
+                symbol=symbol,
+                created_at__gte=start_date,
+                created_at__lte=end_date
+            ).order_by('created_at')
+            
+            if not signals.exists():
+                logger.info(f"No signals found for {symbol.symbol} in date range")
+                return JsonResponse({
+                    'success': True,
+                    'action': 'backtest',
+                    'result': {
+                        'total_signals': 0,
+                        'executed_signals': 0,
+                        'expired_signals': 0,
+                        'profit_signals': 0,
+                        'loss_signals': 0,
+                        'not_opened_signals': 0,
+                        'total_profit_loss': 0.0,
+                        'total_capital_used': 0.0,
+                        'win_rate': 0.0,
+                        'individual_signals': []
+                    }
+                })
+            
+            # Get historical data for backtesting
+            historical_data = self._get_historical_data(symbol, start_date, end_date)
+            
+            if historical_data.empty:
+                logger.error(f"No historical data found for {symbol.symbol}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'No historical data available for {symbol.symbol}'
+                })
+            
+            # Simulate signal execution
+            executed_signals = []
+            for signal in signals:
+                # Convert TradingSignal object to dictionary format
+                signal_dict = {
+                    'id': signal.id,
+                    'created_at': signal.created_at.isoformat(),
+                    'entry_price': str(signal.entry_price),
+                    'target_price': str(signal.target_price),
+                    'stop_loss': str(signal.stop_loss),
+                    'signal_type': signal.signal_type.name if signal.signal_type else 'BUY',
+                    'confidence_score': float(signal.confidence_score),
+                    'risk_reward_ratio': float(signal.risk_reward_ratio)
+                }
+                
+                execution_result = self._simulate_single_signal_execution(signal_dict, historical_data, symbol)
+                if execution_result['is_executed']:
+                    executed_signals.append({
+                        'signal': signal_dict,
+                        'execution_result': execution_result
+                    })
+            
+            # Analyze executed signals
+            analysis_result = self._analyze_executed_signals(executed_signals, symbol, start_date, end_date)
+            
+            logger.info(f"Backtest completed: {analysis_result['total_signals']} signals, {analysis_result['executed_signals']} executed")
+            
             return JsonResponse({
                 'success': True,
                 'action': 'backtest',
-                'result': {
-                    'total_return': 15.5,
-                    'annualized_return': 12.3,
-                    'sharpe_ratio': 1.2,
-                    'max_drawdown': -8.5,
-                    'win_rate': 65.0,
-                    'total_trades': 25,
-                    'winning_trades': 16,
-                    'losing_trades': 9
-                }
+                'result': analysis_result
             })
             
         except Exception as e:
             logger.error(f"Error running backtest: {e}")
             return JsonResponse({'success': False, 'error': str(e)})
+    
+    def _get_historical_data(self, symbol, start_date, end_date):
+        """Get historical market data for backtesting"""
+        try:
+            from apps.data.models import MarketData
+            import pandas as pd
+            
+            # Get market data for the symbol and timeframe
+            market_data = MarketData.objects.filter(
+                symbol=symbol,
+                timeframe='1d',  # Use daily data (available in database)
+                timestamp__gte=start_date,
+                timestamp__lte=end_date
+            ).order_by('timestamp')
+            
+            if not market_data.exists():
+                logger.warning(f"No market data found for {symbol.symbol} in date range")
+                return pd.DataFrame()
+            
+            # Convert to DataFrame
+            data = []
+            for record in market_data:
+                data.append({
+                    'timestamp': record.timestamp,
+                    'open': float(record.open_price),
+                    'high': float(record.high_price),
+                    'low': float(record.low_price),
+                    'close': float(record.close_price),
+                    'volume': float(record.volume)
+                })
+            
+            df = pd.DataFrame(data)
+            df.set_index('timestamp', inplace=True)
+            
+            logger.info(f"Retrieved {len(df)} historical data points for {symbol.symbol}")
+            return df
+            
+        except Exception as e:
+            logger.error(f"Error getting historical data for {symbol.symbol}: {e}")
+            return pd.DataFrame()
     
     def _analyze_generated_signals(self, symbol, start_date, end_date):
         """PHASE 2: Analyze the generated signals using the coin performance analyzer"""
@@ -603,9 +697,33 @@ class BacktestAPIView(View):
                 from django.utils import timezone
                 signal_time = timezone.make_aware(signal_time)
             
-            entry_price = float(signal['entry_price'])
-            target_price = float(signal['target_price'])
-            stop_loss = float(signal['stop_loss'])
+            # FIXED: Handle empty or invalid price values
+            try:
+                entry_price = float(signal['entry_price']) if signal['entry_price'] and signal['entry_price'] != '' else 0.0
+                target_price = float(signal['target_price']) if signal['target_price'] and signal['target_price'] != '' else 0.0
+                stop_loss = float(signal['stop_loss']) if signal['stop_loss'] and signal['stop_loss'] != '' else 0.0
+            except (ValueError, TypeError):
+                # If prices are invalid, skip this signal
+                return {
+                    'is_executed': False,
+                    'executed_at': None,
+                    'execution_price': None,
+                    'is_profitable': None,
+                    'profit_loss': 0.0,
+                    'execution_status': 'INVALID_PRICES'
+                }
+            
+            # Skip signals with zero prices
+            if entry_price == 0.0 or target_price == 0.0 or stop_loss == 0.0:
+                return {
+                    'is_executed': False,
+                    'executed_at': None,
+                    'execution_price': None,
+                    'is_profitable': None,
+                    'profit_loss': 0.0,
+                    'execution_status': 'ZERO_PRICES'
+                }
+            
             signal_type = signal['signal_type'].upper()
             
             # Look for execution in the next 7 days after signal
@@ -673,14 +791,30 @@ class BacktestAPIView(View):
                 execution_time = last_timestamp
                 execution_status = 'CLOSE_PRICE'
             
-            # Calculate profit/loss based on execution
+            # Calculate profit/loss based on whether target or stop loss was hit
             if execution_price is not None:
-                if signal_type in ['BUY', 'STRONG_BUY']:
-                    profit_loss = (execution_price - entry_price) / entry_price * 100
-                    is_profitable = execution_price > entry_price
-                else:  # SELL or STRONG_SELL
-                    profit_loss = (entry_price - execution_price) / entry_price * 100
-                    is_profitable = execution_price < entry_price
+                if execution_status == 'TARGET_HIT':
+                    # Target was hit = PROFIT
+                    if signal_type in ['BUY', 'STRONG_BUY']:
+                        profit_loss = (target_price - entry_price) / entry_price * 100
+                    else:  # SELL or STRONG_SELL
+                        profit_loss = (entry_price - target_price) / entry_price * 100
+                    is_profitable = True
+                elif execution_status == 'STOP_LOSS_HIT':
+                    # Stop loss was hit = LOSS
+                    if signal_type in ['BUY', 'STRONG_BUY']:
+                        profit_loss = (stop_loss - entry_price) / entry_price * 100
+                    else:  # SELL or STRONG_SELL
+                        profit_loss = (entry_price - stop_loss) / entry_price * 100
+                    is_profitable = False
+                else:
+                    # Close price execution - calculate based on actual execution
+                    if signal_type in ['BUY', 'STRONG_BUY']:
+                        profit_loss = (execution_price - entry_price) / entry_price * 100
+                        is_profitable = execution_price > entry_price
+                    else:  # SELL or STRONG_SELL
+                        profit_loss = (entry_price - execution_price) / entry_price * 100
+                        is_profitable = execution_price < entry_price
             else:
                 # No execution possible
                 return {
@@ -692,13 +826,27 @@ class BacktestAPIView(View):
                     'execution_status': 'NO_DATA'
                 }
             
+            # Determine if signal was opened (executed) and closed (hit target or stop loss)
+            is_opened = execution_status in ['TARGET_HIT', 'STOP_LOSS_HIT', 'CLOSE_PRICE']
+            is_closed = execution_status in ['TARGET_HIT', 'STOP_LOSS_HIT']
+            
+            # Signal open date (when signal was executed/opened)
+            open_date = execution_time.isoformat() if (execution_time and is_opened) else None
+            
+            # Signal closing date (when signal hit target or stop loss)
+            closing_date = execution_time.isoformat() if (execution_time and is_closed) else None
+            
             return {
                 'is_executed': True,
                 'executed_at': execution_time.isoformat() if execution_time else None,
+                'open_date': open_date,  # When signal was opened/executed
+                'closing_date': closing_date,  # Only set when signal hit target or stop loss
                 'execution_price': round(execution_price, 6),
                 'is_profitable': is_profitable,
                 'profit_loss': round(profit_loss, 2),
-                'execution_status': execution_status
+                'execution_status': execution_status,
+                'is_opened': is_opened,
+                'is_closed': is_closed
             }
             
         except Exception as e:
@@ -745,21 +893,59 @@ class BacktestAPIView(View):
                     not_opened_signals += 1
                     status = 'NOT_OPENED'
                 
-                # Add to individual signals
+                # Derive dates/times
+                created_at_str = signal.get('created_at', '') or ''
+                executed_at_str = signal.get('executed_at', None)
+                open_date_str = signal.get('open_date', None)  # When signal was opened/executed
+                closing_date_str = signal.get('closing_date', None)  # When signal hit target or stop loss
+
+                # Signal created date (when signal was generated)
+                signal_date = created_at_str[:10] if created_at_str else ''
+                signal_time = created_at_str[11:19] if len(created_at_str) >= 19 else ''
+
+                # Signal open date (when signal was opened/executed)
+                if open_date_str:
+                    open_date = open_date_str[:10]
+                    open_time = open_date_str[11:19] if len(open_date_str) >= 19 else ''
+                else:
+                    open_date = ''
+                    open_time = ''
+
+                # Signal closing date (when signal hit take profit or stop loss)
+                if closing_date_str:
+                    closing_date = closing_date_str[:10]
+                    closing_time = closing_date_str[11:19] if len(closing_date_str) >= 19 else ''
+                else:
+                    closing_date = ''
+                    closing_time = ''
+
+                # Add to individual signals with explicit fields used by UI
                 individual_signals.append({
                     'signal_id': signal.get('id', 'unknown'),
-                    'date': signal.get('created_at', '')[:10],  # Extract date part
-                    'time': signal.get('created_at', '')[11:19],  # Extract time part
-                    'executed_at': signal.get('executed_at', None),  # Execution timestamp
+                    'date': signal_date,  # legacy field
+                    'time': signal_time,  # legacy field
+                    'signal_date': signal_date,  # Signal created date
+                    'signal_time': signal_time,  # Signal created time
+                    'open_date': open_date,  # Signal open date (when executed)
+                    'open_time': open_time,  # Signal open time
+                    'closing_date': closing_date,  # Signal closing date (when hit target/stop loss)
+                    'closing_time': closing_time,  # Signal closing time
+                    'executed_at': executed_at_str,  # raw timestamp (legacy)
+                    'type': signal.get('signal_type', 'UNKNOWN'),
                     'signal_type': signal.get('signal_type', 'UNKNOWN'),
                     'entry_price': signal.get('entry_price', 0),
                     'target_price': signal.get('target_price', 0),
                     'stop_loss': signal.get('stop_loss', 0),
                     'execution_price': signal.get('execution_price', 0),
                     'is_executed': signal.get('is_executed', False),
+                    'is_opened': signal.get('is_opened', False),  # whether signal was opened
+                    'is_closed': signal.get('is_closed', False),  # whether signal hit target or stop loss
                     'status': status,
-                    'profit_loss_amount': round(profit_loss_amount, 2),
-                    'profit_loss_percentage': round(signal.get('profit_loss', 0), 2),
+                    'p_l_amount': round(profit_loss_amount, 2),
+                    'profit_loss_amount': round(profit_loss_amount, 2),  # legacy
+                    'p_l_percentage': round(signal.get('profit_loss', 0), 2),
+                    'profit_loss_percentage': round(signal.get('profit_loss', 0), 2),  # legacy
+                    'confidence': signal.get('confidence_score', 0),
                     'confidence_score': signal.get('confidence_score', 0),
                     'risk_reward_ratio': signal.get('risk_reward_ratio', 0)
                 })

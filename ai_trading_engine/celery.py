@@ -62,10 +62,27 @@ app.conf.update(
             'priority': 6,
         },
         'cleanup-old-data': {
-            'task': 'apps.data.tasks.cleanup_old_data',
+            'task': 'apps.data.tasks.cleanup_old_data_task',
             'schedule': crontab(hour=2, minute=0),  # Daily at 2 AM
             'priority': 2,
         },
+        # Historical data update tasks for backtesting database
+        'historical-incremental-daily': {
+            'task': 'apps.data.tasks.update_historical_data_task',
+            'schedule': crontab(hour=2, minute=30),  # Daily at 2:30 AM UTC
+            'priority': 5,
+        },
+        'historical-weekly-gap-check': {
+            'task': 'apps.data.tasks.weekly_gap_check_and_fill_task',
+            'schedule': crontab(hour=3, minute=0, day_of_week='sun'),  # Weekly on Sunday at 3 AM UTC
+            'priority': 3,
+        },
+        # DISABLED: Monthly cleanup to preserve all historical data from 2020
+        # 'historical-cleanup-monthly': {
+        #     'task': 'apps.data.tasks.cleanup_old_data_task',
+        #     'schedule': crontab(hour=4, minute=0, day_of_month='1'),  # Monthly on 1st at 4 AM UTC
+        #     'priority': 1,
+        # },
     },
     
     # Result backend configuration

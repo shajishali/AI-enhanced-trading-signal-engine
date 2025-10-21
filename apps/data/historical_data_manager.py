@@ -215,6 +215,107 @@ class HistoricalDataManager:
         except Exception as e:
             logger.error(f"Failed to update range tracking for {symbol.symbol} {timeframe}: {e}")
 
+    def check_data_quality(self, symbol: Symbol, timeframe: str = '1h', days_back: int = 90) -> Dict:
+        """Check data quality and detect gaps for a symbol/timeframe."""
+        try:
+            from apps.data.models import DataQuality
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            end_date = timezone.now()
+            start_date = end_date - timedelta(days=days_back)
+            
+            # Calculate expected records based on timeframe
+            timeframe_minutes = {
+                '1m': 1, '5m': 5, '15m': 15, '1h': 60, '4h': 240, '1d': 1440
+            }
+            
+            minutes_per_record = timeframe_minutes.get(timeframe, 60)
+            total_minutes = int((end_date - start_date).total_seconds() / 60)
+            expected_records = total_minutes // minutes_per_record
+            
+            # Count actual records
+            actual_records = MarketData.objects.filter(
+                symbol=symbol,
+                timeframe=timeframe,
+                timestamp__gte=start_date,
+                timestamp__lt=end_date
+            ).count()
+            
+            missing_records = max(0, expected_records - actual_records)
+            completeness_percentage = (actual_records / expected_records * 100) if expected_records > 0 else 0
+            
+            # Check for gaps (simplified - look for missing hours)
+            has_gaps = missing_records > (expected_records * 0.01)  # More than 1% missing
+            
+            # Store quality metrics
+            DataQuality.objects.create(
+                symbol=symbol,
+                timeframe=timeframe,
+                date_range_start=start_date,
+                date_range_end=end_date,
+                total_expected_records=expected_records,
+                total_actual_records=actual_records,
+                missing_records=missing_records,
+                completeness_percentage=completeness_percentage,
+                has_gaps=has_gaps,
+                has_anomalies=False,  # Simplified for now
+            )
+            
+            return {
+                'completeness_percentage': completeness_percentage,
+                'expected_records': expected_records,
+                'actual_records': actual_records,
+                'missing_records': missing_records,
+                'gaps_count': missing_records,
+                'has_gaps': has_gaps,
+                'date_range': f"{start_date.date()} to {end_date.date()}"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error checking data quality for {symbol.symbol} {timeframe}: {e}")
+            return {
+                'completeness_percentage': 0,
+                'expected_records': 0,
+                'actual_records': 0,
+                'missing_records': 0,
+                'gaps_count': 0,
+                'has_gaps': True,
+                'error': str(e)
+            }
+
+    def fill_data_gaps(self, symbol: Symbol, timeframe: str = '1h') -> bool:
+        """Fill detected gaps in historical data."""
+        try:
+            # Get the latest data range
+            range_obj = HistoricalDataRange.objects.filter(
+                symbol=symbol, timeframe=timeframe
+            ).first()
+            
+            if not range_obj:
+                logger.warning(f"No data range found for {symbol.symbol} {timeframe}")
+                return False
+            
+            # Fetch last 7 days to fill any recent gaps
+            end_date = timezone.now()
+            start_date = end_date - timedelta(days=7)
+            
+            logger.info(f"Filling gaps for {symbol.symbol} {timeframe} from {start_date.date()} to {end_date.date()}")
+            
+            # Use existing fetch method to get recent data
+            success = self.fetch_complete_historical_data(
+                symbol=symbol,
+                timeframe=timeframe,
+                start=start_date,
+                end=end_date
+            )
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Error filling data gaps for {symbol.symbol} {timeframe}: {e}")
+            return False
+
 
 def get_historical_data_manager() -> HistoricalDataManager:
     return HistoricalDataManager()

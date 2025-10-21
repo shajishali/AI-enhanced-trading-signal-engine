@@ -114,32 +114,41 @@ def calculate_technical_indicators_task():
 
 @shared_task
 def cleanup_old_data_task():
-    """Celery task to cleanup old market data and indicators"""
+    """Celery task to cleanup old market data and indicators - DISABLED to preserve all historical data from 2020"""
     try:
-        # Retention by timeframe
-        cutoff_1m = timezone.now() - timedelta(days=365)
-        cutoff_1h = timezone.now() - timedelta(days=730)
-        cutoff_1d = timezone.now() - timedelta(days=1825)
-
-        old_1m = MarketData.objects.filter(timestamp__lt=cutoff_1m, timeframe='1m')
-        old_1h = MarketData.objects.filter(timestamp__lt=cutoff_1h, timeframe='1h')
-        old_1d = MarketData.objects.filter(timestamp__lt=cutoff_1d, timeframe='1d')
-
-        market_data_deleted = old_1m.count() + old_1h.count() + old_1d.count()
-
-        old_1m.delete()
-        old_1h.delete()
-        old_1d.delete()
-
-        # Indicators: keep 2 years
-        cutoff_ind = timezone.now() - timedelta(days=730)
-        old_indicators = TechnicalIndicator.objects.filter(timestamp__lt=cutoff_ind)
-        indicators_deleted = old_indicators.count()
-        old_indicators.delete()
+        # DISABLED: Preserve all historical data from 2020 to yesterday
+        # This ensures complete backtesting data coverage without data loss
         
-        logger.info(f"Cleaned up {market_data_deleted} old market data records and {indicators_deleted} old indicators")
+        logger.info("Data cleanup task called but DISABLED to preserve all historical data from 2020")
+        logger.info("All historical data from 2020 to yesterday will be preserved for backtesting")
         
+        # Return success without deleting any data
         return True
+        
+        # ORIGINAL CLEANUP CODE (DISABLED):
+        # # Retention by timeframe
+        # cutoff_1m = timezone.now() - timedelta(days=365)
+        # cutoff_1h = timezone.now() - timedelta(days=730)
+        # cutoff_1d = timezone.now() - timedelta(days=1825)
+        #
+        # old_1m = MarketData.objects.filter(timestamp__lt=cutoff_1m, timeframe='1m')
+        # old_1h = MarketData.objects.filter(timestamp__lt=cutoff_1h, timeframe='1h')
+        # old_1d = MarketData.objects.filter(timestamp__lt=cutoff_1d, timeframe='1d')
+        #
+        # market_data_deleted = old_1m.count() + old_1h.count() + old_1d.count()
+        #
+        # old_1m.delete()
+        # old_1h.delete()
+        # old_1d.delete()
+        #
+        # # Indicators: keep 2 years
+        # cutoff_ind = timezone.now() - timedelta(days=730)
+        # old_indicators = TechnicalIndicator.objects.filter(timestamp__lt=cutoff_ind)
+        # indicators_deleted = old_indicators.count()
+        # old_indicators.delete()
+        # 
+        # logger.info(f"Cleaned up {market_data_deleted} old market data records and {indicators_deleted} old indicators")
+        
     except Exception as e:
         logger.error(f"Error in cleanup_old_data_task: {e}")
         return False

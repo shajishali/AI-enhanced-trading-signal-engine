@@ -2,6 +2,9 @@ from django.urls import path
 from . import views
 from . import backtesting_api
 from . import duplicate_signal_api
+from . import upgraded_backtesting_api
+from . import upgraded_backtesting_views
+from . import fixed_backtesting_api
 
 app_name = 'signals'
 
@@ -25,6 +28,13 @@ urlpatterns = [
     path('api/backtests/history-export/', backtesting_api.BacktestingHistoryExportAPIView.as_view(), name='backtesting_history_export'),
     path('api/backtests/available-symbols/', backtesting_api.AvailableSymbolsAPIView.as_view(), name='backtest_available_symbols'),
     
+    # FIXED Backtesting API endpoints (replaces the broken one)
+    path('api/backtests-fixed/', fixed_backtesting_api.FixedBacktestAPIView.as_view(), name='fixed_backtest_api'),
+    
+    # Upgraded Backtesting API endpoints
+    path('api/backtests-upgraded/', upgraded_backtesting_api.UpgradedBacktestAPIView.as_view(), name='upgraded_backtest_api'),
+    path('api/signal-analysis/', upgraded_backtesting_api.SignalAnalysisAPIView.as_view(), name='signal_analysis_api'),
+    
     # Duplicate signal removal API endpoints
     path('api/duplicates/', duplicate_signal_api.DuplicateSignalAPIView.as_view(), name='duplicate_signals_api'),
     path('api/duplicates/dashboard/', duplicate_signal_api.DuplicateSignalDashboardAPIView.as_view(), name='duplicate_signals_dashboard_api'),
@@ -36,4 +46,8 @@ urlpatterns = [
     path('spot/', views.spot_signals_dashboard, name='spot_signals_dashboard'),
     path('duplicates/', views.duplicate_signals_dashboard, name='duplicate_signals_dashboard'),
     path('backtesting-history/', views.backtesting_signals_history, name='backtesting_signals_history'),
+    
+    # Upgraded Backtesting Views
+    path('upgraded-backtesting/', upgraded_backtesting_views.upgraded_backtesting_page, name='upgraded_backtesting_page'),
+    path('upgraded-backtesting-dashboard/', upgraded_backtesting_views.UpgradedBacktestingDashboardView.as_view(), name='upgraded_backtesting_dashboard'),
 ]

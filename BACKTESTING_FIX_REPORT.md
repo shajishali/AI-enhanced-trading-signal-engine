@@ -166,3 +166,14 @@ Your backtesting system is now **accurate and reliable**. The discrepancy with T
 If you need further assistance or have questions about the fixes, the verification scripts are available for testing and debugging.
 
 
+
+
+
+
+
+
+
+
+
+
+

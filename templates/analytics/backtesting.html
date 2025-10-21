@@ -19,6 +19,48 @@
     .signal-table {
         font-size: 0.9rem;
     }
+    
+    /* Signal Card Styles */
+    .signal-card {
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .signal-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
+    }
+    
+    .bg-light-success {
+        background-color: rgba(25, 135, 84, 0.1) !important;
+    }
+    
+    .bg-light-danger {
+        background-color: rgba(220, 53, 69, 0.1) !important;
+    }
+    
+    .bg-light-warning {
+        background-color: rgba(255, 193, 7, 0.1) !important;
+    }
+    
+    .signal-detail {
+        margin-bottom: 0.5rem;
+    }
+    
+    .signal-detail strong {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    
+    .signal-detail span {
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+    
+    .signals-container {
+        max-height: 600px;
+        overflow-y: auto;
+    }
     .signal-type-badge {
         font-size: 0.8rem;
         padding: 0.25rem 0.5rem;
@@ -455,30 +497,11 @@
                         </div>
                     </div>
                     
-                    <!-- Enhanced Signal Table -->
-                    <div class="table-responsive">
-                        <table class="table table-hover signal-table" id="signalsTable">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th>Timestamp</th>
-                                    <th>Symbol</th>
-                                    <th>Signal Type</th>
-                                    <th>Strength</th>
-                                    <th>Confidence</th>
-                                    <th>Entry Price</th>
-                                    <th>Target Price</th>
-                                    <th>Stop Loss</th>
-                                    <th>Risk/Reward</th>
-                                    <th>Strategy Confirmations</th>
-                                    <th>Signal Source</th>
-                                    <th>Quality Score</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="signalsTableBody">
-                                <!-- Signals will be populated here -->
-                            </tbody>
-                        </table>
+                    <!-- Enhanced Signal Cards -->
+                    <div class="signals-container" id="signalsTable">
+                        <div id="signalsTableBody">
+                            <!-- Signal cards will be populated here -->
+                        </div>
                     </div>
                     
                     <!-- No Signals Message -->
@@ -748,7 +771,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show results section
         document.getElementById('resultsSection').style.display = 'block';
         document.getElementById('noSignalsMessage').style.display = 'none';
-        document.getElementById('signalsTable').style.display = 'table';
+        document.getElementById('signalsTable').style.display = 'block';
         document.getElementById('signalSummary').style.display = 'flex';
         document.getElementById('exportBtn').style.display = 'inline-block';
         
@@ -760,6 +783,226 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Populate table
         populateSignalsTable(signals);
+    }
+    
+    function displayBacktestResult(result) {
+        console.log('Displaying backtest result:', result);
+        
+        // Show results section
+        document.getElementById('resultsSection').style.display = 'block';
+        document.getElementById('noSignalsMessage').style.display = 'none';
+        document.getElementById('signalsTable').style.display = 'block';
+        document.getElementById('signalSummary').style.display = 'flex';
+        document.getElementById('exportBtn').style.display = 'inline-block';
+        
+        // Update summary with backtest results
+        updateBacktestSummary(result);
+        
+        // Populate table with backtest results
+        populateBacktestTable(result);
+        
+        // Show success message
+        showBacktestSuccessMessage(result);
+    }
+    
+    function updateBacktestSummary(result) {
+        const summaryElement = document.getElementById('signalSummary');
+        if (!summaryElement) return;
+        
+        const totalSignals = result.total_signals || 0;
+        const executedSignals = result.executed_signals || 0;
+        const notOpenedSignals = result.not_opened_signals || 0;
+        const totalInvestment = result.total_investment || 0;
+        const totalProfitLoss = result.total_profit_loss || 0;
+        const profitPercentage = result.profit_percentage || 0;
+        const qualityScore = result.quality_score || 0;
+        const qualityRating = result.quality_rating || 'Unknown';
+        
+        summaryElement.innerHTML = `
+            <div class="summary-item">
+                <span class="summary-label">Profit Signals:</span>
+                <span class="summary-value profit">${result.profit_signals || 0} (${((result.profit_signals || 0) / totalSignals * 100).toFixed(1)}%)</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">Loss Signals:</span>
+                <span class="summary-value loss">${result.loss_signals || 0} (${((result.loss_signals || 0) / totalSignals * 100).toFixed(1)}%)</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">Not Opened:</span>
+                <span class="summary-value not-opened">${notOpenedSignals} (${(notOpenedSignals / totalSignals * 100).toFixed(1)}%)</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">Total Investment:</span>
+                <span class="summary-value">$${totalInvestment.toFixed(2)}</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">Total Profit/Loss:</span>
+                <span class="summary-value ${totalProfitLoss >= 0 ? 'profit' : 'loss'}">$${totalProfitLoss.toFixed(2)}</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">Profit Percentage:</span>
+                <span class="summary-value ${profitPercentage >= 0 ? 'profit' : 'loss'}">${profitPercentage.toFixed(2)}%</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">Quality Score:</span>
+                <span class="summary-value">${qualityScore.toFixed(1)}/100</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">Quality Rating:</span>
+                <span class="summary-value">${qualityRating}</span>
+            </div>
+        `;
+    }
+    
+    function populateBacktestTable(result) {
+        const container = document.getElementById('signalsTableBody');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        if (result.individual_signals && result.individual_signals.length > 0) {
+            result.individual_signals.forEach(signal => {
+                const card = document.createElement('div');
+                card.className = 'signal-card mb-3 p-3 border rounded';
+                
+                // Determine card color based on status
+                let cardClass = 'border-secondary';
+                if (signal.status === 'PROFIT') cardClass = 'border-success bg-light-success';
+                else if (signal.status === 'LOSS') cardClass = 'border-danger bg-light-danger';
+                else if (signal.status === 'NOT_OPENED') cardClass = 'border-warning bg-light-warning';
+                
+                card.className += ` ${cardClass}`;
+                
+                // Format dates
+                const createdDate = signal.signal_date || 'N/A';
+                const createdTime = signal.signal_time || 'N/A';
+                const openDate = signal.open_date || 'N/A';
+                const openTime = signal.open_time || 'N/A';
+                const closedDate = signal.closing_date || 'N/A';
+                const closedTime = signal.closing_time || 'N/A';
+                
+                // Status badge
+                let statusBadge = '';
+                if (signal.status === 'PROFIT') {
+                    statusBadge = '<span class="badge bg-success"><i class="fas fa-check"></i> PROFIT</span>';
+                } else if (signal.status === 'LOSS') {
+                    statusBadge = '<span class="badge bg-danger"><i class="fas fa-times"></i> LOSS</span>';
+                } else if (signal.status === 'NOT_OPENED') {
+                    statusBadge = '<span class="badge bg-warning"><i class="fas fa-clock"></i> NOT OPENED</span>';
+                }
+                
+                // Type badge
+                const typeBadge = signal.type?.includes('BUY') ? 
+                    '<span class="badge bg-success">BUY</span>' : 
+                    '<span class="badge bg-danger">SELL</span>';
+                
+                card.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 class="mb-1">${typeBadge} Signal #${signal.signal_id || 'N/A'}</h6>
+                            <small class="text-muted">Created: ${createdDate} ${createdTime}</small>
+                        </div>
+                        <div class="text-end">
+                            ${statusBadge}
+                            <div class="mt-1">
+                                <strong class="text-${signal.status === 'PROFIT' ? 'success' : signal.status === 'LOSS' ? 'danger' : 'warning'}">
+                                    $${signal.p_l_amount ?? signal.profit_loss_amount ?? '0.00'} 
+                                    (${signal.p_l_percentage ?? signal.profit_loss_percentage ?? '0.00'}%)
+                                </strong>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="signal-detail">
+                                <strong>Entry Price:</strong><br>
+                                <span class="text-primary">$${signal.entry_price || 'N/A'}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="signal-detail">
+                                <strong>Target Price:</strong><br>
+                                <span class="text-success">$${signal.target_price || 'N/A'}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="signal-detail">
+                                <strong>Stop Loss:</strong><br>
+                                <span class="text-danger">$${signal.stop_loss || 'N/A'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-2">
+                        <div class="col-md-4">
+                            <div class="signal-detail">
+                                <strong>Signal Open:</strong><br>
+                                <small>${openDate} ${openTime}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="signal-detail">
+                                <strong>Signal Closed:</strong><br>
+                                <small>${closedDate} ${closedTime}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="signal-detail">
+                                <strong>Execution Price:</strong><br>
+                                <span class="text-info">$${signal.execution_price || 'N/A'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <div class="signal-detail">
+                                <strong>Confidence:</strong>
+                                <div class="progress mt-1" style="height: 8px;">
+                                    <div class="progress-bar bg-${signal.confidence >= 80 ? 'success' : signal.confidence >= 60 ? 'warning' : 'danger'}" 
+                                         style="width: ${signal.confidence ?? signal.confidence_score ?? 0}%"></div>
+                                </div>
+                                <small>${signal.confidence ?? signal.confidence_score ?? 0}%</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="signal-detail text-end">
+                                <strong>Risk/Reward:</strong><br>
+                                <span class="text-muted">${signal.risk_reward_ratio || 'N/A'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+        } else {
+            const noResultsCard = document.createElement('div');
+            noResultsCard.className = 'text-center py-5';
+            noResultsCard.innerHTML = `
+                <div class="card">
+                    <div class="card-body">
+                        <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No backtest results available</h5>
+                        <p class="text-muted">Run a backtest to see signal analysis results.</p>
+                    </div>
+                </div>
+            `;
+            container.appendChild(noResultsCard);
+        }
+    }
+    
+    function showBacktestSuccessMessage(result) {
+        const totalSignals = result.total_signals || 0;
+        const executedSignals = result.executed_signals || 0;
+        const profitSignals = result.profit_signals || 0;
+        const lossSignals = result.loss_signals || 0;
+        
+        const message = `Backtest completed! ${totalSignals} signals analyzed: ${executedSignals} executed (${profitSignals} profitable, ${lossSignals} losses)`;
+        
+        // You can implement a toast notification or alert here
+        console.log('Backtest Success:', message);
     }
     
     function displayNoSignalsMessage(noSignalsReason) {
@@ -1475,39 +1718,18 @@ Average Confidence: ${stats.avgConfidence}%`);
                 </div>
             </div>
             
-            <!-- Filtered Signal Details Container -->
+            <!-- Signal Details Message Container -->
             <div id="filteredSignalsContainer" style="display: none;">
-                <h6 id="filteredSignalsTitle"><i class="fas fa-filter me-2"></i>Filtered Signal Details</h6>
-                
-                <div class="table-responsive">
-                    <table class="table table-sm table-striped">
-                        <thead>
-                            <tr>
-                                <th>Signal Date</th>
-                                <th>Signal Time</th>
-                                <th>Execution Date</th>
-                                <th>Execution Time</th>
-                                <th>Type</th>
-                                <th>Entry Price</th>
-                                <th>Target Price</th>
-                                <th>Stop Loss</th>
-                                <th>Execution Price</th>
-                                <th>Status</th>
-                                <th>P/L Amount</th>
-                                <th>P/L %</th>
-                                <th>Confidence</th>
-                            </tr>
-                        </thead>
-                        <tbody id="filteredSignalsTable">
-                            <!-- Filtered signals will be populated here -->
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div class="mt-2">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="closeFilteredSignalsBtn">
-                        <i class="fas fa-times me-1"></i>Close
-                    </button>
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="fas fa-chart-line me-2"></i><span id="filteredSignalsTitle">Signal Details</span></h6>
+                        <button type="button" class="btn btn-sm btn-outline-light" id="closeFilteredSignalsBtn">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="card-body" id="signalDetailsMessage">
+                        <!-- Signal details will be populated here in message format -->
+                    </div>
                 </div>
             </div>
             
@@ -2242,29 +2464,31 @@ Average Confidence: ${stats.avgConfidence}%`);
         });
     }
     
-    // Function to populate filtered signals table
+    // Function to populate signal details in message format
     function populateFilteredSignalsTable(signals) {
-        const tbody = document.getElementById('filteredSignalsTable');
-        if (!tbody) return;
+        const messageContainer = document.getElementById('signalDetailsMessage');
+        if (!messageContainer) return;
         
-        tbody.innerHTML = '';
+        messageContainer.innerHTML = '';
         
         if (signals.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="13" class="text-center text-muted py-3">
-                        <i class="fas fa-info-circle me-2"></i>No signals found for this category
-                    </td>
-                </tr>
+            messageContainer.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-info-circle fa-2x mb-3"></i>
+                    <h6>No signals found for this category</h6>
+                    <p class="mb-0">Try adjusting your backtesting parameters to generate more signals.</p>
+                </div>
             `;
             return;
         }
         
-        signals.forEach(signal => {
+        signals.forEach((signal, index) => {
             const statusIcon = signal.status === 'PROFIT' ? '✅' : 
                               signal.status === 'LOSS' ? '❌' : '⏸️';
             const statusClass = signal.status === 'PROFIT' ? 'text-success' : 
                                signal.status === 'LOSS' ? 'text-danger' : 'text-warning';
+            const statusBgClass = signal.status === 'PROFIT' ? 'bg-success' : 
+                                  signal.status === 'LOSS' ? 'bg-danger' : 'bg-warning';
             
             // Parse execution date and time
             let executionDate = 'N/A';
@@ -2289,34 +2513,124 @@ Average Confidence: ${stats.avgConfidence}%`);
                 }
             }
             
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${signal.date}</td>
-                <td>${signal.time}</td>
-                <td class="${signal.executed_at ? 'text-primary fw-bold' : 'text-muted'}">${executionDate}</td>
-                <td class="${signal.executed_at ? 'text-primary fw-bold' : 'text-muted'}">${executionTime}</td>
-                <td><span class="badge ${signal.signal_type.includes('BUY') ? 'bg-success' : 'bg-danger'}">${signal.signal_type}</span></td>
-                <td>$${signal.entry_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
-                <td>$${signal.target_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
-                <td>$${signal.stop_loss.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
-                <td>${signal.execution_price ? '$' + signal.execution_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4}) : 'N/A'}</td>
-                <td class="${statusClass}">${statusIcon} ${signal.status}</td>
-                <td class="${signal.profit_loss_amount >= 0 ? 'text-success' : 'text-danger'}">
-                    $${signal.profit_loss_amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                </td>
-                <td class="${signal.profit_loss_percentage >= 0 ? 'text-success' : 'text-danger'}">
-                    ${signal.profit_loss_percentage.toFixed(2)}%
-                </td>
-                <td>
-                    <div class="progress" style="height: 20px;">
-                        <div class="progress-bar ${signal.confidence_score >= 0.8 ? 'bg-success' : signal.confidence_score >= 0.6 ? 'bg-warning' : 'bg-danger'}" 
-                             style="width: ${signal.confidence_score * 100}%">
-                            ${Math.round(signal.confidence_score * 100)}%
+            const signalCard = document.createElement('div');
+            signalCard.className = 'mb-4';
+            signalCard.innerHTML = `
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header ${statusBgClass} text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <i class="fas fa-chart-line me-2"></i>
+                                Signal #${index + 1} - ${signal.status}
+                            </h6>
+                            <span class="badge bg-light text-dark">${signal.date} ${signal.time}</span>
                         </div>
                     </div>
-                </td>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-primary mb-3"><i class="fas fa-info-circle me-2"></i>Signal Information</h6>
+                                <div class="mb-2">
+                                    <strong>Type:</strong> 
+                                    <span class="badge ${signal.signal_type.includes('BUY') ? 'bg-success' : 'bg-danger'} ms-2">
+                                        ${signal.signal_type}
+                                    </span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Status:</strong> 
+                                    <span class="${statusClass} ms-2">${statusIcon} ${signal.status}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Confidence:</strong> 
+                                    <div class="progress mt-1" style="height: 20px;">
+                                        <div class="progress-bar ${signal.confidence_score >= 0.8 ? 'bg-success' : signal.confidence_score >= 0.6 ? 'bg-warning' : 'bg-danger'}" 
+                                             style="width: ${signal.confidence_score * 100}%">
+                                            ${Math.round(signal.confidence_score * 100)}%
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Generated Date:</strong> 
+                                    <span class="text-info ms-2">${signal.date} ${signal.time}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Executed Date:</strong> 
+                                    <span class="text-warning ms-2">${executionDate} ${executionTime}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Closed Date:</strong> 
+                                    <span class="text-secondary ms-2">${signal.closed_date || 'N/A'}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Validation Date:</strong> 
+                                    <span class="text-success ms-2">${signal.validation_date || 'N/A'}</span>
+                                    <small class="text-muted d-block">When signal reached ${signal.status === 'PROFIT' ? 'target price' : 'stop loss'}</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-primary mb-3"><i class="fas fa-dollar-sign me-2"></i>Price Information</h6>
+                                <div class="mb-2">
+                                    <strong>Entry Price:</strong> 
+                                    <span class="text-success ms-2">$${signal.entry_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Target Price:</strong> 
+                                    <span class="text-info ms-2">$${signal.target_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Execution Price:</strong> 
+                                    <span class="text-primary ms-2">${signal.execution_price ? '$' + signal.execution_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 'N/A'}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Closed Price:</strong> 
+                                    <span class="text-secondary ms-2">${signal.closed_price ? '$' + signal.closed_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 'N/A'}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Reached Price:</strong> 
+                                    <span class="${signal.status === 'PROFIT' ? 'text-success' : 'text-danger'} ms-2">
+                                        ${signal.status === 'PROFIT' ? '$' + signal.target_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4}) : '$' + signal.stop_loss.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}
+                                        <i class="fas fa-check-circle ms-1"></i>
+                                    </span>
+                                    <small class="text-muted d-block">${signal.status === 'PROFIT' ? 'Target Price Reached' : 'Stop Loss Hit'}</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <h6 class="text-primary mb-3"><i class="fas fa-chart-bar me-2"></i>Performance Summary</h6>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="text-center p-3 bg-light rounded">
+                                            <h5 class="${signal.profit_loss_percentage >= 0 ? 'text-success' : 'text-danger'} mb-1">
+                                                ${signal.profit_loss_percentage ? signal.profit_loss_percentage.toFixed(2) + '%' : 'N/A'}
+                                            </h5>
+                                            <small class="text-muted">P/L Percentage</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="text-center p-3 bg-light rounded">
+                                            <h5 class="${signal.profit_loss_amount >= 0 ? 'text-success' : 'text-danger'} mb-1">
+                                                ${signal.profit_loss_amount ? '$' + signal.profit_loss_amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 'N/A'}
+                                            </h5>
+                                            <small class="text-muted">P/L Amount</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="text-center p-3 bg-light rounded">
+                                            <h5 class="text-info mb-1">
+                                                ${signal.risk_reward_ratio ? signal.risk_reward_ratio.toFixed(2) : 'N/A'}
+                                            </h5>
+                                            <small class="text-muted">Risk/Reward Ratio</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             `;
-            tbody.appendChild(row);
+            messageContainer.appendChild(signalCard);
         });
     }
     
