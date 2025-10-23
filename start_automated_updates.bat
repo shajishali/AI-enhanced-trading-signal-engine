@@ -23,12 +23,13 @@ echo Celery Services Started Successfully!
 echo ========================================
 echo.
 echo Automated Update Schedule:
-echo - Daily historical data update: 2:30 AM UTC
+echo - Hourly historical data update: Every hour at minute 0
+echo - Daily backup update: 2:30 AM UTC (backup safety)
 echo - Weekly gap check and fill: Sunday 3:00 AM UTC  
 echo - Data cleanup: DISABLED (preserves all data from 2020)
 echo.
 echo Your backtesting database will now automatically 
-echo update until the previous day!
+echo update every hour until 1 hour before current time!
 echo.
 echo To check database status, run: python quick_status_check.py
 echo To stop services, close the Celery Worker and Beat windows

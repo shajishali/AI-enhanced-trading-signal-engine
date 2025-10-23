@@ -190,7 +190,7 @@ class TradingSignal(models.Model):
     is_hybrid = models.BooleanField(default=False, help_text="Is this a hybrid signal (spot + futures)?")
     metadata = models.JSONField(default=dict, blank=True, help_text="Additional metadata")
     analyzed_at = models.DateTimeField(default=timezone.now, help_text='Time when signal was analyzed')
-    created_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     notes = models.TextField(blank=True)
     
@@ -260,7 +260,7 @@ class MarketRegime(models.Model):
         validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
         help_text="Regime classification confidence"
     )
-    created_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
         verbose_name = 'Market Regime'
@@ -304,7 +304,7 @@ class SignalPerformance(models.Model):
     average_quality_score = models.FloatField(default=0.0)
     signal_accuracy = models.FloatField(default=0.0)
     
-    created_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
         verbose_name = 'Signal Performance'
@@ -340,7 +340,7 @@ class SignalAlert(models.Model):
     message = models.TextField()
     signal = models.ForeignKey(TradingSignal, on_delete=models.CASCADE, null=True, blank=True)
     is_read = models.BooleanField(default=False)
-    created_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
         verbose_name = 'Signal Alert'
@@ -385,7 +385,7 @@ class SpotPortfolio(models.Model):
     sharpe_ratio = models.FloatField(default=0)
     
     is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
@@ -493,7 +493,7 @@ class SpotTradingSignal(models.Model):
     technical_factors = models.JSONField(default=list, blank=True)
     
     is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     analyzed_at = models.DateTimeField(default=timezone.now, help_text='Time when signal was analyzed')

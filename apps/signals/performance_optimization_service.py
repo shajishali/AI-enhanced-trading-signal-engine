@@ -153,12 +153,18 @@ class PerformanceOptimizationService:
             # Convert to TensorFlow Lite
             tflite_model = converter.convert()
             
-            # Save quantized model
-            quantized_model_path = os.path.join(settings.MEDIA_ROOT, 'models', 'quantized_model.tflite')
-            os.makedirs(os.path.dirname(quantized_model_path), exist_ok=True)
+            # Save quantized model to S3
+            from django.core.files.storage import default_storage
+            quantized_model_path = 'models/quantized_model.tflite'
             
-            with open(quantized_model_path, 'wb') as f:
-                f.write(tflite_model)
+            # Save to temporary file first, then upload to S3
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.tflite', delete=False) as temp_file:
+                temp_file.write(tflite_model)
+                temp_file.flush()
+                with open(temp_file.name, 'rb') as f:
+                    default_storage.save(quantized_model_path, f)
+                os.unlink(temp_file.name)
             
             # Calculate compression ratio
             original_size = os.path.getsize(model.model_file_path) if hasattr(model, 'model_file_path') else 0
@@ -278,16 +284,17 @@ class PerformanceOptimizationService:
     def _save_optimized_model(self, chart_model: ChartMLModel, optimized_model: keras.Model, optimization_type: str) -> str:
         """Save optimized model to disk"""
         try:
-            # Create optimized model path
-            optimized_model_path = os.path.join(
-                settings.MEDIA_ROOT, 'models',
-                f"{chart_model.name}_optimized_{optimization_type}.h5"
-            )
+            # Create optimized model path for S3
+            from django.core.files.storage import default_storage
+            optimized_model_path = f"models/{chart_model.name}_optimized_{optimization_type}.h5"
             
-            os.makedirs(os.path.dirname(optimized_model_path), exist_ok=True)
-            
-            # Save model
-            optimized_model.save(optimized_model_path)
+            # Save model to temporary file first, then upload to S3
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.h5', delete=False) as temp_file:
+                optimized_model.save(temp_file.name)
+                with open(temp_file.name, 'rb') as f:
+                    default_storage.save(optimized_model_path, f)
+                os.unlink(temp_file.name)
             
             return optimized_model_path
             

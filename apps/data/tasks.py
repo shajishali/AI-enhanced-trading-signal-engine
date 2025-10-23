@@ -156,23 +156,58 @@ def cleanup_old_data_task():
 
 @shared_task
 def update_historical_data_task():
-    """Daily incremental update for historical data (last 2 days)."""
+    """Hourly incremental update for historical data (last 1 hour)."""
     try:
         manager = HistoricalDataManager()
         symbols = Symbol.objects.filter(symbol_type='CRYPTO', is_active=True)
         success = 0
+        
+        # Calculate time range: from 1 hour ago to 1 hour before current time
+        # This ensures we always have data up to 1 hour before current time
+        end_time = timezone.now() - timedelta(hours=1)  # 1 hour before current time
+        start_time = end_time - timedelta(hours=1)     # 1 hour window
+        
+        logger.info(f"Hourly update: fetching data from {start_time} to {end_time}")
+        
         for sym in symbols:
             try:
-                end = timezone.now()
-                start = end - timedelta(days=2)
-                if manager.fetch_complete_historical_data(sym, timeframe='1h', start=start, end=end):
+                if manager.fetch_complete_historical_data(sym, timeframe='1h', start=start_time, end=end_time):
                     success += 1
             except Exception as e:
                 logger.error(f"Incremental update failed for {sym.symbol}: {e}")
-        logger.info(f"Incremental updates completed for {success}/{symbols.count()} symbols")
+        
+        logger.info(f"Hourly incremental updates completed for {success}/{symbols.count()} symbols")
         return True
     except Exception as e:
         logger.error(f"Error in update_historical_data_task: {e}")
+        return False
+
+
+@shared_task
+def update_historical_data_daily_task():
+    """Daily comprehensive update for historical data (last 2 days) - backup task."""
+    try:
+        manager = HistoricalDataManager()
+        symbols = Symbol.objects.filter(symbol_type='CRYPTO', is_active=True)
+        success = 0
+        
+        # Daily backup: fetch last 2 days to ensure no gaps
+        end_time = timezone.now() - timedelta(hours=1)  # Still 1 hour before current time
+        start_time = end_time - timedelta(days=2)       # 2 days window
+        
+        logger.info(f"Daily backup update: fetching data from {start_time} to {end_time}")
+        
+        for sym in symbols:
+            try:
+                if manager.fetch_complete_historical_data(sym, timeframe='1h', start=start_time, end=end_time):
+                    success += 1
+            except Exception as e:
+                logger.error(f"Daily backup update failed for {sym.symbol}: {e}")
+        
+        logger.info(f"Daily backup updates completed for {success}/{symbols.count()} symbols")
+        return True
+    except Exception as e:
+        logger.error(f"Error in update_historical_data_daily_task: {e}")
         return False
 
 
@@ -222,6 +257,167 @@ def health_check_task():
     except Exception as e:
         logger.error(f"Error in health_check_task: {e}")
         return False
+
+
+@shared_task
+def upload_file_to_s3_task(file_path: str, s3_key: str):
+    """Upload a file to S3 bucket"""
+    try:
+        from django.core.files.storage import default_storage
+        
+        if not os.path.exists(file_path):
+            logger.error(f"File not found: {file_path}")
+            return {'status': 'error', 'error': 'File not found'}
+        
+        with open(file_path, 'rb') as f:
+            default_storage.save(s3_key, f)
+        
+        logger.info(f"Successfully uploaded {file_path} to S3 as {s3_key}")
+        return {'status': 'success', 's3_key': s3_key}
+        
+    except Exception as e:
+        logger.error(f"Error uploading file to S3: {e}")
+        return {'status': 'error', 'error': str(e)}
+
+
+@shared_task
+def download_file_from_s3_task(s3_key: str, local_path: str):
+    """Download a file from S3 bucket"""
+    try:
+        from django.core.files.storage import default_storage
+        
+        if not default_storage.exists(s3_key):
+            logger.error(f"File not found in S3: {s3_key}")
+            return {'status': 'error', 'error': 'File not found in S3'}
+        
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        
+        # Download file
+        with default_storage.open(s3_key, 'rb') as s3_file:
+            with open(local_path, 'wb') as local_file:
+                local_file.write(s3_file.read())
+        
+        logger.info(f"Successfully downloaded {s3_key} from S3 to {local_path}")
+        return {'status': 'success', 'local_path': local_path}
+        
+    except Exception as e:
+        logger.error(f"Error downloading file from S3: {e}")
+        return {'status': 'error', 'error': str(e)}
+
+
+@shared_task
+def migrate_local_files_to_s3_task():
+    """Migrate existing local files to S3"""
+    try:
+        from django.core.files.storage import default_storage
+        from django.conf import settings
+        
+        migrated_count = 0
+        error_count = 0
+        
+        # Migrate media files
+        if hasattr(settings, 'MEDIA_ROOT') and settings.MEDIA_ROOT:
+            media_root = settings.MEDIA_ROOT
+            if os.path.exists(media_root):
+                for root, dirs, files in os.walk(media_root):
+                    for file in files:
+                        try:
+                            local_path = os.path.join(root, file)
+                            relative_path = os.path.relpath(local_path, media_root)
+                            s3_key = f'media/{relative_path}'
+                            
+                            # Check if file already exists in S3
+                            if not default_storage.exists(s3_key):
+                                with open(local_path, 'rb') as f:
+                                    default_storage.save(s3_key, f)
+                                migrated_count += 1
+                                logger.info(f"Migrated {local_path} to S3")
+                            
+                        except Exception as e:
+                            error_count += 1
+                            logger.error(f"Error migrating {local_path}: {e}")
+        
+        # Migrate static files
+        if hasattr(settings, 'STATIC_ROOT') and settings.STATIC_ROOT:
+            static_root = settings.STATIC_ROOT
+            if os.path.exists(static_root):
+                for root, dirs, files in os.walk(static_root):
+                    for file in files:
+                        try:
+                            local_path = os.path.join(root, file)
+                            relative_path = os.path.relpath(local_path, static_root)
+                            s3_key = f'static/{relative_path}'
+                            
+                            # Check if file already exists in S3
+                            if not default_storage.exists(s3_key):
+                                with open(local_path, 'rb') as f:
+                                    default_storage.save(s3_key, f)
+                                migrated_count += 1
+                                logger.info(f"Migrated {local_path} to S3")
+                            
+                        except Exception as e:
+                            error_count += 1
+                            logger.error(f"Error migrating {local_path}: {e}")
+        
+        logger.info(f"Migration completed. Migrated: {migrated_count}, Errors: {error_count}")
+        return {
+            'status': 'success',
+            'migrated_count': migrated_count,
+            'error_count': error_count
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in migrate_local_files_to_s3_task: {e}")
+        return {'status': 'error', 'error': str(e)}
+
+
+@shared_task
+def cleanup_s3_files_task():
+    """Clean up old files from S3"""
+    try:
+        from django.core.files.storage import default_storage
+        from datetime import datetime, timedelta
+        
+        # Clean up old model files (keep only last 10 versions)
+        model_files = []
+        try:
+            # List files in models directory
+            for file_info in default_storage.listdir('models')[1]:  # [1] gets files
+                if file_info.endswith('.h5') or file_info.endswith('.tflite'):
+                    model_files.append(file_info)
+            
+            # Sort by modification time and keep only recent ones
+            model_files.sort(reverse=True)
+            files_to_delete = model_files[10:]  # Keep only 10 most recent
+            
+            for file_name in files_to_delete:
+                s3_key = f'models/{file_name}'
+                default_storage.delete(s3_key)
+                logger.info(f"Deleted old model file: {s3_key}")
+                
+        except Exception as e:
+            logger.error(f"Error cleaning up model files: {e}")
+        
+        # Clean up old media files (older than 30 days)
+        cutoff_date = datetime.now() - timedelta(days=30)
+        try:
+            for file_info in default_storage.listdir('media')[1]:  # [1] gets files
+                # This is a simplified cleanup - in production you'd want more sophisticated logic
+                if 'temp' in file_info.lower() or 'cache' in file_info.lower():
+                    s3_key = f'media/{file_info}'
+                    default_storage.delete(s3_key)
+                    logger.info(f"Deleted temporary file: {s3_key}")
+                    
+        except Exception as e:
+            logger.error(f"Error cleaning up media files: {e}")
+        
+        logger.info("S3 cleanup completed")
+        return {'status': 'success'}
+        
+    except Exception as e:
+        logger.error(f"Error in cleanup_s3_files_task: {e}")
+        return {'status': 'error', 'error': str(e)}
 
 
 

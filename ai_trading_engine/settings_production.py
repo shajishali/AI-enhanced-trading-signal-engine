@@ -116,13 +116,52 @@ CELERY_MAX_TASKS_PER_CHILD = config('CELERY_MAX_TASKS_PER_CHILD', default=1000, 
 CELERY_TASK_TIME_LIMIT = config('CELERY_TASK_TIME_LIMIT', default=3600, cast=int)  # 1 hour
 CELERY_TASK_SOFT_TIME_LIMIT = config('CELERY_TASK_SOFT_TIME_LIMIT', default=3000, cast=int)  # 50 minutes
 
-# Static files configuration for production
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# AWS S3 Configuration for production
+USE_S3 = config('USE_S3', default=True, cast=bool)
 
-# Media files configuration for production
-MEDIA_ROOT = BASE_DIR / 'media'
-MEDIA_URL = '/media/'
+# Validate S3 credentials - disable S3 if credentials are not provided
+if USE_S3:
+    aws_access_key = config('AWS_ACCESS_KEY_ID', default='')
+    aws_secret_key = config('AWS_SECRET_ACCESS_KEY', default='')
+    aws_bucket = config('AWS_STORAGE_BUCKET_NAME', default='')
+    
+    if not aws_access_key or not aws_secret_key or not aws_bucket:
+        print("Warning: S3 credentials not provided. Disabling S3 and using local storage.")
+        USE_S3 = False
+
+if USE_S3:
+    # AWS S3 settings
+    AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID', default='')
+    AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY', default='')
+    AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME', default='')
+    AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-east-1')
+    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+    AWS_DEFAULT_ACL = 'public-read'
+    AWS_S3_OBJECT_PARAMETERS = {
+        'CacheControl': 'max-age=86400',
+    }
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = None
+    
+    # Static files configuration for S3
+    STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
+    
+    # Media files configuration for S3
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+    
+    # Remove local static/media settings
+    STATIC_ROOT = None
+    MEDIA_ROOT = None
+else:
+    # Static files configuration for production (local)
+    STATIC_ROOT = BASE_DIR / 'staticfiles'
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    
+    # Media files configuration for production (local)
+    MEDIA_ROOT = BASE_DIR / 'media'
+    MEDIA_URL = '/media/'
 
 # Logging configuration for production
 LOGGING = {

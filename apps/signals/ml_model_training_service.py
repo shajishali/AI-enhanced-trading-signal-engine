@@ -296,7 +296,7 @@ class MLModelTrainingService:
                     min_lr=1e-7
                 ),
                 callbacks.ModelCheckpoint(
-                    filepath=os.path.join(settings.MEDIA_ROOT, 'models', f'{model_name}_best.h5'),
+                    filepath=f'models/{model_name}_best.h5',
                     monitor='val_accuracy',
                     save_best_only=True,
                     save_weights_only=False
@@ -326,10 +326,17 @@ class MLModelTrainingService:
                 'confusion_matrix': confusion_matrix(y_test, y_pred_classes).tolist()
             }
             
-            # Save model
-            model_path = os.path.join(settings.MEDIA_ROOT, 'models', f'{model_name}.h5')
-            os.makedirs(os.path.dirname(model_path), exist_ok=True)
-            model.save(model_path)
+            # Save model to S3
+            from django.core.files.storage import default_storage
+            model_path = f'models/{model_name}.h5'
+            
+            # Save model to temporary file first, then upload to S3
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.h5', delete=False) as temp_file:
+                model.save(temp_file.name)
+                with open(temp_file.name, 'rb') as f:
+                    default_storage.save(model_path, f)
+                os.unlink(temp_file.name)
             
             # Create ChartMLModel record
             chart_model = ChartMLModel.objects.create(

@@ -20,6 +20,7 @@ Symbols Universe (initial):
 - Extended: all other active USDT spot pairs supported by Binance (added iteratively)
 
 Timeframes to Persist:
+
 - Required: 1h, 1d
 - Optional: 15m, 4h (enable per storage budget)
 - Experimental: 1m, 5m (disabled by default)
@@ -165,29 +166,35 @@ python manage.py fill_data_gaps --timeframe 1h --limit 20
 
 ---
 
-### Phase 5 — Monthly Incremental Updates (Automation)
+### Phase 5 — Hourly Incremental Updates (Automation)
 - Celery beat jobs:
-  - Daily incremental updater (fetch last 2–3 days for safety) per symbol/timeframe.
-  - Monthly consolidator: validate previous month completeness and fill gaps.
+  - Hourly incremental updater (fetch last 1 hour) per symbol/timeframe.
+  - Daily backup updater (fetch last 2 days for safety) per symbol/timeframe.
+  - Weekly consolidator: validate previous week completeness and fill gaps.
 - Retention policy:
   - Keep ≥5 years 1d, ≥2 years 1h, ≥1 year 1m/5m (if enabled).
   - Cleanup task prunes beyond retention by timeframe.
 
 Deliverables:
-- Two scheduled tasks: `update_historical_data_task` (daily) and `check_and_fill_gaps_task` (weekly/monthly).
+- Three scheduled tasks: `update_historical_data_task` (hourly), `update_historical_data_daily_task` (daily backup), and `check_and_fill_gaps_task` (weekly).
 
 Status: IMPLEMENTED
 - Files updated: `apps/data/tasks.py`
-  - `update_historical_data_task`: daily, fetch last 2 days (1h) for all active symbols.
+  - `update_historical_data_task`: hourly, fetch last 1 hour for all active symbols (up to 1 hour before current time).
+  - `update_historical_data_daily_task`: daily backup, fetch last 2 days for all active symbols (up to 1 hour before current time).
   - `weekly_gap_check_and_fill_task`: weekly, validate last 90 days and fill gaps.
   - `cleanup_old_data_task`: retention by timeframe (1m: 12mo, 1h: 24mo, 1d: 60mo).
 - Beat schedule (example):
 ```
 # In celery beat configuration (example)
 app.conf.beat_schedule.update({
-    'historical-incremental-daily': {
+    'historical-incremental-hourly': {
         'task': 'apps.data.tasks.update_historical_data_task',
-        'schedule': crontab(hour=2, minute=0),
+        'schedule': crontab(minute=0),  # Every hour at minute 0
+    },
+    'historical-incremental-daily-backup': {
+        'task': 'apps.data.tasks.update_historical_data_daily_task',
+        'schedule': crontab(hour=2, minute=30),  # Daily at 2:30 AM UTC (backup)
     },
     'historical-weekly-gap-check': {
         'task': 'apps.data.tasks.weekly_gap_check_and_fill_task',
@@ -258,7 +265,8 @@ python manage.py check_data_quality --symbol BTC --timeframe 1h --days 365
 
 ### Scheduled Automation
 - Celery beat:
-  - `update_historical_data_task`: daily at 02:00 UTC (fetch last 2–3 days).
+  - `update_historical_data_task`: hourly at minute 0 (fetch last 1 hour, up to 1 hour before current time).
+  - `update_historical_data_daily_task`: daily at 02:30 UTC (backup: fetch last 2 days, up to 1 hour before current time).
   - `check_and_fill_gaps_task`: weekly on Sun 03:00 UTC (validate last 90 days, fill gaps).
 - Ensure workers are running:
 ```
@@ -271,7 +279,7 @@ celery -A ai_trading_engine beat -l info
 ## Acceptance Criteria
 - 100% coverage for 2020-01-01 → 2025-09-30 for chosen timeframes (at least 1h and 1d) across all supported symbols.
 - Backtests never use synthetic data; services error clearly if data is missing.
-- Monthly (and daily incremental) updates maintain ≥99% completeness.
+- Hourly (and daily backup) updates maintain ≥99% completeness up to 1 hour before current time.
 - Data retention respects storage policy while preserving backtest reproducibility.
 
 ---
@@ -279,5 +287,6 @@ celery -A ai_trading_engine beat -l info
 ## Change Log
 - v0.1: Initial phase plan and runbook created.
 - v0.2: Implemented data model changes (MarketData.timeframe, HistoricalDataRange, DataQuality). Added migration steps.
+- v0.3: Updated to hourly incremental updates (every hour at minute 0) with daily backup. Data stored up to 1 hour before current time.
 
 

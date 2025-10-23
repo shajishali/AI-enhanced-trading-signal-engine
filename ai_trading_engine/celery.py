@@ -52,7 +52,7 @@ app.conf.update(
             'priority': 10,
         },
         'generate-trading-signals': {
-            'task': 'apps.signals.tasks.generate_signals',
+            'task': 'apps.signals.tasks.generate_signals_for_all_symbols',
             'schedule': crontab(minute='*/15'),  # Every 15 minutes
             'priority': 8,
         },
@@ -67,10 +67,15 @@ app.conf.update(
             'priority': 2,
         },
         # Historical data update tasks for backtesting database
-        'historical-incremental-daily': {
+        'historical-incremental-hourly': {
             'task': 'apps.data.tasks.update_historical_data_task',
-            'schedule': crontab(hour=2, minute=30),  # Daily at 2:30 AM UTC
+            'schedule': crontab(minute=0),  # Every hour at minute 0
             'priority': 5,
+        },
+        'historical-incremental-daily-backup': {
+            'task': 'apps.data.tasks.update_historical_data_daily_task',
+            'schedule': crontab(hour=2, minute=30),  # Daily at 2:30 AM UTC (backup)
+            'priority': 4,
         },
         'historical-weekly-gap-check': {
             'task': 'apps.data.tasks.weekly_gap_check_and_fill_task',
