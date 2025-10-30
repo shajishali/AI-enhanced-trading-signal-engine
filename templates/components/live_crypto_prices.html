@@ -18,7 +18,7 @@
         </div>
         <div class="card-body p-3">
             <!-- Horizontal Scrollable Container for All Coins -->
-            <div class="crypto-prices-scroll-container">
+            <div class="crypto-prices-scroll-container" id="crypto-scroll" data-total="{{ global_crypto_prices|length }}">
                 <div class="crypto-prices-row">
                     {% for symbol, data in global_crypto_prices.items %}
                     <div class="crypto-price-card-wrapper" data-symbol="{{ symbol }}">
@@ -364,9 +364,10 @@ function updateScrollProgress() {
         const cardWidth = 215; // 200px card + 15px gap
         const visibleCards = Math.floor(container.clientWidth / cardWidth);
         const startCard = Math.floor(scrollLeft / cardWidth) + 1;
-        const endCard = Math.min(startCard + visibleCards - 1, {{ global_crypto_prices|length }});
+        const totalCoins = parseInt((document.getElementById('crypto-scroll') || {}).dataset?.total || '0', 10);
+        const endCard = Math.min(startCard + visibleCards - 1, totalCoins);
         
-        positionText.textContent = `Showing ${startCard}-${endCard} of {{ global_crypto_prices|length }}`;
+        positionText.textContent = 'Showing ' + startCard + '-' + endCard + ' of ' + totalCoins;
         
         // Update button states
         const leftBtn = document.getElementById('scroll-left-btn');

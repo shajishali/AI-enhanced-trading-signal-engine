@@ -74,60 +74,24 @@ class Command(BaseCommand):
         self.stdout.write(f'\nCollected {len(all_signals)} total signals from {processed_symbols} symbols')
         
         if all_signals:
-            # Archive old signals first before clearing them
-            from apps.signals.models import TradingSignal, SignalHistory
+            # Just clear old invalid signals
+            from apps.signals.models import TradingSignal
             old_signals = TradingSignal.objects.filter(is_valid=True)
             old_signals_count = old_signals.count()
             
             if old_signals_count > 0:
-                # Archive signals to history
-                archived_count = 0
+                # Simply invalidate old signals (removed archive functionality)
+                invalidated_count = 0
                 for signal in old_signals:
                     try:
-                        SignalHistory.objects.create(
-                            symbol_name=signal.symbol.symbol,
-                            signal_type_name=signal.signal_type.name,
-                            strength=signal.strength,
-                            confidence_score=signal.confidence_score,
-                            confidence_level=signal.confidence_level,
-                            entry_price=signal.entry_price,
-                            target_price=signal.target_price,
-                            stop_loss=signal.stop_loss,
-                            risk_reward_ratio=signal.risk_reward_ratio,
-                            timeframe=signal.timeframe,
-                            entry_point_type=signal.entry_point_type,
-                            entry_point_details=signal.entry_point_details,
-                            entry_zone_low=signal.entry_zone_low,
-                            entry_zone_high=signal.entry_zone_high,
-                            entry_confidence=signal.entry_confidence,
-                            quality_score=signal.quality_score,
-                            is_valid=signal.is_valid,
-                            expires_at=signal.expires_at,
-                            technical_score=signal.technical_score,
-                            sentiment_score=signal.sentiment_score,
-                            news_score=signal.news_score,
-                            volume_score=signal.volume_score,
-                            pattern_score=signal.pattern_score,
-                            economic_score=signal.economic_score,
-                            sector_score=signal.sector_score,
-                            is_executed=signal.is_executed,
-                            executed_at=signal.executed_at,
-                            execution_price=signal.execution_price,
-                            is_profitable=signal.is_profitable,
-                            profit_loss=signal.profit_loss,
-                            original_signal_id=signal.id,
-                            archived_reason='HOURLY_ROTATION',
-                            notes=signal.notes
-                        )
-                        archived_count += 1
+                        # Mark old signals as invalid instead of deleting
+                        signal.is_valid = False
+                        signal.save()
+                        invalidated_count += 1
                     except Exception as e:
-                        self.stdout.write(self.style.ERROR(f'Error archiving signal {signal.id}: {e}'))
+                        self.stdout.write(self.style.ERROR(f'Error invalidating signal {signal.id}: {e}'))
                 
-                self.stdout.write(f'Archived {archived_count} old signals to history')
-            
-            # Clear old signals from active table
-            TradingSignal.objects.filter(is_valid=True).delete()
-            self.stdout.write(f'Cleared {old_signals_count} old signals from database')
+                self.stdout.write(f'Invalidated {invalidated_count} old signals')
             
             # Filter signals by quality first
             filtered_signals = signal_service._filter_signals_by_quality(all_signals)

@@ -11,6 +11,40 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task
+def update_crypto_prices():
+    """Update crypto prices from external APIs every 30 minutes"""
+    try:
+        logger.info("Starting crypto price update...")
+        
+        # Use the historical data manager to fetch latest data
+        manager = HistoricalDataManager()
+        symbols = Symbol.objects.filter(symbol_type='CRYPTO', is_active=True)
+        
+        success_count = 0
+        
+        for symbol in symbols:
+            try:
+                # Fetch the last 30 minutes of data
+                end_time = timezone.now()
+                start_time = end_time - timedelta(minutes=30)
+                
+                # Update 1H timeframe data
+                if manager.fetch_complete_historical_data(symbol, timeframe='1h', start=start_time, end=end_time):
+                    success_count += 1
+                    logger.debug(f"Updated prices for {symbol.symbol}")
+                    
+            except Exception as e:
+                logger.error(f"Error updating prices for {symbol.symbol}: {e}")
+        
+        logger.info(f"Price update completed: {success_count}/{symbols.count()} symbols updated")
+        return success_count > 0
+        
+    except Exception as e:
+        logger.error(f"Error in update_crypto_prices task: {e}")
+        return False
+
+
+@shared_task
 def sync_crypto_symbols_task():
     """Celery task to sync crypto symbols"""
     try:

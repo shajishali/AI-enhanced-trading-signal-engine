@@ -147,3 +147,15 @@ The fixed backtesting API will now:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,88 +1,52 @@
 @echo off
-title AI Trading Engine - Complete Startup
+title AI Trading Engine - All Services
 color 0A
 
-echo ========================================
-echo    AI Trading Engine - Complete Startup
-echo ========================================
-echo.
-
-echo [1/6] Checking if Redis is already running...
-python test_redis.py >nul 2>&1
-if %errorlevel% == 0 (
-    echo ✅ Redis is already running!
-    goto :start_celery
-)
-
-echo [2/6] Starting Redis server...
-if exist "redis-server.exe" (
-    echo Starting Redis with local executable...
-    start "Redis Server" /min redis-server.exe redis.conf
-) else (
-    echo Starting Redis service...
-    net start redis >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo ❌ Redis not found! Please install Redis first.
-        echo Run: setup_redis.bat
-        pause
-        exit /b 1
-    )
-)
-
-echo Waiting for Redis to start...
-timeout /t 5 /nobreak >nul
-
-echo [3/6] Testing Redis connection...
-python test_redis.py
-if %errorlevel% neq 0 (
-    echo ❌ Redis failed to start!
-    echo Please check Redis installation and try again.
-    pause
-    exit /b 1
-)
-
-:start_celery
-echo [4/6] Starting Celery worker...
-start "Celery Worker" /min python -m celery -A ai_trading_engine worker -l info --pool=solo
-
-echo [5/6] Starting Celery beat scheduler...
-start "Celery Beat" /min python -m celery -A ai_trading_engine beat -l info
-
-echo Waiting for Celery services to initialize...
-timeout /t 3 /nobreak >nul
-
-echo [6/6] Starting Django server...
 echo.
 echo ========================================
-echo    🚀 ALL SERVICES STARTED SUCCESSFULLY!
+echo   AI TRADING ENGINE - ALL SERVICES
 echo ========================================
 echo.
-echo ✅ Redis Server: Running on port 6379
-echo ✅ Celery Worker: Processing background tasks
-echo ✅ Celery Beat: Scheduling automatic signals
-echo ✅ Django Server: Starting on port 8000
+echo Starting all services in separate windows...
 echo.
-echo 🌐 Access your application at:
-echo    http://localhost:8000
-echo.
-echo 📊 Trading Signals: http://localhost:8000/signals/
-echo 📈 Analytics: http://localhost:8000/analytics/
-echo 💼 Portfolio: http://localhost:8000/dashboard/portfolio/
-echo.
-echo ⚠️  Keep this window open to keep Django running
-echo ⚠️  Press Ctrl+C to stop all services
-echo.
-echo ========================================
 
-python manage.py runserver 0.0.0.0:8000
+cd /d "%~dp0"
+
+REM Start Celery Worker and Beat
+echo Starting Celery Worker and Beat Scheduler...
+start "Celery Worker" cmd /k "python -m celery -A ai_trading_engine worker -B --loglevel=info --pool=solo"
+
+REM Wait a moment for Celery to initialize
+timeout /t 3 /nobreak > nul
+
+REM Start Django Development Server
+echo Starting Django Development Server...
+start "Django Server" cmd /k "python manage.py runserver 0.0.0.0:8000"
+
+REM Wait a moment for Django to initialize
+timeout /t 3 /nobreak > nul
 
 echo.
 echo ========================================
-echo    🛑 ALL SERVICES STOPPED
+echo   SERVICES STARTED SUCCESSFULLY
 echo ========================================
 echo.
-echo To restart all services, run this script again.
-pause
+echo ✅ Celery Worker - Processing background tasks
+echo ✅ Django Server - Running on http://0.0.0.0:8000
+echo.
+echo Services are running in separate windows.
+echo Keep all windows open for the application to work.
+echo.
+echo Press any key to open the web interface...
+pause > nul
 
+REM Open the web browser
+start http://localhost:8000
 
-
+echo.
+echo Opening web browser...
+echo.
+echo To stop services:
+echo - Close the "Celery Worker" window
+echo - Close the "Django Server" window
+echo.

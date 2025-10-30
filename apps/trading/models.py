@@ -74,6 +74,23 @@ class Position(models.Model):
         else:
             return (self.entry_price - self.current_price) * self.quantity
 
+    @property
+    def unrealized_pnl_percentage(self):
+        """Return unrealized P&L percentage based on entry vs current price.
+        Returns 0 if current price is missing or entry price is zero.
+        """
+        try:
+            if not self.current_price or not self.is_open or not self.entry_price:
+                return 0
+            if self.entry_price == 0:
+                return 0
+            if self.position_type == 'LONG':
+                return float((self.current_price - self.entry_price) / self.entry_price) * 100.0
+            else:
+                return float((self.entry_price - self.current_price) / self.entry_price) * 100.0
+        except Exception:
+            return 0
+
 
 class Trade(models.Model):
     """Trade model to track executed trades"""
@@ -97,6 +114,16 @@ class Trade(models.Model):
     @property
     def total_value(self):
         return self.quantity * self.price
+
+    @property
+    def execution_price(self):
+        """Template compatibility alias for price field."""
+        return self.price
+
+    @property
+    def realized_pnl(self):
+        """Placeholder realized P&L; returns 0 unless enhanced with closing trade logic."""
+        return 0
 
 
 class RiskSettings(models.Model):

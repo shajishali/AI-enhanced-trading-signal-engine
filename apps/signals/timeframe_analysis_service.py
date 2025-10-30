@@ -1,3 +1,4 @@
+
 """
 Timeframe Analysis Service for Trading Signals
 
@@ -31,7 +32,7 @@ class TimeframeAnalysisService:
             '4H': timedelta(hours=4),
             '1D': timedelta(days=1),
             '1W': timedelta(weeks=1),
-            '1M': timedelta(days=30),
+            '1MONTH': timedelta(days=30),
         }
         
         self.entry_point_patterns = {
@@ -172,9 +173,10 @@ class TimeframeAnalysisService:
             else:
                 lookback = 100
             
-            # Get market data
+            # Get market data for specific timeframe
             market_data = MarketData.objects.filter(
-                symbol=symbol
+                symbol=symbol,
+                timeframe=timeframe.lower()
             ).order_by('-timestamp')[:lookback]
             
             if not market_data:
@@ -285,6 +287,50 @@ class TimeframeAnalysisService:
                 if entry_point:
                     entry_points.append(entry_point)
             
+            # Support bounce opportunities
+            if price_analysis.get('support_levels'):
+                for support in price_analysis['support_levels']:
+                    if abs(current_price - support) / support < 0.02:  # Within 2% of support
+                        entry_point = self._analyze_support_bounce(support, current_price, price_analysis)
+                        if entry_point:
+                            entry_points.append(entry_point)
+            
+            # Resistance rejection opportunities
+            if price_analysis.get('resistance_levels'):
+                for resistance in price_analysis['resistance_levels']:
+                    if abs(current_price - resistance) / resistance < 0.02:  # Within 2% of resistance
+                        entry_point = self._analyze_resistance_rejection(resistance, current_price, price_analysis)
+                        if entry_point:
+                            entry_points.append(entry_point)
+            
+            # Breakout opportunities
+            if price_analysis.get('resistance_levels'):
+                entry_point = self._analyze_breakout(current_price, price_analysis)
+                if entry_point:
+                    entry_points.append(entry_point)
+            
+            # Breakdown opportunities
+            if price_analysis.get('support_levels'):
+                entry_point = self._analyze_breakdown(current_price, price_analysis)
+                if entry_point:
+                    entry_points.append(entry_point)
+            
+            # Consolidation break opportunities
+            if price_analysis.get('volatility', 0) < 0.02:  # Low volatility
+                entry_point = self._analyze_consolidation_break(current_price, price_analysis)
+                if entry_point:
+                    entry_points.append(entry_point)
+            
+            # Pattern completion opportunities
+            entry_point = self._analyze_pattern_completion(current_price, price_analysis)
+            if entry_point:
+                entry_points.append(entry_point)
+            
+            # Indicator crossover opportunities
+            entry_point = self._analyze_indicator_crossover(current_price, price_analysis)
+            if entry_point:
+                entry_points.append(entry_point)
+            
         except Exception as e:
             logger.error(f"Error identifying entry points: {e}")
         
@@ -304,8 +350,8 @@ class TimeframeAnalysisService:
                     'entry_zone_low': current_price * 0.99,
                     'entry_zone_high': current_price * 1.01,
                     'confidence': min(0.9, 0.7 + break_strength * 10),
-                    'stop_loss': support_level * 1.02,
-                    'target': current_price * 0.95,
+                    'stop_loss': current_price * 1.05,  # 5% above entry for SELL
+                    'target': current_price * 0.85,  # 15% below entry for profit
                     'details': {
                         'break_percentage': f"{break_strength:.2%}",
                         'volume_confirmation': price_analysis.get('volume_ratio', 1) > 1.2,
@@ -330,8 +376,8 @@ class TimeframeAnalysisService:
                     'entry_zone_low': current_price * 0.99,
                     'entry_zone_high': current_price * 1.01,
                     'confidence': min(0.9, 0.7 + break_strength * 10),
-                    'stop_loss': resistance_level * 0.98,
-                    'target': current_price * 1.05,
+                    'stop_loss': current_price * 0.95,  # 5% below entry for BUY
+                    'target': current_price * 1.15,  # 15% above entry for profit
                     'details': {
                         'break_percentage': f"{break_strength:.2%}",
                         'volume_confirmation': price_analysis.get('volume_ratio', 1) > 1.2,
@@ -353,8 +399,8 @@ class TimeframeAnalysisService:
                     'entry_zone_low': current_price * 0.995,
                     'entry_zone_high': current_price * 1.005,
                     'confidence': 0.75,
-                    'stop_loss': current_price * 0.97,
-                    'target': current_price * 1.03,
+                    'stop_loss': current_price * 0.95,  # 5% below entry
+                    'target': current_price * 1.15,  # 15% above entry
                     'details': {
                         'sma_20': price_analysis.get('sma_20'),
                         'sma_50': price_analysis.get('sma_50'),
@@ -382,8 +428,26 @@ class TimeframeAnalysisService:
                         'entry_zone_low': current_price * 0.995,
                         'entry_zone_high': current_price * 1.005,
                         'confidence': min(0.85, 0.6 + deviation * 5),
-                        'stop_loss': current_price * 0.95,
-                        'target': sma_20,
+                    'stop_loss': current_price * 0.95,  # 5% below entry for BUY
+                    'target': current_price * 1.15,  # 15% above entry for profit
+                        'details': {
+                            'deviation_percentage': f"{deviation:.2%}",
+                            'mean_price': sma_20,
+                            'reversion_target': sma_20
+                        }
+                    }
+                elif direction == 'BEARISH':
+                    return {
+                        'type': 'MEAN_REVERSION',
+                        'direction': direction,
+                        'current_price': current_price,
+                        'mean_price': sma_20,
+                        'deviation': deviation,
+                        'entry_zone_low': current_price * 0.995,
+                        'entry_zone_high': current_price * 1.005,
+                        'confidence': min(0.85, 0.6 + deviation * 5),
+                        'stop_loss': current_price * 1.05,  # 5% above entry for SELL
+                        'target': current_price * 0.85,  # 15% below entry for profit
                         'details': {
                             'deviation_percentage': f"{deviation:.2%}",
                             'mean_price': sma_20,
@@ -407,8 +471,8 @@ class TimeframeAnalysisService:
                     'entry_zone_low': current_price * 0.995,
                     'entry_zone_high': current_price * 1.005,
                     'confidence': min(0.8, 0.5 + (volume_ratio - 1) * 0.6),
-                    'stop_loss': current_price * 0.97,
-                    'target': current_price * 1.03,
+                    'stop_loss': current_price * 0.95,  # 5% below entry
+                    'target': current_price * 1.15,  # 15% above entry
                     'details': {
                         'volume_multiplier': f"{volume_ratio:.1f}x",
                         'trend': price_analysis.get('trend', 'UNKNOWN')
@@ -429,8 +493,8 @@ class TimeframeAnalysisService:
                     'entry_zone_low': support_level * 0.995,
                     'entry_zone_high': support_level * 1.005,
                     'confidence': 0.8,
-                    'stop_loss': support_level * 0.97,
-                    'target': support_level * 1.03,
+                    'stop_loss': current_price * 0.95,  # 5% below entry for BUY
+                    'target': current_price * 1.15,  # 15% above entry for profit
                     'details': {
                         'support_level': support_level,
                         'bounce_strength': 'Strong' if price_analysis.get('volume_ratio', 1) > 1.2 else 'Moderate'
@@ -451,8 +515,8 @@ class TimeframeAnalysisService:
                     'entry_zone_low': resistance_level * 0.995,
                     'entry_zone_high': resistance_level * 1.005,
                     'confidence': 0.75,
-                    'stop_loss': resistance_level * 1.03,
-                    'target': resistance_level * 0.97,
+                    'stop_loss': current_price * 1.05,  # 5% above entry for SELL
+                    'target': current_price * 0.85,  # 15% below entry for profit
                     'details': {
                         'resistance_level': resistance_level,
                         'rejection_strength': 'Strong' if price_analysis.get('volume_ratio', 1) > 1.2 else 'Moderate'
@@ -474,8 +538,8 @@ class TimeframeAnalysisService:
                     'entry_zone_low': current_price * 0.995,
                     'entry_zone_high': current_price * 1.005,
                     'confidence': 0.85,
-                    'stop_loss': max(resistance_levels),
-                    'target': current_price * 1.05,
+                    'stop_loss': current_price * 0.95,  # 5% below entry for BUY
+                    'target': current_price * 1.15,  # 15% above entry for profit
                     'details': {
                         'breakout_level': max(resistance_levels),
                         'breakout_strength': 'Strong' if price_analysis.get('volume_ratio', 1) > 1.5 else 'Moderate'
@@ -497,8 +561,8 @@ class TimeframeAnalysisService:
                     'entry_zone_low': current_price * 0.995,
                     'entry_zone_high': current_price * 1.005,
                     'confidence': 0.85,
-                    'stop_loss': min(support_levels),
-                    'target': current_price * 0.95,
+                    'stop_loss': current_price * 1.05,  # 5% above entry for SELL
+                    'target': current_price * 0.85,  # 15% below entry for profit
                     'details': {
                         'breakdown_level': min(support_levels),
                         'breakdown_strength': 'Strong' if price_analysis.get('volume_ratio', 1) > 1.5 else 'Moderate'
@@ -519,8 +583,8 @@ class TimeframeAnalysisService:
                     'entry_zone_low': current_price * 0.995,
                     'entry_zone_high': current_price * 1.005,
                     'confidence': 0.7,
-                    'stop_loss': current_price * 0.98,
-                    'target': current_price * 1.02,
+                    'stop_loss': current_price * 0.95,  # 5% below entry
+                    'target': current_price * 1.15,  # 15% above entry
                     'details': {
                         'consolidation_volatility': f"{volatility:.3f}",
                         'break_direction': 'Up' if price_analysis.get('trend') == 'BULLISH' else 'Down'
@@ -540,8 +604,8 @@ class TimeframeAnalysisService:
                 'entry_zone_low': current_price * 0.995,
                 'entry_zone_high': current_price * 1.005,
                 'confidence': 0.7,
-                'stop_loss': current_price * 0.97,
-                'target': current_price * 1.03,
+                'stop_loss': current_price * 0.95,  # 5% below entry
+                'target': current_price * 1.15,  # 15% above entry
                 'details': {
                     'pattern_type': 'Generic',
                     'completion_strength': 'Moderate'
@@ -560,8 +624,8 @@ class TimeframeAnalysisService:
                 'entry_zone_low': current_price * 0.995,
                 'entry_zone_high': current_price * 1.005,
                 'confidence': 0.75,
-                'stop_loss': current_price * 0.97,
-                'target': current_price * 1.03,
+                'stop_loss': current_price * 0.95,  # 5% below entry
+                'target': current_price * 1.15,  # 15% above entry
                 'details': {
                     'indicator_type': 'Moving Average',
                     'crossover_strength': 'Moderate'
@@ -628,10 +692,10 @@ class TimeframeAnalysisService:
             closes = [d['close'] for d in market_data]
             volumes = [d['volume'] for d in market_data]
             
-            # Calculate returns for different periods
+            # Calculate returns for different periods (guard zero/short samples)
             returns = {}
             for period in [5, 10, 20]:
-                if len(closes) >= period:
+                if len(closes) >= period and closes[-period] != 0:
                     returns[f'{period}_period'] = (closes[-1] - closes[-period]) / closes[-period]
             
             # Calculate volatility
@@ -641,8 +705,8 @@ class TimeframeAnalysisService:
                 volatility = 0
             
             # Volume profile
-            avg_volume = np.mean(volumes[-20:]) if len(volumes) >= 20 else np.mean(volumes)
-            volume_trend = (volumes[-1] - volumes[-5]) / volumes[-5] if len(volumes) >= 5 else 0
+            avg_volume = np.mean(volumes[-20:]) if len(volumes) >= 20 else (np.mean(volumes) if len(volumes) > 0 else 0)
+            volume_trend = ((volumes[-1] - volumes[-5]) / volumes[-5]) if len(volumes) >= 5 and volumes[-5] != 0 and volumes[-5] > 0 else 0
             
             return {
                 'returns': returns,
@@ -766,8 +830,8 @@ class TimeframeAnalysisService:
                 'overall_bias': overall_bias,
                 'confluence_count': total_confluence,
                 'recommended_entry_price': current_price,
-                'stop_loss': current_price * 0.97 if action == 'BUY' else current_price * 1.03,
-                'target': current_price * 1.03 if action == 'BUY' else current_price * 0.97
+                'stop_loss': current_price * 0.60 if action == 'BUY' else current_price * 1.40,
+                'target': current_price * 1.60 if action == 'BUY' else current_price * 0.40
             }
             
         except Exception as e:

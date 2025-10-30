@@ -48,12 +48,12 @@ app.conf.update(
     beat_schedule={
         'update-crypto-prices': {
             'task': 'apps.data.tasks.update_crypto_prices',
-            'schedule': crontab(minute='*/5'),  # Every 5 minutes
+            'schedule': crontab(minute='*/30'),  # Every 30 minutes
             'priority': 10,
         },
         'generate-trading-signals': {
             'task': 'apps.signals.tasks.generate_signals_for_all_symbols',
-            'schedule': crontab(minute='*/15'),  # Every 15 minutes
+            'schedule': crontab(minute='*/30'),  # Every 30 minutes - synchronized with data updates
             'priority': 8,
         },
         'update-sentiment-analysis': {

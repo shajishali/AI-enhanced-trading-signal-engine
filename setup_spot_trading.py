@@ -49,7 +49,7 @@ def setup_spot_tradable_symbols():
             'symbol': 'BTC',
             'name': 'Bitcoin',
             'symbol_type': 'CRYPTO',
-            'is_crypto': True,
+            'is_crypto_symbol': True,
             'is_spot_tradable': True,
             'is_futures_tradable': True,
             'spot_exchange': 'Binance',
@@ -65,7 +65,7 @@ def setup_spot_tradable_symbols():
             'symbol': 'ETH',
             'name': 'Ethereum',
             'symbol_type': 'CRYPTO',
-            'is_crypto': True,
+            'is_crypto_symbol': True,
             'is_spot_tradable': True,
             'is_futures_tradable': True,
             'spot_exchange': 'Binance',
@@ -81,7 +81,7 @@ def setup_spot_tradable_symbols():
             'symbol': 'SOL',
             'name': 'Solana',
             'symbol_type': 'CRYPTO',
-            'is_crypto': True,
+            'is_crypto_symbol': True,
             'is_spot_tradable': True,
             'is_futures_tradable': True,
             'spot_exchange': 'Binance',
@@ -97,7 +97,7 @@ def setup_spot_tradable_symbols():
             'symbol': 'ADA',
             'name': 'Cardano',
             'symbol_type': 'CRYPTO',
-            'is_crypto': True,
+            'is_crypto_symbol': True,
             'is_spot_tradable': True,
             'is_futures_tradable': True,
             'spot_exchange': 'Binance',
@@ -113,7 +113,7 @@ def setup_spot_tradable_symbols():
             'symbol': 'DOT',
             'name': 'Polkadot',
             'symbol_type': 'CRYPTO',
-            'is_crypto': True,
+            'is_crypto_symbol': True,
             'is_spot_tradable': True,
             'is_futures_tradable': True,
             'spot_exchange': 'Binance',
@@ -129,7 +129,7 @@ def setup_spot_tradable_symbols():
             'symbol': 'AVAX',
             'name': 'Avalanche',
             'symbol_type': 'CRYPTO',
-            'is_crypto': True,
+            'is_crypto_symbol': True,
             'is_spot_tradable': True,
             'is_futures_tradable': True,
             'spot_exchange': 'Binance',
@@ -145,7 +145,7 @@ def setup_spot_tradable_symbols():
             'symbol': 'LINK',
             'name': 'Chainlink',
             'symbol_type': 'CRYPTO',
-            'is_crypto': True,
+            'is_crypto_symbol': True,
             'is_spot_tradable': True,
             'is_futures_tradable': True,
             'spot_exchange': 'Binance',
@@ -161,7 +161,7 @@ def setup_spot_tradable_symbols():
             'symbol': 'UNI',
             'name': 'Uniswap',
             'symbol_type': 'CRYPTO',
-            'is_crypto': True,
+            'is_crypto_symbol': True,
             'is_spot_tradable': True,
             'is_futures_tradable': True,
             'spot_exchange': 'Binance',
@@ -219,7 +219,7 @@ def test_spot_signal_generation():
     
     # Get spot tradable symbols
     spot_symbols = Symbol.objects.filter(
-        is_crypto=True,
+        is_crypto_symbol=True,
         is_spot_tradable=True,
         is_active=True
     )[:5]  # Test with first 5 symbols
@@ -291,7 +291,6 @@ def display_spot_signals():
         print(f"\n  🎯 {signal.symbol.symbol} - {signal.signal_category}")
         print(f"     Horizon: {signal.investment_horizon}")
         print(f"     Scores: F={signal.fundamental_score:.2f} T={signal.technical_score:.2f} S={signal.sentiment_score:.2f}")
-        print(f"     Overall: {signal.overall_score:.2f} ({signal.confidence_level})")
         print(f"     Allocation: {signal.recommended_allocation:.1%}")
         print(f"     DCA: {signal.dca_frequency}")
         if signal.target_price_1y:
@@ -328,6 +327,13 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
 
 
 

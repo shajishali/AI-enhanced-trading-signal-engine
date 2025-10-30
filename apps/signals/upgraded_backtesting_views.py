@@ -65,3 +65,15 @@ class UpgradedBacktestingDashboardView(View):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+

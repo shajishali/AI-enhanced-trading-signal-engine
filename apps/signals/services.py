@@ -58,7 +58,64 @@ class SignalGenerationService:
         spot_signals = self._generate_spot_signals(symbol)
         signals.extend(spot_signals)
         
-        logger.info(f"Generated {len(signals)} total signals for {symbol.symbol} ({len(futures_signals)} futures, {len(spot_signals)} spot)")
+        # Generate multi-timeframe confluence signals
+        multi_timeframe_signals = self._generate_multi_timeframe_signals(symbol)
+        signals.extend(multi_timeframe_signals)
+        
+        logger.info(f"Generated {len(signals)} total signals for {symbol.symbol} ({len(futures_signals)} futures, {len(spot_signals)} spot, {len(multi_timeframe_signals)} multi-timeframe)")
+        
+        return signals
+    
+    def _generate_multi_timeframe_signals(self, symbol: Symbol) -> List[TradingSignal]:
+        """Generate signals based on multi-timeframe confluence analysis"""
+        logger.info(f"Generating multi-timeframe signals for {symbol.symbol}")
+        
+        signals = []
+        
+        try:
+            # Get latest market data
+            market_data = self._get_latest_market_data(symbol)
+            if not market_data:
+                logger.warning(f"No market data available for {symbol.symbol}")
+                return signals
+            
+            current_price = float(market_data.close_price)
+            
+            # Get multi-timeframe analysis
+            multi_analysis = self.timeframe_service.get_multi_timeframe_analysis(symbol, current_price)
+            
+            if multi_analysis.get('error'):
+                logger.error(f"Error in multi-timeframe analysis: {multi_analysis['error']}")
+                return signals
+            
+            # Extract final recommendation
+            final_rec = multi_analysis.get('final_recommendation', {})
+            action = final_rec.get('action', 'WAIT')
+            confidence = final_rec.get('confidence', 0.0)
+            
+            if action != 'WAIT' and confidence >= self.min_confidence_threshold:
+                # Create signal based on multi-timeframe confluence
+                signal_type = SignalType.BUY if action == 'BUY' else SignalType.SELL
+                
+                signal = TradingSignal(
+                    symbol=symbol,
+                    signal_type=signal_type,
+                    confidence=confidence,
+                    entry_price=current_price,
+                    stop_loss=final_rec.get('stop_loss', current_price * 0.95),
+                    target_price=final_rec.get('target', current_price * 1.05),
+                    timeframe='MULTI',
+                    strategy='MULTI_TIMEFRAME_CONFLUENCE',
+                    reasoning=final_rec.get('reason', 'Multi-timeframe confluence analysis'),
+                    expiry_time=timezone.now() + timedelta(hours=self.signal_expiry_hours),
+                    created_at=timezone.now()
+                )
+                
+                signals.append(signal)
+                logger.info(f"Generated multi-timeframe {action} signal for {symbol.symbol} with confidence {confidence:.2f}")
+            
+        except Exception as e:
+            logger.error(f"Error generating multi-timeframe signals for {symbol.symbol}: {e}")
         
         return signals
     
@@ -213,6 +270,42 @@ class SignalGenerationService:
             else:
                 confidence_level = 'LOW'
             
+            # Get current market data for price calculations
+            market_data = self._get_latest_market_data(spot_signal.symbol)
+            if not market_data:
+                logger.warning(f"No market data available for {spot_signal.symbol.symbol}")
+                return None
+            
+            # Calculate entry price, target price, and stop loss
+            current_price = Decimal(str(market_data.get('close_price', 0)))
+            if current_price <= 0:
+                logger.warning(f"Invalid current price for {spot_signal.symbol.symbol}: {current_price}")
+                return None
+            
+            # Calculate entry price based on signal type
+            if signal_type_name in ['BUY', 'STRONG_BUY']:
+                entry_price = current_price * Decimal('0.98')  # 2% below current price
+            elif signal_type_name in ['SELL', 'STRONG_SELL']:
+                entry_price = current_price * Decimal('1.02')  # 2% above current price
+            else:
+                entry_price = current_price
+            
+            # Calculate target price and stop loss based on signal type
+            if signal_type_name in ['BUY', 'STRONG_BUY']:
+                target_price = entry_price * Decimal('1.15')  # 15% profit target
+                stop_loss = entry_price * Decimal('0.95')     # 5% stop loss
+            elif signal_type_name in ['SELL', 'STRONG_SELL']:
+                target_price = entry_price * Decimal('0.85')  # 15% profit target for sells
+                stop_loss = entry_price * Decimal('1.05')     # 5% stop loss for sells
+            else:  # HOLD signals
+                target_price = entry_price * Decimal('1.05')  # 5% target
+                stop_loss = entry_price * Decimal('0.95')     # 5% stop loss
+            
+            # Calculate risk-reward ratio
+            risk = abs(float(entry_price - stop_loss))
+            reward = abs(float(target_price - entry_price))
+            risk_reward_ratio = reward / risk if risk > 0 else 0
+            
             # Create TradingSignal
             trading_signal = TradingSignal(
                 symbol=spot_signal.symbol,
@@ -220,6 +313,10 @@ class SignalGenerationService:
                 strength=strength,
                 confidence_score=confidence_score,
                 confidence_level=confidence_level,
+                entry_price=entry_price,
+                target_price=target_price,
+                stop_loss=stop_loss,
+                risk_reward_ratio=risk_reward_ratio,
                 timeframe='1D',  # Long-term timeframe
                 entry_point_type='ACCUMULATION_ZONE',
                 quality_score=confidence_score,
@@ -839,6 +936,20 @@ class SignalGenerationService:
                         entry_zone_low = Decimal(str(best_entry_point.get('entry_zone_low', float(entry_price) * 0.99)))
                         entry_zone_high = Decimal(str(best_entry_point.get('entry_zone_high', float(entry_price) * 1.01)))
                         entry_point_details = best_entry_point.get('details', {})
+                        # Convert numpy types to Python types for JSON serialization
+                        if entry_point_details:
+                            import numpy as np
+                            converted_details = {}
+                            for key, value in entry_point_details.items():
+                                if isinstance(value, np.bool_):
+                                    converted_details[key] = bool(value)
+                                elif isinstance(value, np.integer):
+                                    converted_details[key] = int(value)
+                                elif isinstance(value, np.floating):
+                                    converted_details[key] = float(value)
+                                else:
+                                    converted_details[key] = value
+                            entry_point_details = converted_details
                         entry_confidence = best_entry_point.get('confidence', 0.8)
                         logger.info(f"Entry zone set for {symbol.symbol}: {entry_zone_low} - {entry_zone_high}")
                     else:
@@ -866,21 +977,21 @@ class SignalGenerationService:
             # Calculate realistic target price and stop loss based on signal type
             if signal_type_name in ['BUY', 'STRONG_BUY']:
                 # For buy signals: target above entry, stop loss below entry
-                profit_percentage = Decimal('0.15')  # 15% profit target (more realistic)
-                stop_loss_percentage = Decimal('0.08')  # 8% stop loss (more realistic)
+                profit_percentage = Decimal('0.15')  # 15% profit target (3:1 risk-reward)
+                stop_loss_percentage = Decimal('0.05')  # 5% stop loss (smaller risk)
                 
                 target_price = entry_price * (Decimal('1.0') + profit_percentage)
                 stop_loss = entry_price * (Decimal('1.0') - stop_loss_percentage)
-                logger.info(f"BUY signal targets: entry={entry_price}, target={target_price} (+15%), stop={stop_loss} (-8%)")
+                logger.info(f"BUY signal targets: entry={entry_price}, target={target_price} (+15%), stop={stop_loss} (-5%)")
                 
             elif signal_type_name in ['SELL', 'STRONG_SELL']:
                 # For sell signals: target below entry, stop loss above entry
-                profit_percentage = Decimal('0.12')  # 12% profit target for sells
-                stop_loss_percentage = Decimal('0.06')  # 6% stop loss for sells
+                profit_percentage = Decimal('0.15')  # 15% profit target for sells (3:1 risk-reward)
+                stop_loss_percentage = Decimal('0.05')  # 5% stop loss for sells (smaller risk)
                 
                 target_price = entry_price * (Decimal('1.0') - profit_percentage)  # Lower price for profit
                 stop_loss = entry_price * (Decimal('1.0') + stop_loss_percentage)  # Higher price for stop loss
-                logger.info(f"SELL signal targets: entry={entry_price}, target={target_price} (-12%), stop={stop_loss} (+6%)")
+                logger.info(f"SELL signal targets: entry={entry_price}, target={target_price} (-15%), stop={stop_loss} (+5%)")
                 
             else:  # HOLD signals
                 # For hold signals, set conservative targets
@@ -988,6 +1099,7 @@ class SignalGenerationService:
         """Store price metadata for signal tracking"""
         try:
             # Store in cache for quick access
+            from django.core.cache import cache
             cache_key = f"signal_price_metadata_{signal.id}"
             cache.set(cache_key, price_data, 3600)  # Cache for 1 hour
             
@@ -1498,46 +1610,6 @@ class SignalGenerationService:
             logger.error(f"Error creating Stochastic RSI signals for {symbol.symbol}: {e}")
         
         return signals
-    
-    def _create_signal(self, symbol: Symbol, signal_type_name: str, entry_price: float, 
-                      target_price: float, stop_loss: float, confidence: float, notes: str) -> Optional[TradingSignal]:
-        """Create a trading signal with given parameters"""
-        try:
-            # Calculate risk-reward ratio
-            risk = abs(entry_price - stop_loss)
-            reward = abs(target_price - entry_price)
-            risk_reward_ratio = reward / risk if risk > 0 else 0
-            
-            if risk_reward_ratio < self.min_risk_reward_ratio:
-                return None
-            
-            # Get or create signal type
-            signal_type, _ = SignalType.objects.get_or_create(
-                name=signal_type_name,
-                defaults={'description': f'{signal_type_name} Signal'}
-            )
-            
-            # Create signal
-            signal = TradingSignal(
-                symbol=symbol,
-                signal_type=signal_type,
-                entry_price=Decimal(str(entry_price)),
-                target_price=Decimal(str(target_price)),
-                stop_loss=Decimal(str(stop_loss)),
-                confidence_score=confidence,
-                risk_reward_ratio=risk_reward_ratio,
-                quality_score=confidence,
-                strength='STRONG' if confidence > 0.8 else 'MEDIUM' if confidence > 0.6 else 'WEAK',
-                notes=notes,
-                is_valid=True,
-                expires_at=timezone.now() + timezone.timedelta(hours=self.signal_expiry_hours)
-            )
-            
-            return signal
-            
-        except Exception as e:
-            logger.error(f"Error creating signal: {e}")
-            return None
     
     def _select_top_signals(self, signals: List[TradingSignal], limit: int = 5) -> List[TradingSignal]:
         """Select top N signals based on accuracy and quality metrics"""

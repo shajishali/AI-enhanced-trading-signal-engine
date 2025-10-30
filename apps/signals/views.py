@@ -50,11 +50,9 @@ class SignalAPIView(View):
                 logger.info(f"Returning cached data for key: {cache_key}")
                 return JsonResponse(cached_data)
             
-            # Build optimized query with select_related and prefetch_related (exclude backtesting signals)
+            # Build optimized query with select_related and prefetch_related
             queryset = TradingSignal.objects.select_related(
                 'symbol', 'signal_type'
-            ).exclude(
-                metadata__is_backtesting=True
             )
             
             if symbol:
@@ -608,7 +606,7 @@ def signal_history(request):
         # Show archived signals (executed or expired) OR active signals if no archived signals exist
         archived_signals_count = TradingSignal.objects.filter(
             Q(is_executed=True) | Q(is_valid=False)
-        ).exclude(metadata__is_backtesting=True).count()
+        ).count()
         
         if archived_signals_count > 0:
             # Show only archived signals
@@ -617,12 +615,10 @@ def signal_history(request):
             # If no archived signals, show active signals for demonstration
             query &= Q(is_valid=True)
         
-        # Get signals with pagination (exclude backtesting signals)
+        # Get signals with pagination
         signals = TradingSignal.objects.select_related(
             'symbol', 'signal_type'
-        ).filter(query).exclude(
-            metadata__is_backtesting=True
-        ).order_by('-created_at')
+        ).filter(query).order_by('-created_at')
         
         # Calculate pagination
         total_signals = signals.count()
