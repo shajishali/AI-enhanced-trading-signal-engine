@@ -512,3 +512,4 @@ database_technical_analysis = DatabaseTechnicalAnalysis()
 
 
 
+

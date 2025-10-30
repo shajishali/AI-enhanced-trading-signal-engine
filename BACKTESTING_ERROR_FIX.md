@@ -119,3 +119,4 @@ The page will work properly, and when you have signals with valid price data, th
 
 
 
+
