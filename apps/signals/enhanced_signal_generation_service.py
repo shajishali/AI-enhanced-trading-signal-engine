@@ -28,7 +28,7 @@ class EnhancedSignalGenerationService:
         self.base_service = SignalGenerationService()
         self.min_confidence_threshold = 0.6  # Higher confidence for better signals
         self.max_signals_per_symbol = 2  # Maximum 2 signals per symbol
-        self.best_signals_count = 5  # Top 5 signals every 2 hours
+        self.best_signals_count = 10  # Top 10 signals every 2 hours
         self.signal_refresh_hours = 2  # Refresh signals every 2 hours
         
         # Risk management parameters
@@ -48,7 +48,7 @@ class EnhancedSignalGenerationService:
         }
     
     def generate_best_signals_for_all_coins(self) -> Dict[str, any]:
-        """Generate the best 5 signals from all 200+ coins every 2 hours"""
+        """Generate the best 10 signals from all 200+ coins every 2 hours"""
         logger.info("Starting comprehensive signal generation for all coins")
         
         # Get symbols that don't have active signals (duplicate prevention)
@@ -91,7 +91,7 @@ class EnhancedSignalGenerationService:
         
         logger.info(f"Generated {len(all_signals)} total signals from {processed_count} symbols")
         
-        # Select the best 5 signals
+        # Select the best 10 signals
         best_signals = self._select_best_signals(all_signals)
         
         # Archive old signals and save new ones
@@ -685,15 +685,28 @@ class EnhancedSignalGenerationService:
             return False
     
     def _select_best_signals(self, all_signals: List[Dict]) -> List[Dict]:
-        """Select the best 5 signals based on confidence and risk/reward ratio"""
+        """Select the best 10 signals based on confidence, risk/reward, news, and sentiment"""
         if not all_signals:
             return []
         
-        # Sort by confidence score and risk/reward ratio
+        # Calculate combined score for each signal
         def signal_score(signal):
-            confidence = signal['confidence_score']
-            risk_reward = signal['risk_reward_ratio']
-            return confidence * risk_reward
+            # Strategy confidence (40% weight)
+            confidence = signal.get('confidence_score', 0.5) * 0.4
+            
+            # Risk-reward ratio (20% weight)
+            risk_reward = signal.get('risk_reward_ratio', 1.0) / 5.0 * 0.2  # Normalize to 0-1
+            
+            # Quality score (20% weight)
+            quality = signal.get('quality_score', 0.5) * 0.2
+            
+            # News score (10% weight) - get from signal or calculate
+            news = self._get_news_score_for_signal_dict(signal) * 0.1
+            
+            # Sentiment score (10% weight) - get from signal or calculate
+            sentiment = self._get_sentiment_score_for_signal_dict(signal) * 0.1
+            
+            return confidence + risk_reward + quality + news + sentiment
         
         sorted_signals = sorted(all_signals, key=signal_score, reverse=True)
         
@@ -702,12 +715,72 @@ class EnhancedSignalGenerationService:
         used_symbols = set()
         
         for signal in sorted_signals:
-            symbol_name = signal['symbol'].symbol
+            symbol_name = signal['symbol'].symbol if hasattr(signal['symbol'], 'symbol') else str(signal['symbol'])
             if symbol_name not in used_symbols and len(best_signals) < self.best_signals_count:
                 best_signals.append(signal)
                 used_symbols.add(symbol_name)
         
         return best_signals
+    
+    def _get_news_score_for_signal_dict(self, signal: Dict) -> float:
+        """Get news sentiment score for a signal"""
+        try:
+            from apps.sentiment.models import CryptoMention
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            symbol = signal.get('symbol')
+            if not symbol or not hasattr(symbol, 'id'):
+                return 0.5
+            
+            recent_mentions = CryptoMention.objects.filter(
+                asset=symbol,
+                news_article__published_at__gte=timezone.now() - timedelta(hours=24),
+                mention_type='news'
+            )
+            
+            if not recent_mentions.exists():
+                return 0.5
+            
+            total_score = 0.0
+            total_weight = 0.0
+            
+            for mention in recent_mentions:
+                hours_ago = (timezone.now() - mention.news_article.published_at).total_seconds() / 3600
+                recency_weight = max(0, 1 - (hours_ago / 24))
+                weight = mention.confidence_score * recency_weight
+                sentiment_value = mention.sentiment_score if mention.sentiment_label == 'POSITIVE' else -mention.sentiment_score
+                normalized_sentiment = (sentiment_value + 1) / 2
+                total_score += normalized_sentiment * weight
+                total_weight += weight
+            
+            return total_score / total_weight if total_weight > 0 else 0.5
+        except Exception:
+            return 0.5
+    
+    def _get_sentiment_score_for_signal_dict(self, signal: Dict) -> float:
+        """Get market sentiment score for a signal"""
+        try:
+            from apps.sentiment.models import SentimentAggregate
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            symbol = signal.get('symbol')
+            if not symbol or not hasattr(symbol, 'id'):
+                return 0.5
+            
+            recent_aggregate = SentimentAggregate.objects.filter(
+                asset=symbol,
+                timeframe='1h',
+                created_at__gte=timezone.now() - timedelta(hours=2)
+            ).order_by('-created_at').first()
+            
+            if recent_aggregate:
+                return (recent_aggregate.aggregate_sentiment_score + 1) / 2
+            
+            return 0.5
+        except Exception:
+            return 0.5
     
     def _archive_old_signals(self):
         """Archive old signals to history and remove duplicates"""

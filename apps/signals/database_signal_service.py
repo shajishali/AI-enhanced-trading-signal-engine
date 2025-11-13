@@ -47,7 +47,7 @@ class DatabaseSignalService:
         }
     
     def generate_best_signals_for_all_coins(self) -> Dict[str, any]:
-        """Generate the best 5 signals from all 200+ coins using database data"""
+        """Generate the best 10 signals from all 200+ coins using database data"""
         logger.info("Starting database-driven signal generation for all coins")
         
         # Get symbols that don't have active signals (duplicate prevention)
@@ -92,7 +92,7 @@ class DatabaseSignalService:
         
         logger.info(f"Generated {len(all_signals)} total signals from {processed_count} symbols")
         
-        # Select the best 5 signals
+        # Select the best 10 signals
         best_signals = self._select_best_signals(all_signals)
         
         return {
@@ -285,23 +285,102 @@ class DatabaseSignalService:
             return 'LOW'
     
     def _select_best_signals(self, all_signals: List[TradingSignal]) -> List[TradingSignal]:
-        """Select the best 5 signals based on confidence and quality"""
+        """Select the best 10 signals based on confidence, quality, news, and sentiment"""
         if not all_signals:
             return []
         
-        # Sort by confidence score and other quality metrics
-        sorted_signals = sorted(
-            all_signals,
-            key=lambda s: (
-                s.confidence_score,
-                s.risk_reward_ratio or 0,
-                s.strength.priority if hasattr(s.strength, 'priority') else 0
-            ),
-            reverse=True
-        )
+        # Calculate combined score for each signal (strategy + news + sentiment)
+        scored_signals = []
+        for signal in all_signals:
+            # Base confidence from strategy (40% weight)
+            strategy_score = signal.confidence_score * 0.4
+            
+            # Quality score (30% weight)
+            quality_score = (signal.quality_score if hasattr(signal, 'quality_score') and signal.quality_score else 0.5) * 0.3
+            
+            # News score (15% weight) - get from signal metadata or calculate
+            news_score = self._get_news_score_for_signal(signal) * 0.15
+            
+            # Sentiment score (15% weight) - get from signal metadata or calculate
+            sentiment_score = self._get_sentiment_score_for_signal(signal) * 0.15
+            
+            # Combined score
+            combined_score = strategy_score + quality_score + news_score + sentiment_score
+            
+            # Risk-reward bonus
+            rr_bonus = min(0.1, (signal.risk_reward_ratio or 0) / 10)  # Up to 10% bonus
+            
+            final_score = combined_score + rr_bonus
+            
+            scored_signals.append((final_score, signal))
         
-        # Return top 5 signals
-        return sorted_signals[:5]
+        # Sort by combined score
+        scored_signals.sort(key=lambda x: x[0], reverse=True)
+        
+        # Return top 10 signals
+        return [signal for _, signal in scored_signals[:10]]
+    
+    def _get_news_score_for_signal(self, signal: TradingSignal) -> float:
+        """Get news sentiment score for a signal's symbol"""
+        try:
+            from apps.sentiment.models import CryptoMention, NewsArticle
+            from datetime import timedelta
+            
+            # Get recent news mentions (last 24 hours)
+            recent_mentions = CryptoMention.objects.filter(
+                asset=signal.symbol,
+                news_article__published_at__gte=timezone.now() - timedelta(hours=24),
+                mention_type='news'
+            )
+            
+            if not recent_mentions.exists():
+                return 0.5  # Neutral if no news
+            
+            # Calculate weighted sentiment score
+            total_score = 0.0
+            total_weight = 0.0
+            
+            for mention in recent_mentions:
+                hours_ago = (timezone.now() - mention.news_article.published_at).total_seconds() / 3600
+                recency_weight = max(0, 1 - (hours_ago / 24))  # Decay over 24 hours
+                weight = mention.confidence_score * recency_weight
+                
+                # Convert sentiment to score (-1 to 1, then normalize to 0-1)
+                sentiment_value = mention.sentiment_score if mention.sentiment_label == 'POSITIVE' else -mention.sentiment_score
+                normalized_sentiment = (sentiment_value + 1) / 2
+                
+                total_score += normalized_sentiment * weight
+                total_weight += weight
+            
+            return total_score / total_weight if total_weight > 0 else 0.5
+            
+        except Exception as e:
+            logger.debug(f"Error getting news score for {signal.symbol.symbol}: {e}")
+            return 0.5
+    
+    def _get_sentiment_score_for_signal(self, signal: TradingSignal) -> float:
+        """Get market sentiment score for a signal's symbol"""
+        try:
+            from apps.sentiment.models import SentimentAggregate
+            from datetime import timedelta
+            
+            # Get recent sentiment aggregate (last 2 hours)
+            recent_aggregate = SentimentAggregate.objects.filter(
+                asset=signal.symbol,
+                timeframe='1h',
+                created_at__gte=timezone.now() - timedelta(hours=2)
+            ).order_by('-created_at').first()
+            
+            if recent_aggregate:
+                # Convert sentiment score (-1 to 1) to normalized score (0 to 1)
+                normalized_score = (recent_aggregate.aggregate_sentiment_score + 1) / 2
+                return normalized_score
+            
+            return 0.5  # Neutral if no sentiment data
+            
+        except Exception as e:
+            logger.debug(f"Error getting sentiment score for {signal.symbol.symbol}: {e}")
+            return 0.5
     
     def validate_database_data_quality(self, symbol: Symbol) -> Dict[str, any]:
         """Validate database data quality for a symbol"""
@@ -501,6 +580,8 @@ class DatabaseTechnicalAnalysis:
 # Global instance
 database_signal_service = DatabaseSignalService()
 database_technical_analysis = DatabaseTechnicalAnalysis()
+
+
 
 
 

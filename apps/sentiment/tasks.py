@@ -233,8 +233,17 @@ def collect_news_data():
                 confidence_score=sentiment_result['confidence_score']
             )
             
-            # Create crypto mentions
-            crypto_symbols = ['BTC', 'ETH', 'ADA', 'DOT', 'LINK', 'UNI', 'AAVE']
+            # Create crypto mentions - use active crypto symbols from database
+            active_crypto_assets = Symbol.objects.filter(
+                is_active=True,
+                is_crypto_symbol=True
+            )
+            crypto_symbols = [asset.symbol for asset in active_crypto_assets]
+            
+            # If no active symbols, fall back to common ones
+            if not crypto_symbols:
+                crypto_symbols = ['BTC', 'ETH', 'ADA', 'DOT', 'LINK', 'UNI', 'AAVE']
+            
             mentions = sentiment_service.analyze_crypto_mentions(content, crypto_symbols)
             
             for mention in mentions:

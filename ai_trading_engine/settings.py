@@ -16,6 +16,10 @@ from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+# With the new repo layout, `frontend` sits alongside `backend`.
+# PROJECT_ROOT refers to the directory that contains both `backend` and `frontend`.
+PROJECT_ROOT = BASE_DIR.parent
+FRONTEND_DIR = PROJECT_ROOT / 'frontend'
 
 
 # Quick-start development settings - unsuitable for production
@@ -107,7 +111,7 @@ ROOT_URLCONF = 'ai_trading_engine.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [FRONTEND_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
                     'context_processors': [
@@ -308,9 +312,10 @@ if USE_S3:
 else:
     # Local static files configuration
     STATIC_URL = '/static/'
-    STATIC_ROOT = BASE_DIR / 'staticfiles'
+    # Point to the relocated frontend asset directories
+    STATIC_ROOT = FRONTEND_DIR / 'staticfiles'
     STATICFILES_DIRS = [
-        BASE_DIR / 'static',
+        FRONTEND_DIR / 'static',
     ]
     
     # Local media files configuration
@@ -363,6 +368,10 @@ TRADING_SETTINGS = {
     'MODEL_UPDATE_FREQUENCY': config('MODEL_UPDATE_FREQUENCY', default=3600, cast=int),
 }
 
+# API Keys for external services
+NEWS_API_KEY = config('NEWS_API_KEY', default=None)
+CRYPTOPANIC_API_KEY = config('CRYPTOPANIC_API_KEY', default=None)
+
 # Enhanced Logging configuration for Phase 5
 LOGGING = {
     'version': 1,
@@ -405,6 +414,12 @@ LOGGING = {
             'filename': BASE_DIR / 'logs' / 'errors.log',
             'formatter': 'verbose',
         },
+        'automation_file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'automation.log',
+            'formatter': 'verbose',
+        },
     },
     'root': {
         'handlers': ['console', 'file', 'json_file', 'error_file'],
@@ -428,6 +443,27 @@ LOGGING = {
         },
         'allauth': {
             'handlers': ['console', 'file', 'json_file', 'error_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # Automation task loggers
+        'apps.data.tasks': {
+            'handlers': ['console', 'automation_file', 'file', 'error_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'apps.signals.tasks': {
+            'handlers': ['console', 'automation_file', 'file', 'error_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'apps.signals.unified_signal_task': {
+            'handlers': ['console', 'automation_file', 'file', 'error_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'apps.sentiment.tasks': {
+            'handlers': ['console', 'automation_file', 'file', 'error_file'],
             'level': 'INFO',
             'propagate': False,
         },
@@ -492,20 +528,9 @@ HANDLER404 = 'apps.core.views.handler404'
 HANDLER403 = 'apps.core.views.handler403'
 HANDLER500 = 'apps.core.views.handler500'
 
-# Celery Beat Schedule for Enhanced Signal Generation
-CELERY_BEAT_SCHEDULE = {
-    'generate-enhanced-signals': {
-        'task': 'apps.signals.enhanced_tasks.generate_enhanced_signals_task',
-        'schedule': 7200.0,  # Every 2 hours (7200 seconds)
-        'options': {
-            'expires': 3600,  # Expire after 1 hour if not executed
-        }
-    },
-    'cleanup-old-signals': {
-        'task': 'apps.signals.enhanced_tasks.cleanup_old_signals_task',
-        'schedule': 86400.0,  # Every 24 hours
-        'options': {
-            'expires': 3600,
-        }
-    },
-}
+# Celery Beat Schedule - MOVED TO celery.py
+# The beat schedule is now configured in ai_trading_engine/celery.py
+# This ensures a single source of truth for all Celery configuration
+# 
+# If you need to add tasks, update celery.py beat_schedule instead of here
+# CELERY_BEAT_SCHEDULE = {}  # Disabled - using celery.py instead

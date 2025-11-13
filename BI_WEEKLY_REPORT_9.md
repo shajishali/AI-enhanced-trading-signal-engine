@@ -66,6 +66,15 @@ During this period, I conducted extensive research on enterprise security and mu
 
 ## AI Trading Engine Project Progress Summary:
 
+### Project Structure (Updated)
+- frontend/: templates, static, staticfiles
+- backend/: Django project root; manage.py, settings, apps
+
+Paths in use:
+- Templates: `frontend/templates`
+- Static (dev): `frontend/static`
+- Static (collected): `frontend/staticfiles`
+
 ### Technical Achievements:
 - [x] Backend Development (Django) - Multi-user system implementation
 - [x] Frontend Development (Templates & JavaScript) - User management interface

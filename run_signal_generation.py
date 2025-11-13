@@ -8,7 +8,7 @@ import os
 import sys
 import time
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Add the project directory to Python path
 project_dir = os.path.dirname(os.path.abspath(__file__))
@@ -41,17 +41,46 @@ def run_signal_generation():
         print(f"[{datetime.now()}] Error running signal generation: {e}")
 
 def main():
-    """Main loop - run every 1 hour"""
+    """Main loop - run every hour at :49 minutes"""
     print(f"[{datetime.now()}] Starting automated signal generation...")
     print("Press Ctrl+C to stop")
+    print("Signal generation will run at :49 minutes past each hour (18:49, 19:49, 20:49, etc.)")
     
     try:
         while True:
-            run_signal_generation()
+            now = datetime.now()
             
-            # Wait 1 hour (3600 seconds)
-            print(f"[{datetime.now()}] Waiting 1 hour until next run...")
-            time.sleep(3600)
+            # Calculate seconds until next :49 minute mark
+            current_minute = now.minute
+            current_second = now.second
+            
+            if current_minute < 49:
+                # Next run is at :49 of current hour
+                minutes_to_wait = 49 - current_minute
+                seconds_to_wait = (minutes_to_wait * 60) - current_second
+            elif current_minute == 49:
+                # We're at :49, check if we just started or if we should wait for next hour
+                if current_second < 10:
+                    # Just started, wait for next hour's :49
+                    minutes_to_wait = 60  # Wait until next hour
+                    seconds_to_wait = (minutes_to_wait * 60) - current_second
+                else:
+                    # Already past :49, wait for next hour's :49
+                    minutes_to_wait = 60 - current_minute + 49
+                    seconds_to_wait = (minutes_to_wait * 60) - current_second
+            else:
+                # Current minute > 49, wait for next hour's :49
+                minutes_to_wait = (60 - current_minute) + 49
+                seconds_to_wait = (minutes_to_wait * 60) - current_second
+            
+            next_run_time = now.replace(second=0, microsecond=0) + timedelta(seconds=seconds_to_wait)
+            print(f"[{now}] Next signal generation scheduled for: {next_run_time.strftime('%H:%M:%S')}")
+            print(f"[{now}] Waiting {seconds_to_wait} seconds ({minutes_to_wait} minutes)...")
+            
+            time.sleep(seconds_to_wait)
+            
+            # Run signal generation
+            run_signal_generation()
             
     except KeyboardInterrupt:
         print(f"\n[{datetime.now()}] Stopping automated signal generation...")

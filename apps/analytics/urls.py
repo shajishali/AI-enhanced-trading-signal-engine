@@ -6,12 +6,9 @@ app_name = 'analytics'
 
 urlpatterns = [
     # Main analytics views
-    path('', views.analytics_dashboard, name='dashboard'),
-    path('portfolio/', views.portfolio_view, name='portfolio'),
-    path('performance/', views.performance_analytics, name='performance'),
+    path('', views.backtesting_view, name='dashboard'),  # Redirect root to backtesting
     path('backtesting/', views.backtesting_view, name='backtesting'),
-    path('risk/', views.risk_management, name='risk_management'),
-    path('market/', views.market_analysis, name='market_analysis'),
+    path('news/', views.news_analysis, name='news_analysis'),
     path('sentiment/', views.market_sentiment_view, name='market_sentiment'),
     
     # Machine Learning views (Phase 5B)
@@ -23,8 +20,6 @@ urlpatterns = [
     path('ml/features/', ml_views.feature_engineering_dashboard, name='feature_engineering_dashboard'),
     
     # API endpoints
-    path('api/portfolio-data/', views.portfolio_data_api, name='portfolio_data_api'),
-    path('api/position-data/', views.position_data_api, name='position_data_api'),
     path('api/market-data/', views.market_data_api, name='market_data_api'),
     path('api/sentiment/update/', views.update_sentiment_data, name='update_sentiment_data'),
     

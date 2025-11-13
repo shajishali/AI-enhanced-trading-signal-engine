@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 
 @shared_task
 def generate_signals_for_all_symbols():
-    """Generate signals for all active symbols"""
+    """Generate signals for all active symbols and select top 10 best signals"""
     logger.info("Starting signal generation for all symbols...")
     
     signal_service = SignalGenerationService()
-    active_symbols = Symbol.objects.filter(is_active=True)
+    active_symbols = Symbol.objects.filter(is_active=True, is_crypto_symbol=True)
     
     total_signals = 0
     generated_signals = []
@@ -35,16 +35,42 @@ def generate_signals_for_all_symbols():
             generated_signals.extend(signals)
             total_signals += len(signals)
             
-            logger.info(f"Generated {len(signals)} signals for {symbol.symbol}")
+            if len(signals) > 0:
+                logger.debug(f"Generated {len(signals)} signals for {symbol.symbol}")
             
         except Exception as e:
             logger.error(f"Error generating signals for {symbol.symbol}: {e}")
     
     logger.info(f"Signal generation completed. Total signals: {total_signals}")
+    
+    # Select top 10 best signals
+    if generated_signals:
+        from apps.signals.unified_signal_task import _select_top_10_signals
+        best_signals = _select_top_10_signals(generated_signals)
+        
+        # Save top 10 signals
+        saved_count = 0
+        for signal in best_signals:
+            try:
+                signal.save()
+                saved_count += 1
+            except Exception as e:
+                logger.error(f"Error saving signal: {e}")
+        
+        logger.info(f"Selected and saved top {saved_count} best signals")
+        
+        return {
+            'total_signals': total_signals,
+            'symbols_processed': active_symbols.count(),
+            'signals_generated': len(generated_signals),
+            'best_signals_selected': saved_count
+        }
+    
     return {
         'total_signals': total_signals,
         'symbols_processed': active_symbols.count(),
-        'signals_generated': len(generated_signals)
+        'signals_generated': 0,
+        'best_signals_selected': 0
     }
 
 

@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
+import secrets
 
 class SubscriptionPlan(models.Model):
     """Subscription plan model for different tiers"""
@@ -160,3 +161,37 @@ class SubscriptionHistory(models.Model):
     
     def __str__(self):
         return f"{self.user.email} - {self.action} - {self.created_at.date()}"
+
+
+class EmailVerificationToken(models.Model):
+    """Model to store email verification tokens"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='verification_tokens')
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    email = models.EmailField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['token']),
+            models.Index(fields=['user', 'is_used']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.email} - {self.created_at.date()}"
+    
+    def is_valid(self):
+        """Check if token is still valid"""
+        return not self.is_used and timezone.now() < self.expires_at
+    
+    @classmethod
+    def generate_token(cls):
+        """Generate a secure random token"""
+        return secrets.token_urlsafe(32)
+    
+    def mark_as_used(self):
+        """Mark token as used"""
+        self.is_used = True
+        self.save(update_fields=['is_used'])

@@ -66,6 +66,15 @@ During this period, I conducted extensive research on deep learning applications
 
 ## AI Trading Engine Project Progress Summary:
 
+### Project Structure (Updated)
+- frontend/: templates, static, staticfiles
+- backend/: Django project root; manage.py, settings, apps
+
+Paths in use:
+- Templates: `frontend/templates`
+- Static (dev): `frontend/static`
+- Static (collected): `frontend/staticfiles`
+
 ### Technical Achievements:
 - [x] Backend Development (Django) - Advanced ML model integration
 - [x] Frontend Development (Templates & JavaScript) - Deep learning analytics
@@ -104,6 +113,18 @@ During this period, I conducted extensive research on deep learning applications
 - [ ] Begin Phase 3 enterprise features
 
 ---
+
+### End-of-Week Hosting & Further Testing (Month 6)
+- Local run (dev):
+  - cd "D:\Research Development\backend"
+  - python -m venv .venv; .\.venv\Scripts\Activate.ps1
+  - pip install -r requirements.txt
+  - python manage.py migrate
+  - python manage.py runserver 0.0.0.0:8000
+- Static collection (if needed): `python manage.py collectstatic --noinput`
+- Test suites: `pytest` or `python manage.py test`
+- Smoke tests: dashboard load, live prices, signals page, websocket updates
+- Note: Hosting and additional testing consolidated here at the end of the period
 
 *© Internship Programme | Academic Year 2023/2024 | Industry Interaction Cell for Computing and Technology (IICfCT)*
 

@@ -146,12 +146,84 @@ class RedditService:
             return []
 
 
+class CryptoPanicService:
+    """Service for CryptoPanic API integration"""
+    
+    def __init__(self):
+        self.api_key = getattr(settings, 'CRYPTOPANIC_API_KEY', None)
+        self.base_url = "https://cryptopanic.com/api/v1"
+    
+    def get_posts(self, kind: str = 'news', currencies: str = None, filter: str = None) -> List[Dict]:
+        """Get posts from CryptoPanic API
+        
+        Args:
+            kind: Type of posts ('news', 'media', 'hot')
+            currencies: Comma-separated currency codes (e.g., 'BTC,ETH')
+            filter: Filter by type ('hot', 'rising', 'bullish', 'bearish')
+        """
+        if not self.api_key:
+            logger.warning("CryptoPanic API key not configured")
+            return []
+        
+        params = {
+            "auth_token": self.api_key,
+            "kind": kind
+        }
+        
+        if currencies:
+            params["currencies"] = currencies
+        
+        if filter:
+            params["filter"] = filter
+        
+        try:
+            response = requests.get(
+                f"{self.base_url}/posts/",
+                params=params,
+                timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            # Transform CryptoPanic format to match expected format
+            posts = data.get('results', [])
+            articles = []
+            
+            for post in posts:
+                # Map CryptoPanic fields to standard format
+                article = {
+                    'title': post.get('title', ''),
+                    'description': post.get('title', ''),  # CryptoPanic uses title
+                    'url': post.get('url', ''),
+                    'publishedAt': post.get('created_at', ''),
+                    'source': {
+                        'name': post.get('source', {}).get('title', 'CryptoPanic'),
+                        'url': post.get('source', {}).get('url', 'https://cryptopanic.com')
+                    },
+                    'votes': post.get('votes', {}),
+                    'currencies': post.get('currencies', []),
+                    'kind': post.get('kind', kind)
+                }
+                articles.append(article)
+            
+            return articles
+        except Exception as e:
+            logger.error(f"Error fetching CryptoPanic data: {e}")
+            return []
+    
+    def get_crypto_news(self, currencies: str = None) -> List[Dict]:
+        """Get crypto news from CryptoPanic"""
+        return self.get_posts(kind='news', currencies=currencies)
+
+
 class NewsAPIService:
     """Service for news API integration"""
     
     def __init__(self):
         self.api_key = getattr(settings, 'NEWS_API_KEY', None)
         self.base_url = "https://newsapi.org/v2"
+        # Try CryptoPanic as fallback
+        self.cryptopanic_service = CryptoPanicService()
     
     def search_news(self, query: str, from_date: str = None, language: str = 'en') -> List[Dict]:
         """Search for news articles"""
@@ -180,19 +252,37 @@ class NewsAPIService:
             logger.error(f"Error fetching news data: {e}")
             return []
     
-    def get_crypto_news(self, from_date: str = None) -> List[Dict]:
-        """Get crypto-specific news"""
-        crypto_keywords = [
-            "bitcoin", "ethereum", "cryptocurrency", "blockchain",
-            "crypto", "defi", "nft", "altcoin"
-        ]
+    def get_crypto_news(self, from_date: str = None, use_cryptopanic: bool = True) -> List[Dict]:
+        """Get crypto-specific news
         
-        all_articles = []
-        for keyword in crypto_keywords:
-            articles = self.search_news(keyword, from_date)
-            all_articles.extend(articles)
+        Args:
+            from_date: Date filter (for NewsAPI only)
+            use_cryptopanic: If True, prefer CryptoPanic API if available
+        """
+        # Try CryptoPanic first if enabled and API key is available
+        if use_cryptopanic and self.cryptopanic_service.api_key:
+            logger.info("Fetching crypto news from CryptoPanic API")
+            cryptopanic_news = self.cryptopanic_service.get_crypto_news()
+            if cryptopanic_news:
+                return cryptopanic_news
         
-        return all_articles
+        # Fallback to NewsAPI if CryptoPanic is not available or disabled
+        if self.api_key:
+            logger.info("Fetching crypto news from NewsAPI")
+            crypto_keywords = [
+                "bitcoin", "ethereum", "cryptocurrency", "blockchain",
+                "crypto", "defi", "nft", "altcoin"
+            ]
+            
+            all_articles = []
+            for keyword in crypto_keywords:
+                articles = self.search_news(keyword, from_date)
+                all_articles.extend(articles)
+            
+            return all_articles
+        
+        logger.warning("No crypto news API configured")
+        return []
 
 
 class SentimentAnalysisService:

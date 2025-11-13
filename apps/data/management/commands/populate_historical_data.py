@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
-from django.utils import timezone
-from datetime import datetime
+from django.utils import timezone as dj_timezone
+from datetime import datetime, timezone as dt_timezone
 
 from apps.trading.models import Symbol
 from apps.data.historical_data_manager import get_historical_data_manager
@@ -14,6 +14,8 @@ class Command(BaseCommand):
         parser.add_argument('--timeframe', type=str, default='1h', choices=['1m','5m','15m','1h','4h','1d'], help='Timeframe to fetch')
         parser.add_argument('--start', type=str, help='Start date (YYYY-MM-DD). Default: 2020-01-01')
         parser.add_argument('--end', type=str, help='End date (YYYY-MM-DD). Default: now')
+        parser.add_argument('--start-datetime', type=str, help='Start datetime (YYYY-MM-DD HH:MM) UTC')
+        parser.add_argument('--end-datetime', type=str, help='End datetime (YYYY-MM-DD HH:MM) UTC')
         parser.add_argument('--limit', type=int, default=0, help='Limit number of symbols to process')
 
     def handle(self, *args, **options):
@@ -21,10 +23,24 @@ class Command(BaseCommand):
         timeframe = options.get('timeframe')
         start_str = options.get('start')
         end_str = options.get('end')
+        start_dt_str = options.get('start_datetime')
+        end_dt_str = options.get('end_datetime')
         limit = options.get('limit')
 
-        start_dt = datetime(2020, 1, 1, tzinfo=timezone.utc) if not start_str else timezone.make_aware(datetime.strptime(start_str, '%Y-%m-%d'))
-        end_dt = timezone.now() if not end_str else timezone.make_aware(datetime.strptime(end_str, '%Y-%m-%d'))
+        # Build start/end datetimes in UTC
+        if start_dt_str:
+            start_dt = datetime.strptime(start_dt_str, '%Y-%m-%d %H:%M').replace(tzinfo=dt_timezone.utc)
+        elif start_str:
+            start_dt = datetime.strptime(start_str, '%Y-%m-%d').replace(tzinfo=dt_timezone.utc)
+        else:
+            start_dt = datetime(2020, 1, 1, tzinfo=dt_timezone.utc)
+
+        if end_dt_str:
+            end_dt = datetime.strptime(end_dt_str, '%Y-%m-%d %H:%M').replace(tzinfo=dt_timezone.utc)
+        elif end_str:
+            end_dt = datetime.strptime(end_str, '%Y-%m-%d').replace(tzinfo=dt_timezone.utc)
+        else:
+            end_dt = dj_timezone.now()
 
         manager = get_historical_data_manager()
 
@@ -52,6 +68,8 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(f"  ✖ Error: {e}"))
 
         self.stdout.write(self.style.SUCCESS(f"Completed: {success_count}/{total} symbols processed successfully"))
+
+
 
 
 

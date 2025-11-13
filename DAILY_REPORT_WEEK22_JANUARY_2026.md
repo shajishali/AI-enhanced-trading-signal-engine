@@ -1,5 +1,14 @@
 # Daily Progress Report - Week 22
 
+### Project Structure (Updated)
+- frontend/: templates, static, staticfiles
+- backend/: Django project root; manage.py, settings, apps
+
+Paths in use:
+- Templates: `frontend/templates`
+- Static (dev): `frontend/static`
+- Static (collected): `frontend/staticfiles`
+
 **AI Trading Engine Development Project**  
 **Internship Daily Report**
 

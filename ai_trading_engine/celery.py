@@ -1,6 +1,7 @@
 import os
 from celery import Celery
 from celery.schedules import crontab
+from kombu import Queue
 from django.conf import settings
 
 # Set the default Django settings module for the 'celery' program.
@@ -23,6 +24,17 @@ app.conf.update(
         'apps.analytics.tasks.*': {'queue': 'analytics', 'priority': 5},
     },
     
+    # Queue definitions
+    task_default_queue='default',
+    task_queues=(
+        Queue('default', routing_key='default'),
+        Queue('data', routing_key='data'),
+        Queue('signals', routing_key='signals'),
+        Queue('sentiment', routing_key='sentiment'),
+        Queue('trading', routing_key='trading'),
+        Queue('analytics', routing_key='analytics'),
+    ),
+    
     # Task execution settings
     task_serializer='json',
     accept_content=['json'],
@@ -30,10 +42,17 @@ app.conf.update(
     timezone='UTC',
     enable_utc=True,
     
+    # Broker connection settings
+    broker_connection_retry_on_startup=True,  # Fix deprecation warning for Celery 6.0+
+    
     # Performance optimization
-    worker_prefetch_multiplier=1,
+    worker_prefetch_multiplier=1,  # Reduced to prevent memory issues
     task_acks_late=True,
     worker_disable_rate_limits=False,
+    
+    # Worker pool settings for better performance
+    worker_pool='solo',  # Use solo pool for Windows compatibility
+    worker_concurrency=1,  # Single thread per worker (divided workers handle concurrency)
     
     # Task retry and failure handling
     task_annotations={
@@ -45,42 +64,53 @@ app.conf.update(
     },
     
     # Beat schedule for periodic tasks
+    # Tasks are automatically routed to correct queues via task_routes
     beat_schedule={
         'update-crypto-prices': {
             'task': 'apps.data.tasks.update_crypto_prices',
             'schedule': crontab(minute='*/30'),  # Every 30 minutes
-            'priority': 10,
+            'options': {'queue': 'data', 'priority': 10},  # Explicitly route to data queue
         },
         'generate-trading-signals': {
-            'task': 'apps.signals.tasks.generate_signals_for_all_symbols',
-            'schedule': crontab(minute='*/30'),  # Every 30 minutes - synchronized with data updates
-            'priority': 8,
+            'task': 'apps.signals.unified_signal_task.generate_unified_signals_task',
+            'schedule': crontab(minute=49),  # Every hour at :49 minutes (18:49, 19:49, 20:49, etc.)
+            'options': {'queue': 'signals', 'priority': 8},  # Explicitly route to signals queue
         },
         'update-sentiment-analysis': {
-            'task': 'apps.sentiment.tasks.update_sentiment',
+            'task': 'apps.sentiment.tasks.aggregate_sentiment_scores',
             'schedule': crontab(minute='*/10'),  # Every 10 minutes
-            'priority': 6,
+            'options': {'queue': 'sentiment', 'priority': 6},  # Explicitly route to sentiment queue
+        },
+        'collect-news-data': {
+            'task': 'apps.sentiment.tasks.collect_news_data',
+            'schedule': crontab(minute='*/15'),  # Every 15 minutes
+            'options': {'queue': 'sentiment', 'priority': 7},  # Explicitly route to sentiment queue
+        },
+        'collect-social-media-data': {
+            'task': 'apps.sentiment.tasks.collect_social_media_data',
+            'schedule': crontab(minute='*/20'),  # Every 20 minutes
+            'options': {'queue': 'sentiment', 'priority': 6},  # Explicitly route to sentiment queue
         },
         'cleanup-old-data': {
             'task': 'apps.data.tasks.cleanup_old_data_task',
             'schedule': crontab(hour=2, minute=0),  # Daily at 2 AM
-            'priority': 2,
+            'options': {'queue': 'data', 'priority': 2},  # Explicitly route to data queue
         },
         # Historical data update tasks for backtesting database
         'historical-incremental-hourly': {
             'task': 'apps.data.tasks.update_historical_data_task',
             'schedule': crontab(minute=0),  # Every hour at minute 0
-            'priority': 5,
+            'options': {'queue': 'data', 'priority': 5},  # Explicitly route to data queue
         },
         'historical-incremental-daily-backup': {
             'task': 'apps.data.tasks.update_historical_data_daily_task',
             'schedule': crontab(hour=2, minute=30),  # Daily at 2:30 AM UTC (backup)
-            'priority': 4,
+            'options': {'queue': 'data', 'priority': 4},  # Explicitly route to data queue
         },
         'historical-weekly-gap-check': {
             'task': 'apps.data.tasks.weekly_gap_check_and_fill_task',
             'schedule': crontab(hour=3, minute=0, day_of_week='sun'),  # Weekly on Sunday at 3 AM UTC
-            'priority': 3,
+            'options': {'queue': 'data', 'priority': 3},  # Explicitly route to data queue
         },
         # DISABLED: Monthly cleanup to preserve all historical data from 2020
         # 'historical-cleanup-monthly': {
